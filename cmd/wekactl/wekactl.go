@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"unicode"
+	"wekactl/internal/cli/aws"
 	"wekactl/internal/cli/cluster"
 	"wekactl/internal/cli/hostgroup"
 )
@@ -88,6 +89,7 @@ func Usage(cmd *cobra.Command) error {
 func init() {
 	rootCmd.AddCommand(cluster.Cluster)
 	rootCmd.AddCommand(hostgroup.HostGroup)
+	rootCmd.AddCommand(aws.AWS)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "help for this command")
 	rootCmd.SetUsageFunc(Usage)
