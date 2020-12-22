@@ -15,4 +15,5 @@ var Cluster = &cobra.Command{
 		}
 	},
 	SilenceUsage: true,
+	Aliases: []string{"clusters"},
 }
