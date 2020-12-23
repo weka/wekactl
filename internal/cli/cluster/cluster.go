@@ -6,6 +6,8 @@ import (
 )
 
 var Name string
+var Provider string
+var Region string
 var Cluster = &cobra.Command{
 	Use:   "cluster [command] [flags]",
 	Short: "Cluster operations",
