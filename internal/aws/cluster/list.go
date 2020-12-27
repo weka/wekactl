@@ -1,13 +1,8 @@
 package cluster
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
-	"github.com/olekukonko/tablewriter"
-	"os"
-	"reflect"
+	"wekactl/internal/aws/common"
 )
 
 type Cluster struct {
@@ -16,23 +11,8 @@ type Cluster struct {
 	creationTime string
 }
 
-func newSession(region string) *session.Session {
-	config := aws.NewConfig()
-	config = config.WithRegion(region)
-	config = config.WithCredentialsChainVerboseErrors(true)
-
-	// Create the options for the session
-	opts := session.Options{
-		Config:                  *config,
-		SharedConfigState:       session.SharedConfigEnable,
-		AssumeRoleTokenProvider: stscreds.StdinTokenProvider,
-	}
-
-	return session.Must(session.NewSessionWithOptions(opts))
-}
-
 func getStacks(region string) ([]Cluster, error) {
-	sess := newSession(region)
+	sess := common.NewSession(region)
 	svc := cloudformation.New(sess)
 	input := &cloudformation.ListStacksInput{}
 
@@ -56,30 +36,24 @@ func getStacks(region string) ([]Cluster, error) {
 	}
 }
 
-func createTable(fields []string) *tablewriter.Table {
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader(fields)
-	table.SetRowLine(true)
-	return table
-}
+func RenderStacksTable(region string) {
 
-func ClustersListAWS(region string) {
-
-	fields := []string{"stackName", "creationTime"}
+	fields := []string{
+		"stackName",
+		"creationTime",
+	}
 
 	clusters, err := getStacks(region)
 	if err != nil {
 		println(err.Error())
 	} else {
-		table := createTable(fields)
+		var data [][]string
 		for _, stack := range clusters {
-			s := reflect.ValueOf(&stack)
-			var values []string
-			for _, field := range fields {
-				values = append(values, reflect.Indirect(s).FieldByName(field).String())
-			}
-			table.Append(values)
+			data = append(data, []string{
+				stack.stackName,
+				stack.creationTime,
+			})
 		}
-		table.Render()
+		common.RenderTable(fields, data)
 	}
 }
