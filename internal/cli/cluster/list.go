@@ -1,6 +1,5 @@
 package cluster
 
-import "C"
 import (
 	"fmt"
 	"github.com/spf13/cobra"
@@ -13,7 +12,7 @@ var listCmd = &cobra.Command{
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		if Provider == "aws" {
-			cluster.ClustersListAWS(Region)
+			cluster.RenderStacksTable(Region)
 		} else {
 			fmt.Printf("Cloud provider '%s' is not supported with this action\n", Provider)
 		}
