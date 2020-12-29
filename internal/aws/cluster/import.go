@@ -106,7 +106,7 @@ func createLaunchTemplate(region, stackName, role string, instance *ec2.Instance
 	return launchTemplateName
 }
 
-func createAutoScalingGroup(region, stackName, role string, roleInstances []*ec2.Instance) string {
+func createAutoScalingGroup(region, stackName, role string, roleInstances []*ec2.Instance) (string, error) {
 	if len(roleInstances) > 0 {
 		launchTemplateName := createLaunchTemplate(region, stackName, role, roleInstances[0])
 		instancesNumber := int64(len(roleInstances))
@@ -125,15 +125,14 @@ func createAutoScalingGroup(region, stackName, role string, roleInstances []*ec2
 		}
 		_, err := svc.CreateAutoScalingGroup(input)
 		if err != nil {
-			log.Fatal().Err(err)
+			return "", err
 		}
 		log.Debug().Msgf("AutoScalingGroup: \"%s\" was created sucessfully!", name)
-		return name
+		return name, nil
 	} else {
 		fmt.Printf("No %s where found\n", strings.Title(role))
-		return ""
+		return "", nil
 	}
-	return ""
 }
 
 func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
@@ -160,7 +159,11 @@ func attachInstancesToAutoScalingGroups(region string, roleInstances []*ec2.Inst
 }
 
 func importClusterRole(region, stackName, role string, roleInstances []*ec2.Instance) {
-	autoScalingGroupName := createAutoScalingGroup(region, stackName, role, roleInstances)
+	autoScalingGroupName, err := createAutoScalingGroup(region, stackName, role, roleInstances)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	attachInstancesToAutoScalingGroups(region, roleInstances, autoScalingGroupName)
 }
 
