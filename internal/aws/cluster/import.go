@@ -143,19 +143,31 @@ func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
 	return instanceIds
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func attachInstancesToAutoScalingGroups(region string, roleInstances []*ec2.Instance, autoScalingGroupsName string) {
 	sess := common.NewSession(region)
 	svc := autoscaling.New(sess)
-	input := &autoscaling.AttachInstancesInput{
-		AutoScalingGroupName: &autoScalingGroupsName,
-		InstanceIds:          getInstancesIdsFromEc2Instance(roleInstances),
+	limit := 20
+	instancesIds := getInstancesIdsFromEc2Instance(roleInstances)
+	for i := 0; i < len(instancesIds); i += limit {
+		batch := instancesIds[i:min(i+limit, len(instancesIds))]
+		input := &autoscaling.AttachInstancesInput{
+			AutoScalingGroupName: &autoScalingGroupsName,
+			InstanceIds:          batch,
+		}
+		_, err := svc.AttachInstances(input)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			log.Debug().Msgf("Attaced %d instances to %s successfully!", len(batch), autoScalingGroupsName)
+		}
 	}
-	_, err := svc.AttachInstances(input)
-	if err != nil {
-		log.Fatal().Err(err)
-	}
-	log.Debug().Msgf("Attaced %d instances to %s successfully!", len(roleInstances), autoScalingGroupsName)
-
 }
 
 func importClusterRole(region, stackName, role string, roleInstances []*ec2.Instance) {
