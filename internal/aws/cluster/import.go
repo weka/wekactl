@@ -84,6 +84,7 @@ func createLaunchTemplate(region, stackName, role string, instance *ec2.Instance
 			ImageId:      instance.ImageId,
 			InstanceType: instance.InstanceType,
 			KeyName:      instance.KeyName,
+			UserData:     aws.String(""), // TODO: add necessary init script here
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 				{
 					AssociatePublicIpAddress: aws.Bool(true),
