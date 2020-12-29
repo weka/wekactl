@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"log"
+	"os"
 	"strings"
 	"unicode"
 	"wekactl/internal/cli/aws"
@@ -17,7 +19,7 @@ var rootCmd = &cobra.Command{
 	Short: "The official CLI for managing weka cloud formation stacks",
 	Run: func(c *cobra.Command, _ []string) {
 		if err := c.Help(); err != nil {
-			log.Printf("ignoring cobra error %q", err.Error())
+			log.Debug().Msgf("ignoring cobra error %q", err.Error())
 		}
 	},
 	SilenceUsage: true,
@@ -25,7 +27,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 }
 
@@ -99,5 +101,7 @@ func init() {
 }
 
 func main() {
-	rootCmd.Execute()
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	Execute()
 }

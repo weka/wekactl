@@ -1,8 +1,8 @@
 package cluster
 
 import (
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"log"
 )
 
 var Name string
@@ -13,9 +13,14 @@ var Cluster = &cobra.Command{
 	Short: "Cluster operations",
 	Run: func(c *cobra.Command, _ []string) {
 		if err := c.Help(); err != nil {
-			log.Printf("ignoring cobra error %q", err.Error())
+			log.Debug().Msgf("ignoring cobra error %q", err.Error())
 		}
 	},
 	SilenceUsage: true,
 	Aliases:      []string{"clusters"},
+}
+
+func init() {
+	Cluster.PersistentFlags().StringVarP(&Provider, "provider", "p", "aws", "Cloud provider")
+	Cluster.PersistentFlags().StringVarP(&Region, "region", "r", "", "Region")
 }
