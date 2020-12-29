@@ -1,8 +1,8 @@
 package hostgroup
 
 import (
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"log"
 )
 
 var HostGroup = &cobra.Command{
@@ -10,9 +10,8 @@ var HostGroup = &cobra.Command{
 	Short: "HostGroup operations",
 	Run: func(c *cobra.Command, _ []string) {
 		if err := c.Help(); err != nil {
-			log.Printf("ignoring cobra error %q", err.Error())
+			log.Debug().Msgf("ignoring cobra error %q", err.Error())
 		}
 	},
 	SilenceUsage: true,
 }
-

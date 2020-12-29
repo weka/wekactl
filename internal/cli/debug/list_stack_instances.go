@@ -20,8 +20,6 @@ var listInstancesCmd = &cobra.Command{
 }
 
 func init() {
-	listInstancesCmd.Flags().StringVarP(&Provider, "provider", "p", "aws", "Cloud provider")
-	listInstancesCmd.Flags().StringVarP(&Region, "region", "r", "", "Region")
 	listInstancesCmd.Flags().StringVarP(&Name, "name", "n", "", "Cloudformation Stack name")
 	listInstancesCmd.MarkFlagRequired("name")
 	Debug.AddCommand(listInstancesCmd)

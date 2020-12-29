@@ -20,7 +20,5 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	listCmd.Flags().StringVarP(&Provider, "provider", "p", "aws", "Cloud provider")
-	listCmd.Flags().StringVarP(&Region, "region", "r", "", "Region")
 	Cluster.AddCommand(listCmd)
 }
