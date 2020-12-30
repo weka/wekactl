@@ -8,6 +8,8 @@ import (
 var Name string
 var Provider string
 var Region string
+var Username string
+var Password string
 var Cluster = &cobra.Command{
 	Use:   "cluster [command] [flags]",
 	Short: "Cluster operations",
@@ -21,6 +23,6 @@ var Cluster = &cobra.Command{
 }
 
 func init() {
-	Cluster.PersistentFlags().StringVarP(&Provider, "provider", "p", "aws", "Cloud provider")
+	Cluster.PersistentFlags().StringVarP(&Provider, "provider", "c", "aws", "Cloud provider")
 	Cluster.PersistentFlags().StringVarP(&Region, "region", "r", "", "Region")
 }
