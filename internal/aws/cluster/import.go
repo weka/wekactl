@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/common"
@@ -77,6 +76,11 @@ func getInstancesInfo(region, stackName string) StackInstances {
 	return stackInstances
 }
 
+func getUuidFromStackId(stackId string) string {
+	s := strings.Split(stackId, "/")
+	return s[len(s)-1]
+}
+
 func getInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
 	var securityGroupIds []*string
 	for _, securityGroup := range instance.SecurityGroups {
@@ -88,8 +92,7 @@ func getInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
 func createLaunchTemplate(region, stackId, stackName, role string, instance *ec2.Instance) string {
 	sess := common.NewSession(region)
 	svc := ec2.New(sess)
-	u := uuid.New().String()
-	launchTemplateName := "weka-" + stackName + "-" + role + "-" + u
+	launchTemplateName := "weka-" + stackName + "-" + role + "-" + getUuidFromStackId(stackId)
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			ImageId:      instance.ImageId,
@@ -151,8 +154,7 @@ func createAutoScalingGroup(region, stackId, stackName, role string, roleInstanc
 		instancesNumber := int64(len(roleInstances))
 		sess := common.NewSession(region)
 		svc := autoscaling.New(sess)
-		u := uuid.New().String()
-		name := "weka-" + stackName + "-" + role + "-" + u
+		name := "weka-" + stackName + "-" + role + "-" + getUuidFromStackId(stackId)
 		input := &autoscaling.CreateAutoScalingGroupInput{
 			AutoScalingGroupName: aws.String(name),
 			LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
