@@ -22,6 +22,17 @@ var Roles = []string{
 	"clients",
 }
 
+func getStackId(region, stackName string) string {
+	sess := common.NewSession(region)
+	svc := cloudformation.New(sess)
+	input := &cloudformation.DescribeStacksInput{StackName: &stackName}
+	result, err := svc.DescribeStacks(input)
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	return *result.Stacks[0].StackId
+}
+
 func getClusterInstances(region, stackName string) []*string {
 	sess := common.NewSession(region)
 	svc := cloudformation.New(sess)
@@ -74,7 +85,7 @@ func getInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
 	return securityGroupIds
 }
 
-func createLaunchTemplate(region, stackName, role string, instance *ec2.Instance) string {
+func createLaunchTemplate(region, stackId, stackName, role string, instance *ec2.Instance) string {
 	sess := common.NewSession(region)
 	svc := ec2.New(sess)
 	u := uuid.New().String()
@@ -85,6 +96,33 @@ func createLaunchTemplate(region, stackName, role string, instance *ec2.Instance
 			InstanceType: instance.InstanceType,
 			KeyName:      instance.KeyName,
 			UserData:     aws.String(""), // TODO: add necessary init script here
+			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
+				{
+					ResourceType: aws.String("instance"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("wekactl.io/managed"),
+							Value: aws.String("true"),
+						},
+						{
+							Key:   aws.String("wekactl.io/api_version"),
+							Value: aws.String("v1"),
+						},
+						{
+							Key:   aws.String("wekactl.io/hostgroup_type"),
+							Value: aws.String(strings.TrimSuffix(role, "s")),
+						},
+						{
+							Key:   aws.String("wekactl.io/name"),
+							Value: aws.String(role),
+						},
+						{
+							Key:   aws.String("wekactl.io/stack_id"),
+							Value: aws.String(stackId),
+						},
+					},
+				},
+			},
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 				{
 					AssociatePublicIpAddress: aws.Bool(true),
@@ -107,9 +145,9 @@ func createLaunchTemplate(region, stackName, role string, instance *ec2.Instance
 	return launchTemplateName
 }
 
-func createAutoScalingGroup(region, stackName, role string, roleInstances []*ec2.Instance) (string, error) {
+func createAutoScalingGroup(region, stackId, stackName, role string, roleInstances []*ec2.Instance) (string, error) {
 	if len(roleInstances) > 0 {
-		launchTemplateName := createLaunchTemplate(region, stackName, role, roleInstances[0])
+		launchTemplateName := createLaunchTemplate(region, stackId, stackName, role, roleInstances[0])
 		instancesNumber := int64(len(roleInstances))
 		sess := common.NewSession(region)
 		svc := autoscaling.New(sess)
@@ -123,6 +161,28 @@ func createAutoScalingGroup(region, stackName, role string, roleInstances []*ec2
 			},
 			MinSize: aws.Int64(0),
 			MaxSize: aws.Int64(instancesNumber),
+			Tags: []*autoscaling.Tag{
+				{
+					Key:   aws.String("wekactl.io/managed"),
+					Value: aws.String("true"),
+				},
+				{
+					Key:   aws.String("wekactl.io/api_version"),
+					Value: aws.String("v1"),
+				},
+				{
+					Key:   aws.String("wekactl.io/hostgroup_type"),
+					Value: aws.String(strings.TrimSuffix(role, "s")),
+				},
+				{
+					Key:   aws.String("wekactl.io/name"),
+					Value: aws.String(role),
+				},
+				{
+					Key:   aws.String("wekactl.io/stack_id"),
+					Value: aws.String(stackId),
+				},
+			},
 		}
 		_, err := svc.CreateAutoScalingGroup(input)
 		if err != nil {
@@ -171,8 +231,8 @@ func attachInstancesToAutoScalingGroups(region string, roleInstances []*ec2.Inst
 	}
 }
 
-func importClusterRole(region, stackName, role string, roleInstances []*ec2.Instance) {
-	autoScalingGroupName, err := createAutoScalingGroup(region, stackName, role, roleInstances)
+func importClusterRole(region, stackId, stackName, role string, roleInstances []*ec2.Instance) {
+	autoScalingGroupName, err := createAutoScalingGroup(region, stackId, stackName, role, roleInstances)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -182,6 +242,7 @@ func importClusterRole(region, stackName, role string, roleInstances []*ec2.Inst
 
 func ImportCluster(region, stackName string) {
 	stackInstances := getInstancesInfo(region, stackName)
-	importClusterRole(region, stackName, "clients", stackInstances.clients)
-	importClusterRole(region, stackName, "backends", stackInstances.backends)
+	stackId := getStackId(region, stackName)
+	importClusterRole(region, stackId, stackName, "clients", stackInstances.clients)
+	importClusterRole(region, stackId, stackName, "backends", stackInstances.backends)
 }
