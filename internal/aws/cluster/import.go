@@ -17,11 +17,6 @@ type StackInstances struct {
 	clients  []*ec2.Instance
 }
 
-var Roles = []string{
-	"backends",
-	"clients",
-}
-
 func getStackId(region, stackName string) string {
 	sess := common.NewSession(region)
 	svc := cloudformation.New(sess)
