@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rs/zerolog/log"
 	"strings"
+	"sync"
 	"wekactl/internal/aws/common"
 )
 
@@ -74,6 +75,56 @@ func getInstancesInfo(region, stackName string) StackInstances {
 
 	}
 	return stackInstances
+}
+
+func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
+	var instanceIds []*string
+	for _, instance := range instances {
+		instanceIds = append(instanceIds, instance.InstanceId)
+	}
+	return instanceIds
+}
+
+func disableInstanceApiTermination(instanceId string, svc *ec2.EC2) (*ec2.ModifyInstanceAttributeOutput, error) {
+	input := &ec2.ModifyInstanceAttributeInput{
+		DisableApiTermination: &ec2.AttributeBooleanValue{
+			Value: aws.Bool(true),
+		},
+		InstanceId: aws.String(instanceId),
+	}
+	return svc.ModifyInstanceAttribute(input)
+}
+
+func disableInstancesApiTermination(region string, instances []*ec2.Instance) {
+	sess := common.NewSession(region)
+	svc := ec2.New(sess)
+
+	instanceIds := getInstancesIdsFromEc2Instance(instances)
+	parallelization := len(instanceIds)
+	c := make(chan string)
+
+	var wg sync.WaitGroup
+	wg.Add(parallelization)
+	for ii := 0; ii < parallelization; ii++ {
+		go func(c chan string) {
+			for {
+				v, more := <-c
+				if more == false {
+					wg.Done()
+					return
+				}
+				_, err := disableInstanceApiTermination(v, svc)
+				if err != nil {
+					log.Debug().Msgf("Failed to se DisableApiTermination on %s", v)
+				}
+			}
+		}(c)
+	}
+	for _, instanceId := range instanceIds {
+		c <- *instanceId
+	}
+	close(c)
+	wg.Wait()
 }
 
 func getUuidFromStackId(stackId string) string {
@@ -156,7 +207,8 @@ func createAutoScalingGroup(region, stackId, stackName, role string, roleInstanc
 		svc := autoscaling.New(sess)
 		name := "weka-" + stackName + "-" + role + "-" + getUuidFromStackId(stackId)
 		input := &autoscaling.CreateAutoScalingGroupInput{
-			AutoScalingGroupName: aws.String(name),
+			AutoScalingGroupName:             aws.String(name),
+			NewInstancesProtectedFromScaleIn: aws.Bool(true),
 			LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("1"),
@@ -198,14 +250,6 @@ func createAutoScalingGroup(region, stackId, stackName, role string, roleInstanc
 	}
 }
 
-func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
-	var instanceIds []*string
-	for _, instance := range instances {
-		instanceIds = append(instanceIds, instance.InstanceId)
-	}
-	return instanceIds
-}
-
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -245,6 +289,7 @@ func importClusterRole(region, stackId, stackName, role string, roleInstances []
 func ImportCluster(region, stackName string) {
 	stackInstances := getInstancesInfo(region, stackName)
 	stackId := getStackId(region, stackName)
+	disableInstancesApiTermination(region, append(stackInstances.clients, stackInstances.backends...))
 	importClusterRole(region, stackId, stackName, "clients", stackInstances.clients)
 	importClusterRole(region, stackId, stackName, "backends", stackInstances.backends)
 }
