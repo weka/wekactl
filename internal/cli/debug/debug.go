@@ -21,6 +21,6 @@ var Debug = &cobra.Command{
 }
 
 func init() {
-	Debug.PersistentFlags().StringVarP(&Provider, "provider", "p", "aws", "Cloud provider")
+	Debug.PersistentFlags().StringVarP(&Provider, "provider", "c", "aws", "Cloud provider")
 	Debug.PersistentFlags().StringVarP(&Region, "region", "r", "", "Region")
 }
