@@ -15,7 +15,7 @@ tasks:
   weka-upload-lambdas-dev:
     desc: Build and upload current code as lambdas to single official bucket in dev mode
     env:
-      WEKACTL_AWS_LAMBDAS_BUCKETS: "eu-west-1=weka-wekactl-images-eu-west-1"
+      WEKACTL_AWS_LAMBDAS_BUCKETS: "eu-central-1=weka-wekactl-images-eu-central-1"
       AWS_PROFILE: devops
       WEKACTL_IGNORE_DIRTY: 1
       WEKACTL_FORCE_DEV: 1
