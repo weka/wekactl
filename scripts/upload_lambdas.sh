@@ -5,7 +5,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 cd ../
 
-if [[ $(git status --porcelain) != "" ]]; then
+if [[ $(git status --porcelain) != "" || "$WEKACTL_FORCE_DEV" == "1" ]]; then
   if [[ "$WEKACTL_IGNORE_DIRTY" == "1" ]]; then
     echo "Using random instead of hash for lambdas identifier"
     LAMBDAS_ID=dev/$(uuidgen)
@@ -23,27 +23,37 @@ fi
 GOOS=linux GOARCH=amd64 go build -o tmp/lambdas-bin cmd/wekactl/*.go
 cd tmp/
 zip wekactl.zip lambdas-bin
+zip scale_in_lambda.zip ../lambdas/aws/scale_in_lambda.py
 cd -
+
 
 echo "Building lambdas with ID: $LAMBDAS_ID"
 AWS_DIST="internal/aws/dist/dist_generated.go"
 rm -f $AWS_DIST
 
-first_target=""
-if [[ -n $WEKACTL_AWS_LAMBDAS_BUCKETS ]]; then
+distribute () {
+  ZIP_PATH=$1
+  FILENAME=$(basename "$ZIP_PATH")
+  first_target=""
   echo "Distributing lambdas to AWS regions"
   echo "$WEKACTL_AWS_LAMBDAS_BUCKETS" | while IFS=, read -r awspair; do
   IFS="=" read -r region bucket <<< "$awspair"
   if [[ "$first_target" == "" ]]; then
-    first_target="s3://$bucket/$LAMBDAS_ID/wekactl.zip"
-    aws s3 cp --region $region tmp/wekactl.zip $first_target --acl public-read
+    first_target="s3://$bucket/$LAMBDAS_ID/$FILENAME"
+    aws s3 cp --region "$region" "$ZIP_PATH" "$first_target" --acl public-read
     first_region=$region
   else
-    aws s3 cp --region $region --source-region $first_region $first_target s3://$bucket/$LAMBDAS_ID/wekactl.zip --acl public-read
+    aws s3 cp --region "$region" --source-region "$first_region" "$first_target" s3://"$bucket"/"$LAMBDAS_ID"/wekactl.zip --acl public-read
   fi
   done
+}
 
-  go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" lambda/id $AWS_DIST
+if [[ -n $WEKACTL_AWS_LAMBDAS_BUCKETS ]]; then
+  if [[ -z $WEKACTL_SKIP_GO_LAMBDA ]]; then
+    distribute tmp/wekactl.zip
+    go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" lambda/id $AWS_DIST
+  fi
+  distribute tmp/scale_in_lambda.zip
 fi
 
 cd -
