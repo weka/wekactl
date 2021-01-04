@@ -20,9 +20,9 @@ if [[ "$LAMBDAS_ID" == "" ]]; then
 fi
 
 
-GOOS=linux GOARCH=amd64 go build -o tmp/lambdas-bin cmd/wekactl/*.go
+GOOS=linux GOARCH=amd64 go build -o tmp/lambdas-bin cmd/wekactl-aws-lambdas/*.go
 cd tmp/
-zip wekactl.zip lambdas-bin
+zip wekactl-aws-lambdas.zip lambdas-bin
 zip scale_in_lambda.zip ../lambdas/aws/scale_in_lambda.py
 cd -
 
@@ -43,14 +43,14 @@ distribute () {
     aws s3 cp --region "$region" "$ZIP_PATH" "$first_target" --acl public-read
     first_region=$region
   else
-    aws s3 cp --region "$region" --source-region "$first_region" "$first_target" s3://"$bucket"/"$LAMBDAS_ID"/wekactl.zip --acl public-read
+    aws s3 cp --region "$region" --source-region "$first_region" "$first_target" s3://"$bucket"/"$LAMBDAS_ID"/wekactl-aws-lambdas.zip --acl public-read
   fi
   done
 }
 
 if [[ -n $WEKACTL_AWS_LAMBDAS_BUCKETS ]]; then
   if [[ -z $WEKACTL_SKIP_GO_LAMBDA ]]; then
-    distribute tmp/wekactl.zip
+    distribute tmp/wekactl-aws-lambdas.zip
     go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" $LAMBDAS_ID $AWS_DIST
   fi
   distribute tmp/scale_in_lambda.zip

@@ -12,7 +12,7 @@ type LambdaPackage string
 
 const (
 	ScaleIn LambdaPackage = "scale_in_lambda.zip"
-	WekaCtl LambdaPackage = "wekactl.zip"
+	WekaCtl LambdaPackage = "wekactl-aws-lambdas.zip"
 )
 
 func GetLambdaLocation(lambdaPackage LambdaPackage, region string) (location string, err error){
