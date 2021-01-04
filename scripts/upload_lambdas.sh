@@ -51,7 +51,7 @@ distribute () {
 if [[ -n $WEKACTL_AWS_LAMBDAS_BUCKETS ]]; then
   if [[ -z $WEKACTL_SKIP_GO_LAMBDA ]]; then
     distribute tmp/wekactl.zip
-    go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" lambda/id $AWS_DIST
+    go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" $LAMBDAS_ID $AWS_DIST
   fi
   distribute tmp/scale_in_lambda.zip
 fi
