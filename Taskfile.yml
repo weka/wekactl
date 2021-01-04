@@ -18,5 +18,6 @@ tasks:
       WEKACTL_AWS_LAMBDAS_BUCKETS: "eu-west-1=weka-wekactl-images-eu-west-1"
       AWS_PROFILE: devops
       WEKACTL_IGNORE_DIRTY: 1
+      WEKACTL_FORCE_DEV: 1
     cmds:
       - ./scripts/upload_lambdas.sh
