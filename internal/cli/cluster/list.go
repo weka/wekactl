@@ -18,7 +18,3 @@ var listCmd = &cobra.Command{
 		}
 	},
 }
-
-func init() {
-	Cluster.AddCommand(listCmd)
-}

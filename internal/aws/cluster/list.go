@@ -3,6 +3,7 @@ package cluster
 import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/connectors"
 )
 
 type Cluster struct {
@@ -11,9 +12,8 @@ type Cluster struct {
 	creationTime string
 }
 
-func getStacks(region string) ([]Cluster, error) {
-	sess := common.NewSession(region)
-	svc := cloudformation.New(sess)
+func getStacks() ([]Cluster, error) {
+	svc := connectors.GetAWSSession().CF
 	input := &cloudformation.ListStacksInput{}
 
 	result, err := svc.ListStacks(input)
@@ -43,7 +43,7 @@ func RenderStacksTable(region string) {
 		"creationTime",
 	}
 
-	clusters, err := getStacks(region)
+	clusters, err := getStacks()
 	if err != nil {
 		println(err.Error())
 	} else {

@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/connectors"
 )
 
 type Instance struct {
@@ -14,9 +15,8 @@ type Instance struct {
 	role       string
 }
 
-func getInstancesStatus(region string, instanceId string) string {
-	sess := common.NewSession(region)
-	svc := ec2.New(sess)
+func getInstancesStatus(instanceId string) string {
+	svc := connectors.GetAWSSession().EC2
 	input := &ec2.DescribeInstanceStatusInput{
 		InstanceIds: []*string{
 			aws.String(instanceId),
@@ -36,9 +36,8 @@ func getInstancesStatus(region string, instanceId string) string {
 		return *result.InstanceStatuses[0].InstanceState.Name
 	}
 }
-func getStackInstances(region, stackName string) ([]Instance, error) {
-	sess := common.NewSession(region)
-	svc := cloudformation.New(sess)
+func getStackInstances(stackName string) ([]Instance, error) {
+	svc := connectors.GetAWSSession().CF
 	input := &cloudformation.DescribeStackResourcesInput{StackName: &stackName}
 	result, err := svc.DescribeStackResources(input)
 	var instances []Instance
@@ -49,7 +48,7 @@ func getStackInstances(region, stackName string) ([]Instance, error) {
 			if *resource.ResourceType == "AWS::EC2::Instance" {
 				instances = append(instances, Instance{
 					instanceId: *resource.PhysicalResourceId,
-					status:     getInstancesStatus(region, *resource.PhysicalResourceId),
+					status:     getInstancesStatus(*resource.PhysicalResourceId),
 					role:       *resource.LogicalResourceId,
 				})
 			}
@@ -58,13 +57,13 @@ func getStackInstances(region, stackName string) ([]Instance, error) {
 	return instances, nil
 }
 
-func RenderInstancesTable(region, stackName string) {
+func RenderInstancesTable(stackName string) {
 	fields := []string{
 		"instanceId",
 		"status",
 		"role",
 	}
-	instances, err := getStackInstances(region, stackName)
+	instances, err := getStackInstances(stackName)
 	if err != nil {
 		println(err.Error())
 	} else {

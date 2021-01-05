@@ -12,7 +12,7 @@ var listInstancesCmd = &cobra.Command{
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		if Provider == "aws" {
-			debug.RenderInstancesTable(Region, Name)
+			debug.RenderInstancesTable(Name)
 		} else {
 			fmt.Printf("Cloud provider '%s' is not supported with this action\n", Provider)
 		}

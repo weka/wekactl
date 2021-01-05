@@ -12,6 +12,7 @@ import (
 	"wekactl/internal/cli/cluster"
 	"wekactl/internal/cli/debug"
 	"wekactl/internal/cli/hostgroup"
+	"wekactl/internal/env"
 )
 
 var rootCmd = &cobra.Command{
@@ -96,8 +97,9 @@ func init() {
 	rootCmd.AddCommand(debug.Debug)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "help for this command")
+	rootCmd.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "c", "aws", "Cloud provider")
+	rootCmd.PersistentFlags().StringVarP(&env.Config.Region, "region", "r", "", "Region")
 	rootCmd.SetUsageFunc(Usage)
-
 }
 
 func main() {

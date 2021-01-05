@@ -15,7 +15,7 @@ var GetInstanceJoinParamsCmd = &cobra.Command{
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		if Provider == "aws" {
-			res, err := lambdas.GetJoinParams(Region, AsgName, TableName)
+			res, err := lambdas.GetJoinParams(AsgName, TableName)
 			if err != nil {
 				fmt.Println(err)
 			} else {
@@ -31,7 +31,7 @@ func init() {
 	GetInstanceJoinParamsCmd.Flags().StringVarP(&AsgName, "asg-name", "g", "", "Auto scaling group name")
 	GetInstanceJoinParamsCmd.Flags().StringVarP(&TableName, "table-name", "t", "", "Dynamo DB table name")
 
-	GetInstanceJoinParamsCmd.MarkFlagRequired("asg-name")
-	GetInstanceJoinParamsCmd.MarkFlagRequired("table-name")
+	_ = GetInstanceJoinParamsCmd.MarkFlagRequired("asg-name")
+	_ = GetInstanceJoinParamsCmd.MarkFlagRequired("table-name")
 	Debug.AddCommand(GetInstanceJoinParamsCmd)
 }

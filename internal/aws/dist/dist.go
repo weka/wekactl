@@ -15,7 +15,7 @@ const (
 	WekaCtl LambdaPackage = "wekactl-aws-lambdas.zip"
 )
 
-func GetLambdaLocation(lambdaPackage LambdaPackage, region string) (location string, err error){
+func GetLambdaLocation(lambdaPackage LambdaPackage, region string) (location string, err error) {
 	if LambdasID == "" {
 		return "", errors.New("lambda ID not defined")
 	}

@@ -1,6 +1,9 @@
 package cluster
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -9,15 +12,21 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/semaphore"
 	"strings"
 	"sync"
-	"wekactl/internal/aws/common"
+	"sync/atomic"
+	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
 )
 
 type StackInstances struct {
 	backends []*ec2.Instance
 	clients  []*ec2.Instance
+}
+
+func (s *StackInstances) All() []*ec2.Instance {
+	return append(s.clients[0:len(s.clients):len(s.clients)], s.backends...)
 }
 
 type Tag struct {
@@ -43,22 +52,24 @@ type HostGroup struct {
 	stack Stack
 }
 
-func getStackId(region, stackName string) string {
-	sess := common.NewSession(region)
-	svc := cloudformation.New(sess)
-	input := &cloudformation.DescribeStacksInput{StackName: &stackName}
-	result, err := svc.DescribeStacks(input)
+func getStackId(stackName string) (string, error) {
+	svc := connectors.GetAWSSession().CF
+	result, err := svc.DescribeStacks(&cloudformation.DescribeStacksInput{
+		StackName: &stackName,
+	})
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Error().Err(err)
+		return "", err
 	}
-	return *result.Stacks[0].StackId
+	return *result.Stacks[0].StackId, nil
 }
 
-func getClusterInstances(region, stackName string) []*string {
-	sess := common.NewSession(region)
-	svc := cloudformation.New(sess)
-	input := &cloudformation.DescribeStackResourcesInput{StackName: &stackName}
-	result, err := svc.DescribeStackResources(input)
+func getClusterInstances(stackName string) ([]*string, error) {
+	svc := connectors.GetAWSSession().CF
+
+	result, err := svc.DescribeStackResources(&cloudformation.DescribeStackResourcesInput{
+		StackName: &stackName,
+	})
 	var instancesIds []*string
 	if err != nil {
 		log.Fatal().Err(err)
@@ -69,21 +80,21 @@ func getClusterInstances(region, stackName string) []*string {
 			}
 		}
 	}
-	return instancesIds
+	return instancesIds, nil
 }
 
-func getInstancesInfo(region, stackName string) StackInstances {
-	sess := common.NewSession(region)
-	svc := ec2.New(sess)
-	input := &ec2.DescribeInstancesInput{
-		InstanceIds: getClusterInstances(region, stackName),
-	}
-	result, err := svc.DescribeInstances(input)
+func getInstancesInfo(stackName string) (stackInstances StackInstances, err error) {
+	svc := connectors.GetAWSSession().EC2
+	instances, err := getClusterInstances(stackName)
 	if err != nil {
-		log.Fatal().Err(err)
+		return
 	}
-
-	stackInstances := StackInstances{}
+	result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: instances,
+	})
+	if err != nil {
+		return
+	}
 
 	for _, reservation := range result.Reservations {
 		instance := reservation.Instances[0]
@@ -95,7 +106,7 @@ func getInstancesInfo(region, stackName string) StackInstances {
 		}
 
 	}
-	return stackInstances
+	return stackInstances, nil
 }
 
 func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
@@ -106,7 +117,8 @@ func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
 	return instanceIds
 }
 
-func disableInstanceApiTermination(instanceId string, svc *ec2.EC2) (*ec2.ModifyInstanceAttributeOutput, error) {
+func disableInstanceApiTermination(instanceId string) (*ec2.ModifyInstanceAttributeOutput, error) {
+	svc := connectors.GetAWSSession().EC2
 	input := &ec2.ModifyInstanceAttributeInput{
 		DisableApiTermination: &ec2.AttributeBooleanValue{
 			Value: aws.Bool(true),
@@ -116,36 +128,38 @@ func disableInstanceApiTermination(instanceId string, svc *ec2.EC2) (*ec2.Modify
 	return svc.ModifyInstanceAttribute(input)
 }
 
-func disableInstancesApiTermination(region string, instances []*ec2.Instance) {
-	sess := common.NewSession(region)
-	svc := ec2.New(sess)
+var terminationSemaphore *semaphore.Weighted
 
+func init() {
+	terminationSemaphore = semaphore.NewWeighted(20)
+}
+
+func disableInstancesApiTermination(instances []*ec2.Instance) error {
 	instanceIds := getInstancesIdsFromEc2Instance(instances)
-	parallelization := len(instanceIds)
-	c := make(chan string)
 
 	var wg sync.WaitGroup
-	wg.Add(parallelization)
-	for ii := 0; ii < parallelization; ii++ {
-		go func(c chan string) {
-			for {
-				v, more := <-c
-				if more == false {
-					wg.Done()
-					return
-				}
-				_, err := disableInstanceApiTermination(v, svc)
-				if err != nil {
-					log.Debug().Msgf("Failed to se DisableApiTermination on %s", v)
-				}
+	var failedInstances int64
+
+	wg.Add(len(instanceIds))
+	for i := range instanceIds {
+		go func(i int) {
+			_ = terminationSemaphore.Acquire(context.Background(), 1)
+			defer terminationSemaphore.Release(1)
+			defer wg.Done()
+
+			_, err := disableInstanceApiTermination(*instanceIds[i])
+			if err != nil {
+				atomic.AddInt64(&failedInstances, 1)
+				log.Error().Msgf("failed to set DisableApiTermination on %s", *instanceIds[i])
 			}
-		}(c)
+		}(i)
 	}
-	for _, instanceId := range instanceIds {
-		c <- *instanceId
-	}
-	close(c)
 	wg.Wait()
+	if failedInstances != 0 {
+		return errors.New(fmt.Sprintf("failed to set DisableApiTermination on %d instances", failedInstances))
+	}
+	return nil
+
 }
 
 func getUuidFromStackId(stackId string) string {
@@ -193,11 +207,11 @@ func getHostGroupTags(hostGroup HostGroup) []Tag {
 	return tags
 }
 
-func getEc2Tags(role, stackId string) []*ec2.Tag {
+func getEc2Tags(name, role, stackId string) []*ec2.Tag {
 	var ec2Tags []*ec2.Tag
 	for _, tag := range getHostGroupTags(HostGroup{
-		name:  role,
-		role:  strings.TrimSuffix(role, "s"),
+		name:  name,
+		role:  role,
 		stack: Stack{stackId: stackId},
 	}) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{
@@ -208,18 +222,17 @@ func getEc2Tags(role, stackId string) []*ec2.Tag {
 	return ec2Tags
 }
 
-func generateResourceName(stackId, stackName, role string) string {
+func generateResourceName(stackId, stackName, resourceName string) string {
 	name := "weka-" + stackName + "-"
-	if role != "" {
-		name += role + "-"
+	if resourceName != "" {
+		name += resourceName + "-"
 	}
 	return name + getUuidFromStackId(stackId)
 }
 
-func createLaunchTemplate(region, stackId, stackName, role string, instance *ec2.Instance) string {
-	sess := common.NewSession(region)
-	svc := ec2.New(sess)
-	launchTemplateName := generateResourceName(stackId, stackName, role)
+func createLaunchTemplate(stackId, stackName, name string, role string, instance *ec2.Instance) string {
+	svc := connectors.GetAWSSession().EC2
+	launchTemplateName := generateResourceName(stackId, stackName, name)
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			ImageId:      instance.ImageId,
@@ -229,7 +242,7 @@ func createLaunchTemplate(region, stackId, stackName, role string, instance *ec2
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
-					Tags:         getEc2Tags(role, stackId),
+					Tags:         getEc2Tags(name, role, stackId),
 				},
 			},
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -250,15 +263,15 @@ func createLaunchTemplate(region, stackId, stackName, role string, instance *ec2
 	if err != nil {
 		log.Fatal().Err(err)
 	}
-	log.Debug().Msgf("LaunchTemplate: \"%s\" was created sucessfully!", launchTemplateName)
+	log.Debug().Msgf("LaunchTemplate: \"%s\" was created successfully!", launchTemplateName)
 	return launchTemplateName
 }
 
-func getAutoScalingTags(role, stackId string) []*autoscaling.Tag {
+func getAutoScalingTags(name, role, stackId string) []*autoscaling.Tag {
 	var autoscalingTags []*autoscaling.Tag
 	for _, tag := range getHostGroupTags(HostGroup{
-		name:  role,
-		role:  strings.TrimSuffix(role, "s"),
+		name:  name,
+		role:  role,
 		stack: Stack{stackId: stackId},
 	}) {
 		autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
@@ -269,34 +282,26 @@ func getAutoScalingTags(role, stackId string) []*autoscaling.Tag {
 	return autoscalingTags
 }
 
-func createAutoScalingGroup(region, stackId, stackName, role string, roleInstances []*ec2.Instance) (string, error) {
-	if len(roleInstances) > 0 {
-		launchTemplateName := createLaunchTemplate(region, stackId, stackName, role, roleInstances[0])
-		instancesNumber := int64(len(roleInstances))
-		sess := common.NewSession(region)
-		svc := autoscaling.New(sess)
-		name := generateResourceName(stackId, stackName, role)
-		input := &autoscaling.CreateAutoScalingGroupInput{
-			AutoScalingGroupName:             aws.String(name),
-			NewInstancesProtectedFromScaleIn: aws.Bool(true),
-			LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
-				LaunchTemplateName: aws.String(launchTemplateName),
-				Version:            aws.String("1"),
-			},
-			MinSize: aws.Int64(0),
-			MaxSize: aws.Int64(instancesNumber),
-			Tags:    getAutoScalingTags(role, stackId),
-		}
-		_, err := svc.CreateAutoScalingGroup(input)
-		if err != nil {
-			return "", err
-		}
-		log.Debug().Msgf("AutoScalingGroup: \"%s\" was created sucessfully!", name)
-		return name, nil
-	} else {
-		logging.UserProgress("No %s where found", strings.Title(role))
-		return "", nil
+func createAutoScalingGroup(stackId, stackName, name string, role string, maxSize int, launchTemplateName string) (string, error) {
+	svc := connectors.GetAWSSession().ASG
+	resourceName := generateResourceName(stackId, stackName, name)
+	input := &autoscaling.CreateAutoScalingGroupInput{
+		AutoScalingGroupName:             aws.String(resourceName),
+		NewInstancesProtectedFromScaleIn: aws.Bool(true),
+		LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			LaunchTemplateName: aws.String(launchTemplateName),
+			Version:            aws.String("1"),
+		},
+		MinSize: aws.Int64(0),
+		MaxSize: aws.Int64(int64(maxSize)),
+		Tags:    getAutoScalingTags(name, role, stackId),
 	}
+	_, err := svc.CreateAutoScalingGroup(input)
+	if err != nil {
+		return "", err
+	}
+	log.Debug().Msgf("AutoScalingGroup: \"%s\" was created successfully!", resourceName)
+	return resourceName, nil
 }
 
 func min(a, b int) int {
@@ -306,24 +311,22 @@ func min(a, b int) int {
 	return b
 }
 
-func attachInstancesToAutoScalingGroups(region string, roleInstances []*ec2.Instance, autoScalingGroupsName string) {
-	sess := common.NewSession(region)
-	svc := autoscaling.New(sess)
+func attachInstancesToAutoScalingGroups(roleInstances []*ec2.Instance, autoScalingGroupsName string) error {
+	svc := connectors.GetAWSSession().ASG
 	limit := 20
 	instancesIds := getInstancesIdsFromEc2Instance(roleInstances)
 	for i := 0; i < len(instancesIds); i += limit {
 		batch := instancesIds[i:min(i+limit, len(instancesIds))]
-		input := &autoscaling.AttachInstancesInput{
+		_, err := svc.AttachInstances(&autoscaling.AttachInstancesInput{
 			AutoScalingGroupName: &autoScalingGroupsName,
 			InstanceIds:          batch,
-		}
-		_, err := svc.AttachInstances(input)
+		})
 		if err != nil {
-			log.Debug().Msgf(err.Error())
-		} else {
-			log.Debug().Msgf("Attached %d instances to %s successfully!", len(batch), autoScalingGroupsName)
+			return err
 		}
+		log.Debug().Msgf("Attached %d instances to %s successfully!", len(batch), autoScalingGroupsName)
 	}
+	return nil
 }
 
 func getKMSTags(stackId string) []*kms.Tag {
@@ -337,9 +340,9 @@ func getKMSTags(stackId string) []*kms.Tag {
 	return kmsTags
 }
 
-func createKMSKey(region, stackId, stackName string) (*string, error) {
-	sess := common.NewSession(region)
-	svc := kms.New(sess)
+func createKMSKey(stackId, stackName string) (*string, error) {
+	svc := connectors.GetAWSSession().KMS
+
 	input := &kms.CreateKeyInput{
 		Tags: getKMSTags(stackId),
 	}
@@ -373,15 +376,14 @@ func getDynamodbTags(stackId string) []*dynamodb.Tag {
 	return dynamodbTags
 }
 
-func createAndUpdateDB(region, stackName, stackId, username, password string) error {
-	kmsKey, err := createKMSKey(region, stackId, stackName)
+func createAndUpdateDB(stackName, stackId, username, password string) error {
+	kmsKey, err := createKMSKey(stackId, stackName)
 	if err != nil {
 		log.Debug().Msg("Failed creating KMS key, DB was not created")
 		return err
 	}
 
-	sess := common.NewSession(region)
-	svc := dynamodb.New(sess)
+	svc := connectors.GetAWSSession().DynamoDB
 
 	tableName := generateResourceName(stackId, stackName, "")
 
@@ -412,64 +414,89 @@ func createAndUpdateDB(region, stackName, stackId, username, password string) er
 	if err != nil {
 		log.Debug().Msg("Failed creating table")
 		return err
-	} else {
-		logging.UserProgress("Waiting for table \"%s\" to be created...", tableName)
-		input := &dynamodb.DescribeTableInput{TableName: aws.String(tableName)}
-		err := svc.WaitUntilTableExists(input)
-		if err != nil {
-			return err
-		} else {
-			log.Debug().Msgf("Table %s was created successfully!", tableName)
-			item := JoinParamsDb{
-				Key:      "join-params",
-				Username: username,
-				Password: password,
-			}
-			av, err := dynamodbattribute.MarshalMap(item)
-			if err != nil {
-				log.Debug().Msg("Got error marshalling user name and password")
-				return err
-			} else {
-				input := &dynamodb.PutItemInput{
-					Item:      av,
-					TableName: aws.String(tableName),
-				}
-				_, err = svc.PutItem(input)
-				if err != nil {
-					log.Debug().Msg("Got error inserting username and password to DB")
-					return err
-				} else {
-					log.Debug().Msgf("Username:%s and Password:%s were added to DB successfully!", username, strings.Repeat("*", len(password)))
-					return nil
-				}
-			}
-		}
 	}
-}
 
-func importClusterRole(region, stackId, stackName, role string, roleInstances []*ec2.Instance) error{
-	autoScalingGroupName, err := createAutoScalingGroup(region, stackId, stackName, role, roleInstances)
+	logging.UserProgress("Waiting for table \"%s\" to be created...", tableName)
+	err = svc.WaitUntilTableExists(&dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	})
+
 	if err != nil {
 		return err
 	}
-	attachInstancesToAutoScalingGroups(region, roleInstances, autoScalingGroupName)
+
+	logging.UserProgress("Table %s was created successfully!", tableName)
+	item := JoinParamsDb{
+		Key:      "cluster-creds",
+		Username: username,
+		Password: password,
+	}
+	av, err := dynamodbattribute.MarshalMap(item)
+	if err != nil {
+		log.Debug().Msg("Got error marshalling user name and password")
+		return err
+	}
+	_, err = svc.PutItem(&dynamodb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(tableName),
+	})
+	if err != nil {
+		log.Debug().Msg("Got error inserting username and password to DB")
+		return err
+	}
+	log.Debug().Msgf("Username:%s and Password:%s were added to DB successfully!", username, strings.Repeat("*", len(password)))
 	return nil
 }
 
-func ImportCluster(region, stackName, username, password string) error {
-	stackId := getStackId(region, stackName)
-	err := createAndUpdateDB(region, stackName, stackId, username, password)
+func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Instance) error {
+	if len(roleInstances) == 0 {
+		logging.UserProgress("instances with role '%s' not found", role)
+		return nil
+	}
+
+	var name string
+	switch role {
+	case "backend":
+		name = "Backends"
+	case "client":
+		name = "Clients"
+	default:
+		return errors.New(fmt.Sprintf("import of role %s is unsupported", role))
+	}
+
+	launchTemplateName := createLaunchTemplate(stackId, stackName, name, role, roleInstances[0])
+	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, len(roleInstances), launchTemplateName)
 	if err != nil {
 		return err
 	}
-	stackInstances := getInstancesInfo(region, stackName)
-	disableInstancesApiTermination(region, append(stackInstances.clients, stackInstances.backends...))
-	err = importClusterRole(region, stackId, stackName, "clients", stackInstances.clients)
-	if err != nil{
+	return attachInstancesToAutoScalingGroups(roleInstances, autoScalingGroupName)
+}
+
+func ImportCluster(stackName, username, password string) error {
+	stackId, err := getStackId(stackName)
+	if err != nil {
 		return err
 	}
-	err = importClusterRole(region, stackId, stackName, "backends", stackInstances.backends)
-	if err != nil{
+	err = createAndUpdateDB(stackName, stackId, username, password)
+	if err != nil {
+		return err
+	}
+	stackInstances, err := getInstancesInfo(stackName)
+	if err != nil {
+		return err
+	}
+
+	err = disableInstancesApiTermination(stackInstances.All())
+	if err != nil {
+		return err
+	}
+
+	err = importClusterRole(stackId, stackName, "client", stackInstances.clients)
+	if err != nil {
+		return err
+	}
+	err = importClusterRole(stackId, stackName, "backend", stackInstances.backends)
+	if err != nil {
 		return err
 	}
 	return nil

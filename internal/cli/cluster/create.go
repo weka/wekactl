@@ -5,18 +5,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var CreateCmd = &cobra.Command{
+var createParams struct {
+	name string
+}
+
+var createCmd = &cobra.Command{
 	Use:   "create [flags]",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("Creating cluster %s...\n", Name)
+		fmt.Printf("Creating cluster %s...\n", createParams.name)
 		return nil
 	},
 }
 
 func init() {
-	CreateCmd.Flags().StringVarP(&Name, "name", "n", "", "EKS cluster name")
-	CreateCmd.MarkFlagRequired("name")
-	Cluster.AddCommand(CreateCmd)
+	createCmd.Flags().StringVarP(&createParams.name, "name", "n", "", "EKS cluster name")
+	_ = createCmd.MarkFlagRequired("name")
 }

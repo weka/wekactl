@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"strings"
-	"wekactl/internal/aws/common"
+	"wekactl/internal/connectors"
 )
 
 func getTagValue(tags []*ec2.Tag, key string) string {
@@ -19,9 +19,8 @@ func getTagValue(tags []*ec2.Tag, key string) string {
 	return ""
 }
 
-func getInstanceRole(region, instanceId string) string {
-	sess := common.NewSession(region)
-	svc := ec2.New(sess)
+func getInstanceRole(instanceId string) string {
+	svc := connectors.GetAWSSession().EC2
 	input := &ec2.DescribeInstancesInput{
 		InstanceIds: []*string{
 			aws.String(instanceId),
@@ -43,10 +42,9 @@ func getInstanceRole(region, instanceId string) string {
 	return ""
 }
 
-func CreateAutoScalingGroup(region, instanceId string, minSize, maxSize int64) string {
-	sess := common.NewSession(region)
-	svc := autoscaling.New(sess)
-	role := getInstanceRole(region, instanceId)
+func CreateAutoScalingGroup(instanceId string, minSize, maxSize int64) string {
+	svc := connectors.GetAWSSession().ASG
+	role := getInstanceRole(instanceId)
 	u := uuid.New().String()
 	name := "weka-" + role + "-" + u
 	input := &autoscaling.CreateAutoScalingGroupInput{

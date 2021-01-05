@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"wekactl/internal/aws/cluster"
-	"wekactl/internal/aws/common"
+	"wekactl/internal/connectors"
 )
 
 type JoinInfo struct {
@@ -18,11 +18,10 @@ type JoinInfo struct {
 	Ips      []string
 }
 
-func getAutoScalingGroupInstanceIps(region, asgName string) ([]string, error) {
-	sess := common.NewSession(region)
-	svc := autoscaling.New(sess)
+func getAutoScalingGroupInstanceIps(asgName string) ([]string, error) {
+	asgsvc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
-	result, err := svc.DescribeAutoScalingGroups(input)
+	result, err := asgsvc.DescribeAutoScalingGroups(input)
 	if err != nil {
 		return nil, err
 	} else {
@@ -30,9 +29,9 @@ func getAutoScalingGroupInstanceIps(region, asgName string) ([]string, error) {
 		for _, instance := range result.AutoScalingGroups[0].Instances {
 			instanceIds = append(instanceIds, instance.InstanceId)
 		}
-		svc := ec2.New(sess)
+		ec2svc := connectors.GetAWSSession().EC2
 		input := &ec2.DescribeInstancesInput{InstanceIds: instanceIds}
-		result, err := svc.DescribeInstances(input)
+		result, err := ec2svc.DescribeInstances(input)
 		if err != nil {
 			return nil, err
 		} else {
@@ -45,14 +44,13 @@ func getAutoScalingGroupInstanceIps(region, asgName string) ([]string, error) {
 	}
 }
 
-func getUsernameAndPassword(region, tableName string) (string, string, error) {
-	sess := common.NewSession(region)
-	svc := dynamodb.New(sess)
+func getUsernameAndPassword(tableName string) (string, string, error) {
+	svc := connectors.GetAWSSession().DynamoDB
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]*dynamodb.AttributeValue{
 			"Key": {
-				S: aws.String("join-params"),
+				S: aws.String("cluster-creds"),
 			},
 		},
 	}
@@ -72,12 +70,12 @@ func getUsernameAndPassword(region, tableName string) (string, string, error) {
 	}
 }
 
-func GetJoinParams(region, asgName, tableName string) (string, error) {
-	ips, err := getAutoScalingGroupInstanceIps(region, asgName)
+func GetJoinParams(asgName, tableName string) (string, error) {
+	ips, err := getAutoScalingGroupInstanceIps(asgName)
 	if err != nil {
 		return "", err
 	} else {
-		username, password, err := getUsernameAndPassword(region, tableName)
+		username, password, err := getUsernameAndPassword(tableName)
 		if err != nil {
 			return "", err
 		} else {

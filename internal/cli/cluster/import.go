@@ -1,37 +1,47 @@
 package cluster
 
 import (
+	"errors"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/cluster"
 	"wekactl/internal/logging"
 )
 
+var importParams struct {
+	name     string
+	username string
+	password string
+}
+
 var importCmd = &cobra.Command{
 	Use:   "import [flags]",
 	Short: "",
 	Long:  "",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if Provider == "aws" {
-			err := cluster.ImportCluster(Region, Name, Username, Password)
+			err := cluster.ImportCluster(importParams.name, importParams.username, importParams.password)
 			if err != nil {
 				logging.UserFailure("Import failed!")
 				log.Debug().Msg(err.Error())
-			} else {
-				logging.UserSuccess("Import finished successfully!")
+				return err
 			}
+			logging.UserSuccess("Import finished successfully!")
 		} else {
-			logging.UserFailure("Cloud provider '%s' is not supported with this action", Provider)
+			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", Provider))
+			logging.UserFailure(err.Error())
+			return err
 		}
+		return nil
 	},
 }
 
 func init() {
-	importCmd.Flags().StringVarP(&Name, "name", "n", "", "EKS cluster name")
-	importCmd.Flags().StringVarP(&Username, "username", "u", "", "Cluster username")
-	importCmd.Flags().StringVarP(&Password, "password", "p", "", "Cluster password")
-	importCmd.MarkFlagRequired("name")
-	importCmd.MarkFlagRequired("username")
-	importCmd.MarkFlagRequired("password")
-	Cluster.AddCommand(importCmd)
+	importCmd.Flags().StringVarP(&importParams.name, "name", "n", "", "EKS cluster name")
+	importCmd.Flags().StringVarP(&importParams.username, "username", "u", "", "Cluster username")
+	importCmd.Flags().StringVarP(&importParams.password, "password", "p", "", "Cluster password")
+	_ = importCmd.MarkFlagRequired("name")
+	_ = importCmd.MarkFlagRequired("username")
+	_ = importCmd.MarkFlagRequired("password")
 }

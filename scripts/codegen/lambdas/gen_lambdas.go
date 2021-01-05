@@ -20,19 +20,18 @@ func main() {
 	pairs := strings.Split(regionsMap, ",")
 	assigments := []Code{}
 	assigments = append(assigments, Id("LambdasID").Op("=").Lit(lambdasId))
-	for _, pair := range pairs{
+	for _, pair := range pairs {
 		parts := strings.Split(pair, "=")
 		region := parts[0]
 		bucket := parts[1]
 		assigments = append(assigments, Id(fmt.Sprintf("LambdasSource[\"%s\"]", region)).Op("=").Lit(bucket))
 	}
 
-
 	f := NewFile("dist")
 	f.HeaderComment("auto-generated with upload_lambdas.sh/gen_lambdas.go code")
 
 	f.Func().Id("init").Params().Block(
-		assigments...
+		assigments...,
 	)
 
 	fmt.Printf(fmt.Sprintf("%#v", f))
