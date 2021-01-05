@@ -259,10 +259,12 @@ def find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status
         deactivating = 0
         inactive = 0
         active = 0
-        if host in deactivating_hosts:
+        # do not iterate over hosts that are deactivating or drives with an invalid host
+        if host in deactivating_hosts or 'INVALID' in host:
+            print("skipping:" + host)
             continue
         for drive in statuses_and_drives:
-            status = drive.keys()[0]
+            status = list(drive.keys())[0]
             if status == "ACTIVE" or status == "PHASING_IN":
                 if host not in fully_active_hosts_and_drives:
                     fully_active_hosts_and_drives[host] = []
@@ -272,7 +274,6 @@ def find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status
                 deactivating += 1
             elif status == "INACTIVE":
                 inactive += 1
-
         if active == 0 and deactivating == 0:
             hosts_with_inactive_drives.append(host)
     return hosts_with_inactive_drives, fully_active_hosts_and_drives
@@ -281,16 +282,13 @@ def find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status
 def organize_hosts_data(all_hosts):
     # organize all hosts into [host_id: {instance_id, status, added_time},...] by creating a new dict
     organized_hosts = {}
-    for host, data in all_hosts.iteritems():
+    for host, data in all_hosts.items():
         instance_id = data['aws']['instance_id'] if data['aws'] is not None else None
         organized_hosts[host] = {'instance_id': instance_id, 'status': data['status'], 'added_time': data['added_time']}
     return organized_hosts
 
 
 def scale(ip, username, password, desired_capacity):
-    # return host_list (host_id, instance_id, status (active, deactivating, inactive))
-    # create requirements.txt
-
     os.environ["WEKA_USERNAME"] = username
     os.environ["WEKA_PASSWORD"] = password
     host_to_drive_and_status = {}
@@ -298,29 +296,30 @@ def scale(ip, username, password, desired_capacity):
     deactivating_hosts = []
     active_hosts = []
 
-    # organize hosts by active, inactive, and deactivating
-    all_hosts = wapi_main(ip, 'hosts-list', {})
-    all_hosts_list = []
-    for host, host_data in all_hosts.iteritems():
-        host_data['host_id'] = host
-        all_hosts_list.append(host_data)
-        if host_data['state'] == 'INACTIVE':
-            inactive_hosts.append(host)
-        elif host_data['state'] == 'DEACTIVATING':
-            deactivating_hosts.append(host)
-        else:
-            host_data["host_id"] = host
-            active_hosts.append(host_data)
-
-    # sort by date so that we get the oldest instances first
-    active_hosts.sort(key=itemgetter('added_time'))
-
     # list all drives and check which ones are inactive
     drive_list = wapi_main(ip, 'disks-list', {'show_removed': False})
     for drive, drive_data in drive_list.iteritems():
         if drive_data['host_id'] not in host_to_drive_and_status.keys():
             host_to_drive_and_status[drive_data['host_id']] = []
         host_to_drive_and_status[drive_data['host_id']].append({drive_data['status']: drive_data['uuid']})
+
+    # organize hosts with drives as active, inactive, and deactivating
+    all_hosts = wapi_main(ip, 'hosts-list', {})
+    all_backends_list = []
+    for host, host_data in all_hosts.items():
+        if host in host_to_drive_and_status:
+            host_data['host_id'] = host
+            all_backends_list.append(host_data)
+            if host_data['state'] == 'INACTIVE':
+                inactive_hosts.append(host)
+            elif host_data['state'] == 'DEACTIVATING':
+                deactivating_hosts.append(host)
+            else:
+                host_data["host_id"] = host
+                active_hosts.append(host_data)
+
+    # sort by date so that we get the oldest instances first
+    active_hosts.sort(key=itemgetter('added_time'))
 
     hosts_with_inactive_drives, \
         fully_active_hosts_and_drives = find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status)
@@ -342,6 +341,11 @@ def scale(ip, username, password, desired_capacity):
                     i += 1
                 else:
                     break
+
+    # remove deactivated hosts from cluster
+    for host_id in inactive_hosts:
+        wapi_main(ip, 'cluster-remove-host',
+                  {"host_id": host_id.split("<")[1].split(">")[0]})
 
     # return updated hosts_list and instance_ids of inactive hosts
     return organize_hosts_data(all_hosts), inactive_hosts
