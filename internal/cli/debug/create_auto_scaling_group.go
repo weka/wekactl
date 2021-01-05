@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/debug"
+	"wekactl/internal/env"
 )
 
 var InstanceId string
@@ -15,10 +16,10 @@ var createAutoScalingGroupCmd = &cobra.Command{
 	Short: "",
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		if Provider == "aws" {
+		if env.Config.Provider == "aws" {
 			debug.CreateAutoScalingGroup(InstanceId, MinSize, MaxSize)
 		} else {
-			fmt.Printf("Cloud provider '%s' is not supported with this action\n", Provider)
+			fmt.Printf("Cloud provider '%s' is not supported with this action\n", env.Config.Provider)
 		}
 	},
 }

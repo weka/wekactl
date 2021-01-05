@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/lambdas"
+	"wekactl/internal/env"
 )
 
 var AsgName string
@@ -14,7 +15,7 @@ var GetInstanceJoinParamsCmd = &cobra.Command{
 	Short: "",
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		if Provider == "aws" {
+		if env.Config.Provider == "aws" {
 			res, err := lambdas.GetJoinParams(AsgName, TableName)
 			if err != nil {
 				fmt.Println(err)
@@ -22,7 +23,7 @@ var GetInstanceJoinParamsCmd = &cobra.Command{
 				fmt.Println(res)
 			}
 		} else {
-			fmt.Printf("Cloud provider '%s' is not supported with this action\n", Provider)
+			fmt.Printf("Cloud provider '%s' is not supported with this action\n", env.Config.Provider)
 		}
 	},
 }

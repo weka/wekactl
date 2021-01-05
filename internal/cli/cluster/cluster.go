@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var Provider string
 var Region string
 var Cluster = &cobra.Command{
 	Use:   "cluster [command] [flags]",

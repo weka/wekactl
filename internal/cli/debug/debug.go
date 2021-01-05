@@ -3,11 +3,10 @@ package debug
 import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"wekactl/internal/env"
 )
 
 var Name string
-var Provider string
-var Region string
 var Debug = &cobra.Command{
 	Use:   "debug [command] [flags]",
 	Short: "Debug operations",
@@ -21,6 +20,6 @@ var Debug = &cobra.Command{
 }
 
 func init() {
-	Debug.PersistentFlags().StringVarP(&Provider, "provider", "c", "aws", "Cloud provider")
-	Debug.PersistentFlags().StringVarP(&Region, "region", "r", "", "Region")
+	Debug.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "c", "aws", "Cloud provider")
+	Debug.PersistentFlags().StringVarP(&env.Config.Region, "region", "r", "", "Region")
 }

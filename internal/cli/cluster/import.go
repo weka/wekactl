@@ -6,6 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/cluster"
+	"wekactl/internal/env"
 	"wekactl/internal/logging"
 )
 
@@ -20,7 +21,7 @@ var importCmd = &cobra.Command{
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if Provider == "aws" {
+		if env.Config.Provider == "aws" {
 			err := cluster.ImportCluster(importParams.name, importParams.username, importParams.password)
 			if err != nil {
 				logging.UserFailure("Import failed!")
@@ -29,7 +30,7 @@ var importCmd = &cobra.Command{
 			}
 			logging.UserSuccess("Import finished successfully!")
 		} else {
-			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", Provider))
+			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
 			logging.UserFailure(err.Error())
 			return err
 		}
