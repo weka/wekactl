@@ -26,6 +26,9 @@ func getAutoScalingGroupInstanceIps(asgName string) ([]string, error) {
 		return nil, err
 	} else {
 		var instanceIds []*string
+		if len(result.AutoScalingGroups) == 0{
+			return []string{}, nil
+		}
 		for _, instance := range result.AutoScalingGroups[0].Instances {
 			instanceIds = append(instanceIds, instance.InstanceId)
 		}
@@ -37,7 +40,9 @@ func getAutoScalingGroupInstanceIps(asgName string) ([]string, error) {
 		} else {
 			var instanceIps []string
 			for _, reservation := range result.Reservations {
-				instanceIps = append(instanceIps, *reservation.Instances[0].PublicIpAddress)
+				if len(reservation.Instances) > 0{
+					instanceIps = append(instanceIps, *reservation.Instances[0].PublicIpAddress)
+				}
 			}
 			return instanceIps, nil
 		}
