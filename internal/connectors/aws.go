@@ -4,23 +4,31 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"sync"
 	"wekactl/internal/env"
 )
 
 type SAwsSession struct {
 	sync.RWMutex
-	Session  *session.Session
-	CF       *cloudformation.CloudFormation
-	EC2      *ec2.EC2
-	ASG      *autoscaling.AutoScaling
-	KMS      *kms.KMS
-	DynamoDB *dynamodb.DynamoDB
+	Session    *session.Session
+	CF         *cloudformation.CloudFormation
+	EC2        *ec2.EC2
+	ASG        *autoscaling.AutoScaling
+	KMS        *kms.KMS
+	DynamoDB   *dynamodb.DynamoDB
+	IAM        *iam.IAM
+	Lambda     *lambda.Lambda
+	ApiGateway *apigateway.APIGateway
+	STS        *sts.STS
 }
 
 var awsSession SAwsSession
@@ -38,6 +46,10 @@ func GetAWSSession() *SAwsSession {
 		awsSession.ASG = autoscaling.New(awsSession.Session)
 		awsSession.KMS = kms.New(awsSession.Session)
 		awsSession.DynamoDB = dynamodb.New(awsSession.Session)
+		awsSession.IAM = iam.New(awsSession.Session)
+		awsSession.Lambda = lambda.New(awsSession.Session)
+		awsSession.ApiGateway = apigateway.New(awsSession.Session)
+		awsSession.STS = sts.New(awsSession.Session)
 	}
 	return &awsSession
 }

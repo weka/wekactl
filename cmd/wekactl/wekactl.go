@@ -99,6 +99,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "help for this command")
 	rootCmd.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "c", "aws", "Cloud provider")
 	rootCmd.PersistentFlags().StringVarP(&env.Config.Region, "region", "r", "", "Region")
+	_ = rootCmd.MarkPersistentFlagRequired("region")
 	rootCmd.SetUsageFunc(Usage)
 }
 

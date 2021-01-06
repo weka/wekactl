@@ -3,6 +3,7 @@ package dist
 import (
 	"errors"
 	"fmt"
+	"wekactl/internal/env"
 )
 
 var LambdasSource = map[string]string{}
@@ -15,14 +16,22 @@ const (
 	WekaCtl LambdaPackage = "wekactl-aws-lambdas.zip"
 )
 
-func GetLambdaLocation(lambdaPackage LambdaPackage, region string) (location string, err error) {
+func GetLambdaBucket() (bucket string, err error) {
+	bucket, ok := LambdasSource[env.Config.Region]
+	if !ok {
+		return "", errors.New(fmt.Sprintf("bucket not defined for %s", env.Config.Region))
+	}
+	return
+}
+
+func GetLambdaLocation(lambdaPackage LambdaPackage) (location string, err error) {
 	if LambdasID == "" {
 		return "", errors.New("lambda ID not defined")
 	}
-	bucket, ok := LambdasSource[region]
-	if !ok {
-		return "", errors.New(fmt.Sprintf("bucket not defined for %s", region))
+	bucket, err := GetLambdaBucket()
+	if err != nil {
+		return "", err
 	}
-	location = fmt.Sprintf("https://s3.%s.amazonaws.com/%s/%s/%s", region, bucket, LambdasID, string(lambdaPackage))
+	location = fmt.Sprintf("https://s3.%s.amazonaws.com/%s/%s/%s", env.Config.Region, bucket, LambdasID, string(lambdaPackage))
 	return
 }
