@@ -353,7 +353,7 @@ def scale(ip, username, password, desired_capacity):
 
 # noinspection PyUnusedLocal
 def lambda_handler(event, context):
-    hosts_data, inactive = scale(event['hostname'], event['username'], event['password'], event['desired_capacity'])
+    hosts_data, inactive = scale(event['private_ips'], event['username'], event['password'], event['desired_capacity'])
     return {
         'hosts': hosts_data,
         'inactive': inactive,
