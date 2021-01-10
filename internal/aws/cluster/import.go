@@ -307,7 +307,7 @@ func createAutoScalingGroup(stackId, stackName, name string, role string, maxSiz
 		Name: name,
 		Role: role,
 		Stack: Stack{
-			StackId: stackId,
+			StackId:   stackId,
 			StackName: stackName,
 		},
 	}
@@ -315,6 +315,11 @@ func createAutoScalingGroup(stackId, stackName, name string, role string, maxSiz
 	if err != nil {
 		return "", err
 	}
+	_, err = createLambda(hostGroup, "fetch", "Backends")
+	if err != nil {
+		return "", err
+	}
+
 	svc := connectors.GetAWSSession().ASG
 	resourceName := generateResourceName(stackId, stackName, name)
 	input := &autoscaling.CreateAutoScalingGroupInput{
