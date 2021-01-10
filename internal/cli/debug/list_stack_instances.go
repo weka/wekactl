@@ -13,7 +13,7 @@ var listInstancesCmd = &cobra.Command{
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		if env.Config.Provider == "aws" {
-			debug.RenderInstancesTable(Name)
+			debug.RenderInstancesTable(StackName)
 		} else {
 			fmt.Printf("Cloud provider '%s' is not supported with this action\n", env.Config.Provider)
 		}
@@ -21,7 +21,7 @@ var listInstancesCmd = &cobra.Command{
 }
 
 func init() {
-	listInstancesCmd.Flags().StringVarP(&Name, "name", "n", "", "Cloudformation Stack name")
+	listInstancesCmd.Flags().StringVarP(&StackName, "name", "n", "", "Cloudformation Stack name")
 	listInstancesCmd.MarkFlagRequired("name")
 	Debug.AddCommand(listInstancesCmd)
 }
