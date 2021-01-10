@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -70,6 +71,40 @@ type StatementEntry struct {
 type PolicyDocument struct {
 	Version   string
 	Statement []StatementEntry
+}
+
+type Principal struct {
+	Service string
+}
+
+//Resource is prohibited for assume role
+type AssumeRoleStatementEntry struct {
+	Effect    string
+	Action    []string
+	Principal Principal
+}
+
+type AssumeRolePolicyDocument struct {
+	Version   string
+	Statement []AssumeRoleStatementEntry
+}
+
+type NextState struct {
+	Type     string
+	Resource string
+	Next     string
+}
+
+type EndState struct {
+	Type     string
+	Resource string
+	End      bool
+}
+
+type StateMachine struct {
+	Comment string
+	StartAt string
+	States  map[string]interface{}
 }
 
 func GetStackId(stackName string) (string, error) {
@@ -302,6 +337,56 @@ func getAutoScalingTags(name, role, stackId string) []*autoscaling.Tag {
 	return autoscalingTags
 }
 
+func GetJoinAndFetchLambdaPolicy() (string, error) {
+	policyDocument := PolicyDocument{
+		Version: "2012-10-17",
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"logs:CreateLogStream",
+					"logs:PutLogEvents",
+					"logs:CreateLogGroup",
+					"dynamodb:GetItem",
+					"autoscaling:Describe*",
+					"ec2:Describe*",
+					"kms:Decrypt",
+				},
+				Resource: "*",
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
+func GetJoinAndFetchAssumeRolePolicy() (string, error) {
+	policyDocument := AssumeRolePolicyDocument{
+		Version: "2012-10-17",
+		Statement: []AssumeRoleStatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"sts:AssumeRole",
+				},
+				Principal: Principal{
+					Service: "lambda.amazonaws.com",
+				},
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
 func createAutoScalingGroup(stackId, stackName, name string, role string, maxSize int, launchTemplateName string) (string, error) {
 	hostGroup := HostGroup{
 		Name: name,
@@ -311,11 +396,23 @@ func createAutoScalingGroup(stackId, stackName, name string, role string, maxSiz
 			StackName: stackName,
 		},
 	}
-	err := CreateLambdaEndPoint(hostGroup, "join", "Backends")
+	policy, err := GetJoinAndFetchLambdaPolicy()
 	if err != nil {
 		return "", err
 	}
-	_, err = createLambda(hostGroup, "fetch", "Backends")
+	assumeRolePolicy, err := GetJoinAndFetchAssumeRolePolicy()
+	if err != nil {
+		return "", err
+	}
+	err = CreateLambdaEndPoint(hostGroup, "join", "Backends", assumeRolePolicy, policy)
+	if err != nil {
+		return "", err
+	}
+	lambdaConfiguration, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
+	if err != nil {
+		return "", err
+	}
+	err = CreateStateMachine(hostGroup, *lambdaConfiguration.FunctionArn)
 	if err != nil {
 		return "", err
 	}
@@ -496,34 +593,10 @@ func getIAMTags(hostGroup HostGroup) []*iam.Tag {
 	return iamTags
 }
 
-func createIamPolicy(hostGroup HostGroup, lambdaType string) (*iam.Policy, error) {
+func createIamPolicy(policyName, policy string) (*iam.Policy, error) {
 	svc := connectors.GetAWSSession().IAM
-	policy := PolicyDocument{
-		Version: "2012-10-17",
-		Statement: []StatementEntry{
-			{
-				Effect: "Allow",
-				Action: []string{
-					"logs:CreateLogStream",
-					"logs:PutLogEvents",
-					"logs:CreateLogGroup",
-					"dynamodb:GetItem",
-					"autoscaling:Describe*",
-					"ec2:Describe*",
-					"kms:Decrypt",
-				},
-				Resource: "*",
-			},
-		},
-	}
-	b, err := json.Marshal(&policy)
-	if err != nil {
-		log.Debug().Msg("Error marshaling policy")
-		return nil, err
-	}
-	policyName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, getUuidFromStackId(hostGroup.Stack.StackId))
 	result, err := svc.CreatePolicy(&iam.CreatePolicyInput{
-		PolicyDocument: aws.String(string(b)),
+		PolicyDocument: aws.String(policy),
 		PolicyName:     aws.String(policyName),
 	})
 
@@ -535,13 +608,11 @@ func createIamPolicy(hostGroup HostGroup, lambdaType string) (*iam.Policy, error
 	return result.Policy, nil
 }
 
-func createIamRole(hostGroup HostGroup, lambdaType string) (*string, error) {
+func createIamRole(hostGroup HostGroup, roleName, assumeRolePolicy, policyName, policy string) (*string, error) {
+	log.Debug().Msgf("creating role %s", roleName)
 	svc := connectors.GetAWSSession().IAM
-	doc := "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": {\"Service\": \"lambda.amazonaws.com\"}, \"Action\": \"sts:AssumeRole\"}]}"
-	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
-	roleName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, uuid.New().String())
 	input := &iam.CreateRoleInput{
-		AssumeRolePolicyDocument: aws.String(doc),
+		AssumeRolePolicyDocument: aws.String(assumeRolePolicy),
 		Path:                     aws.String("/"),
 		//max roleName length must be 64 characters
 		RoleName: aws.String(roleName),
@@ -558,18 +629,23 @@ func createIamRole(hostGroup HostGroup, lambdaType string) (*string, error) {
 		return nil, err
 	}
 	log.Debug().Msgf("role %s was created successfully!", roleName)
-	logging.UserProgress("Waiting for lambda role trust entity to finish update")
+
+	if policyName != "" {
+		policyOutput, err := createIamPolicy(policyName, policy)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = svc.AttachRolePolicy(&iam.AttachRolePolicyInput{PolicyArn: policyOutput.Arn, RoleName: &roleName})
+		if err != nil {
+			return nil, err
+		}
+		log.Debug().Msgf("policy %s was attached successfully!", policyName)
+	}
+
+	logging.UserProgress("Waiting for IAM role %s trust entity to finish update...", roleName)
 	time.Sleep(10 * time.Second) // it takes some time for the trust entity to be updated
 
-	policy, err := createIamPolicy(hostGroup, lambdaType)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = svc.AttachRolePolicy(&iam.AttachRolePolicyInput{PolicyArn: policy.Arn, RoleName: &roleName})
-	if err != nil {
-		return nil, err
-	}
 	return result.Role.Arn, nil
 }
 
@@ -583,7 +659,7 @@ func getMapCommonTags(hostGroup HostGroup) map[string]*string {
 	}
 }
 
-func createLambda(hostGroup HostGroup, lambdaType, name string) (*lambda.FunctionConfiguration, error) {
+func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
 	bucket, err := dist.GetLambdaBucket()
@@ -592,7 +668,10 @@ func createLambda(hostGroup HostGroup, lambdaType, name string) (*lambda.Functio
 	}
 	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, string(dist.WekaCtl))
 
-	roleArn, err := createIamRole(hostGroup, lambdaType)
+	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
+	roleName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, uuid.New().String())
+	policyName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, getUuidFromStackId(hostGroup.Stack.StackId))
+	roleArn, err := createIamRole(hostGroup, roleName, assumeRolePolicy, policyName, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -772,8 +851,8 @@ func addLambdaInvokePermissions(lambdaName, restApiId string) error {
 	return nil
 }
 
-func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name string) error {
-	functionConfiguration, err := createLambda(hostGroup, lambdaType, name)
+func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string) error {
+	functionConfiguration, err := CreateLambda(hostGroup, lambdaType, name, assumeRolePolicy, policy)
 	if err != nil {
 		return err
 	}
@@ -792,6 +871,114 @@ func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name string) error {
 		return err
 	}
 
+	return nil
+}
+
+func getStateMachineTags(hostGroup HostGroup) []*sfn.Tag {
+	var sfnTags []*sfn.Tag
+	for _, tag := range getHostGroupTags(hostGroup) {
+		sfnTags = append(sfnTags, &sfn.Tag{
+			Key:   tag.Key,
+			Value: tag.Value,
+		})
+	}
+	return sfnTags
+}
+
+func GetStateMachineAssumeRolePolicy() (string, error) {
+	policyDocument := AssumeRolePolicyDocument{
+		Version: "2012-10-17",
+		Statement: []AssumeRoleStatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"sts:AssumeRole",
+				},
+				Principal: Principal{
+					Service: "states.amazonaws.com",
+				},
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
+func GetStateMachineRolePolicy() (string, error) {
+	policyDocument := PolicyDocument{
+		Version: "2012-10-17",
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"lambda:InvokeFunction",
+				},
+				Resource: "*",
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
+func CreateStateMachine(hostGroup HostGroup, lambdaArn string) error {
+	svc := connectors.GetAWSSession().SFN
+	stateMachineName := fmt.Sprintf("wekactl-%s-state-machine", hostGroup.Name)
+
+	states := make(map[string]interface{})
+	states["HostGroupInfo"] = EndState{
+		Type:     "Task",
+		Resource: lambdaArn,
+		End:      true,
+	}
+	stateMachine := StateMachine{
+		Comment: "Wekactl state machine",
+		StartAt: "HostGroupInfo",
+		States:  states,
+	}
+
+	b, err := json.Marshal(&stateMachine)
+	if err != nil {
+		log.Debug().Msg("Error marshaling stateMachine")
+		return err
+	}
+	definition := string(b)
+	log.Debug().Msgf("Creating state machine :%s", stateMachineName)
+	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
+	roleName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, uuid.New().String())
+	policyName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, getUuidFromStackId(hostGroup.Stack.StackId))
+	assumeRolePolicy, err := GetStateMachineAssumeRolePolicy()
+	if err != nil {
+		return err
+	}
+
+	policy, err := GetStateMachineRolePolicy()
+	if err != nil {
+		return err
+	}
+	roleArn, err := createIamRole(hostGroup, roleName, assumeRolePolicy, policyName, policy)
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.CreateStateMachine(&sfn.CreateStateMachineInput{
+		Name:       aws.String(stateMachineName),
+		RoleArn:    roleArn,
+		Tags:       getStateMachineTags(hostGroup),
+		Definition: aws.String(definition),
+	})
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("State machine %s was created successfully!", stateMachineName)
 	return nil
 }
 

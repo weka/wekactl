@@ -8,9 +8,8 @@ import (
 	"wekactl/internal/logging"
 )
 
-var Lambda string
-var createLambdaCmd = &cobra.Command{
-	Use:   "create-lambda-endpoint",
+var createStateMachineCmd = &cobra.Command{
+	Use:   "create-state-machine",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,11 +34,15 @@ var createLambdaCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			err = cluster.CreateLambdaEndPoint(hostGroup, Lambda, "Backends", assumeRolePolicy, policy)
+			lambdaConfiguration, err := cluster.CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
 			if err != nil {
 				return err
 			}
-			logging.UserSuccess("Lambda endpoint creation completed successfully!")
+			err = cluster.CreateStateMachine(hostGroup, *lambdaConfiguration.FunctionArn)
+			if err != nil {
+				return err
+			}
+			logging.UserSuccess("State machine creation completed successfully!")
 		} else {
 			fmt.Printf("Cloud provider '%s' is not supported with this action\n", env.Config.Provider)
 		}
@@ -48,10 +51,8 @@ var createLambdaCmd = &cobra.Command{
 }
 
 func init() {
-	createLambdaCmd.Flags().StringVarP(&StackName, "name", "n", "", "Cloudformation Stack name")
-	createLambdaCmd.Flags().StringVarP(&Lambda, "lambda", "t", "", "Lambda type to create")
+	createStateMachineCmd.Flags().StringVarP(&StackName, "name", "n", "", "Cloudformation Stack name")
 
-	_ = createLambdaCmd.MarkFlagRequired("name")
-	_ = createLambdaCmd.MarkFlagRequired("lambda")
-	Debug.AddCommand(createLambdaCmd)
+	_ = createStateMachineCmd.MarkFlagRequired("name")
+	Debug.AddCommand(createStateMachineCmd)
 }

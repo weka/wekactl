@@ -6,7 +6,8 @@ import (
 	"wekactl/internal/env"
 )
 
-var Name string
+var StackName string
+
 var Debug = &cobra.Command{
 	Use:   "debug [command] [flags]",
 	Short: "Debug operations",

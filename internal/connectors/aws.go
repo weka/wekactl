@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"sync"
 	"wekactl/internal/env"
@@ -29,6 +30,7 @@ type SAwsSession struct {
 	Lambda     *lambda.Lambda
 	ApiGateway *apigateway.APIGateway
 	STS        *sts.STS
+	SFN        *sfn.SFN
 }
 
 var awsSession SAwsSession
@@ -50,6 +52,7 @@ func GetAWSSession() *SAwsSession {
 		awsSession.Lambda = lambda.New(awsSession.Session)
 		awsSession.ApiGateway = apigateway.New(awsSession.Session)
 		awsSession.STS = sts.New(awsSession.Session)
+		awsSession.SFN = sfn.New(awsSession.Session)
 	}
 	return &awsSession
 }
