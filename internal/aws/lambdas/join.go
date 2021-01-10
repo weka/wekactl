@@ -13,39 +13,46 @@ import (
 )
 
 type JoinInfo struct {
-	Username string
-	Password string
-	Ips      []string
+	Username        string   `json:"username"`
+	Password        string   `json:"password"`
+	PrivateIps      []string `json:"private_ips"`
+	DesiredCapacity int      `json:"desired_capacity"`
 }
 
-func getAutoScalingGroupInstanceIps(asgName string) ([]string, error) {
-	asgsvc := connectors.GetAWSSession().ASG
-	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
-	result, err := asgsvc.DescribeAutoScalingGroups(input)
+func getAutoScalingGroupDesiredCapacity(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) int {
+	if len(asgOutput.AutoScalingGroups) == 0 {
+		return -1
+	}
+
+	return int(*asgOutput.AutoScalingGroups[0].DesiredCapacity)
+}
+
+func getAutoScalingGroupInstanceIds(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) []*string {
+	var instanceIds []*string
+	if len(asgOutput.AutoScalingGroups) == 0 {
+		return []*string{}
+	}
+	for _, instance := range asgOutput.AutoScalingGroups[0].Instances {
+		instanceIds = append(instanceIds, instance.InstanceId)
+	}
+	return instanceIds
+}
+
+func getAutoScalingGroupInstanceIps(instanceIds []*string) ([]string, error) {
+
+	ec2svc := connectors.GetAWSSession().EC2
+	input := &ec2.DescribeInstancesInput{InstanceIds: instanceIds}
+	result, err := ec2svc.DescribeInstances(input)
 	if err != nil {
 		return nil, err
 	} else {
-		var instanceIds []*string
-		if len(result.AutoScalingGroups) == 0{
-			return []string{}, nil
-		}
-		for _, instance := range result.AutoScalingGroups[0].Instances {
-			instanceIds = append(instanceIds, instance.InstanceId)
-		}
-		ec2svc := connectors.GetAWSSession().EC2
-		input := &ec2.DescribeInstancesInput{InstanceIds: instanceIds}
-		result, err := ec2svc.DescribeInstances(input)
-		if err != nil {
-			return nil, err
-		} else {
-			var instanceIps []string
-			for _, reservation := range result.Reservations {
-				if len(reservation.Instances) > 0{
-					instanceIps = append(instanceIps, *reservation.Instances[0].PublicIpAddress)
-				}
+		var instanceIps []string
+		for _, reservation := range result.Reservations {
+			if len(reservation.Instances) > 0 {
+				instanceIps = append(instanceIps, *reservation.Instances[0].PrivateIpAddress)
 			}
-			return instanceIps, nil
 		}
+		return instanceIps, nil
 	}
 }
 
@@ -76,25 +83,39 @@ func getUsernameAndPassword(tableName string) (string, string, error) {
 }
 
 func GetJoinParams(asgName, tableName string) (string, error) {
-	ips, err := getAutoScalingGroupInstanceIps(asgName)
+	svc := connectors.GetAWSSession().ASG
+	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
+	asgOutput, err := svc.DescribeAutoScalingGroups(input)
 	if err != nil {
 		return "", err
-	} else {
-		username, password, err := getUsernameAndPassword(tableName)
-		if err != nil {
-			return "", err
-		} else {
-			joinInfo := JoinInfo{
-				Username: username,
-				Password: password,
-				Ips:      ips,
-			}
-			js, err := json.Marshal(joinInfo)
-			if err != nil {
-				return "", err
-			} else {
-				return string(js), nil
-			}
-		}
 	}
+
+	instanceIds := getAutoScalingGroupInstanceIds(asgOutput)
+	ips, err := getAutoScalingGroupInstanceIps(instanceIds)
+	if err != nil {
+		return "", err
+	}
+
+	var ids []string
+	for _, instanceId := range instanceIds {
+		ids = append(ids, *instanceId)
+	}
+
+	username, password, err := getUsernameAndPassword(tableName)
+	if err != nil {
+		return "", err
+	}
+
+	joinInfo := JoinInfo{
+		Username:        username,
+		Password:        password,
+		PrivateIps:      ips,
+		DesiredCapacity: getAutoScalingGroupDesiredCapacity(asgOutput),
+	}
+	js, err := json.Marshal(joinInfo)
+	if err != nil {
+		return "", err
+	}
+
+	return string(js), nil
 }
