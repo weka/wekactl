@@ -180,7 +180,6 @@ def wapi_main(conn, method, named_args):
     conn.headers['Client-Type'] = 'CLI'
 
     try:
-        spec = conn.rpc('getServiceSpec', {'method': method_name})
         rpc_result, header_getter = conn.rpc_with_header_getter(method_name, named_args)
         return print_results(rpc_result)
 
@@ -295,7 +294,7 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
     for host, host_data in all_hosts.items():
         if host_data['state'] == 'INACTIVE':
             inactive_hosts.append(host)
-        if host_belongs_to_hostgroup(host_data):
+        if not host_belongs_to_hostgroup(host_data):
             continue
         host_data['host_id'] = host
         hostgroup_hosts.append(host_data)
