@@ -170,9 +170,6 @@ class MissingArgumentValue(ApiParseException):
         super(MissingArgumentValue, self).__init__("Missing argument value for param '%s'" % param_name)
 
 
-def print_results(results):
-    return results
-
 
 def wapi_main(conn, method, named_args):
     method_name = method.replace('-', '_')
@@ -181,7 +178,7 @@ def wapi_main(conn, method, named_args):
 
     try:
         rpc_result, header_getter = conn.rpc_with_header_getter(method_name, named_args)
-        return print_results(rpc_result)
+        return rpc_result
 
     except socket.timeout as e:
         print('Timed out on connection', e)
@@ -208,9 +205,9 @@ def wapi_main(conn, method, named_args):
                 error.append('%s (%s): ' % (e.message, e.code))
             if e.data:
                 if isinstance(e.data, dict):
-                    error.append(print_results(dict((k, v) for k, v in e.data.items() if str(v) not in e.message)))
+                    error.append(dict((k, v) for k, v in e.data.items() if str(v) not in e.message))
                 else:
-                    error.append(print_results(e.data))
+                    error.append(e.data)
             if e.code in [-32602]:
                 print(e, method_name)
             else:
@@ -286,6 +283,7 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
     drive_list = wapi_main(jrpc_conn, 'disks-list', {'show_removed': False})
     for drive, drive_data in drive_list.items():
         host_id = drive_data['host_id']
+        # TODO: BUG: all_hosts[host_id] yielded None here somehow!!
         if host_id in all_hosts and host_belongs_to_hostgroup(all_hosts[host_id]):
             host_to_drive_and_status[host_id].append({drive_data['status']: drive_data['uuid']})
 
@@ -306,8 +304,27 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
             host_data["host_id"] = host
             active_hosts.append(host_data)
 
+    # remove deactivated hosts from cluster, we do it before we risk deactivating host we use for communication
+    for host_id in inactive_hosts:
+        try:
+            host_id = host_id.split("<")[1].split(">")[0]
+            wapi_main(jrpc_conn, 'cluster-remove-host',
+                      {"host_id": host_id})
+        except HttpException as e:
+            if "host not found" in e.error_msg:
+                logger.debug("Host %s not found", host_id)
+            else:
+                raise
+
     # sort by date so that we get the oldest instances first
     active_hosts.sort(key=itemgetter('added_time'))
+
+    def deactivate_hosts(hosts):
+        # TODO: We risk here deactivating host we use for communicating
+        for host in hosts:
+            wapi_main(jrpc_conn, 'cluster-deactivate-hosts',
+                      {"host_ids": [host],
+                       "no_wait": False, "skip_resource_validation": False})
 
     if role == 'backend':
         hosts_with_inactive_drives, \
@@ -315,9 +332,7 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
 
         # deactivate hosts whose drives are all INACTIVE by sending their IDs
         host_ids_to_deactivate = [get_host_id(host_id) for host_id in hosts_with_inactive_drives]
-        wapi_main(jrpc_conn, 'cluster-deactivate-hosts',
-                  {"host_ids": host_ids_to_deactivate,
-                   "no_wait": False, "skip_resource_validation": False})
+        deactivate_hosts(host_ids_to_deactivate)
         # Check if we need to deactivate more drives
         if len(fully_active_hosts_and_drives) > desired_capacity:
             number_of_hosts_to_deactivate = len(fully_active_hosts_and_drives) - desired_capacity
@@ -333,23 +348,9 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
         to_deactivate = len(active_hosts) - desired_capacity - len(deactivating_hosts)
         if to_deactivate > 0:
             host_ids_to_deactivate = [get_host_id(h['host_id']) for h in active_hosts[:to_deactivate]]
-            wapi_main(jrpc_conn, 'cluster-deactivate-hosts',
-                      {"host_ids": host_ids_to_deactivate,
-                       "no_wait": False, "skip_resource_validation": False})
+            deactivate_hosts(host_ids_to_deactivate)
 
-    # remove deactivated hosts from cluster
-    for host_id in inactive_hosts:
-        try:
-            host_id = host_id.split("<")[1].split(">")[0]
-            wapi_main(jrpc_conn, 'cluster-remove-host',
-                      {"host_id": host_id})
-        except HttpException as e:
-            if "host not found" in e.error_msg:
-                logger.debug("Host %s not found", host_id)
-            else:
-                raise
-
-    # return updated hosts_list and instance_ids of inactive hosts
+    # return updated hosts_list and instance_ids of all hosts, including this we just removed
     return dict(
         hosts=organize_hosts_data(all_hosts),
     )
@@ -359,6 +360,8 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
 def lambda_handler(event, context):
     from random import choice
 
+    # TODO: Probably need to create multiple connections, or to pass all IPs and have a way for a fallbakc
+    #   Right now we are risking deactivating same host that we use to communicate
     private_ip = choice(event['private_ips'])
     conn = JsonRpcConnection(
         'http', private_ip, DEFAULT_PORT, DEFAULT_PATH,
