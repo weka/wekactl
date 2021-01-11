@@ -2,6 +2,7 @@ package debug
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/cluster"
 	"wekactl/internal/env"
@@ -26,7 +27,7 @@ var createStateMachineCmd = &cobra.Command{
 					StackName: StackName,
 				},
 			}
-			policy, err := cluster.GetJoinAndFetchLambdaPolicy()
+			fetchAndJoinPolicy, err := cluster.GetJoinAndFetchLambdaPolicy()
 			if err != nil {
 				return err
 			}
@@ -34,11 +35,20 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			fetchLambda, err := cluster.CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
+			fetchLambda, err := cluster.CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
 			if err != nil {
 				return err
 			}
-			scaleInLambda, err := cluster.CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, "")
+			scaleInPolicy, err := cluster.GetScaleInLambdaPolicy()
+			if err != nil {
+				return err
+			}
+			stackInstances, err := cluster.GetInstancesInfo(StackName)
+			if err != nil {
+				return err
+			}
+			lambdaVpcConfig := cluster.GetLambdaVpcConfig(stackInstances.Backends[0])
+			scaleInLambda, err := cluster.CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, scaleInPolicy, lambdaVpcConfig)
 			if err != nil {
 				return err
 			}

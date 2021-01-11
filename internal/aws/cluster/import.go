@@ -31,12 +31,12 @@ import (
 )
 
 type StackInstances struct {
-	backends []*ec2.Instance
-	clients  []*ec2.Instance
+	Backends []*ec2.Instance
+	Clients  []*ec2.Instance
 }
 
 func (s *StackInstances) All() []*ec2.Instance {
-	return append(s.clients[0:len(s.clients):len(s.clients)], s.backends...)
+	return append(s.Clients[0:len(s.Clients):len(s.Clients)], s.Backends...)
 }
 
 type Tag struct {
@@ -90,21 +90,21 @@ type AssumeRolePolicyDocument struct {
 }
 
 type FirstState struct {
-	Type       string
-	Resource   string
-	Next       string
+	Type     string
+	Resource string
+	Next     string
 }
 
 type NextState struct {
-	Type       string
-	Resource   string
-	Next       string
+	Type     string
+	Resource string
+	Next     string
 }
 
 type EndState struct {
-	Type       string
-	Resource   string
-	End        bool
+	Type     string
+	Resource string
+	End      bool
 }
 
 type StateMachine struct {
@@ -150,7 +150,7 @@ func getClusterInstances(stackName string) ([]*string, error) {
 	return instancesIds, nil
 }
 
-func getInstancesInfo(stackName string) (stackInstances StackInstances, err error) {
+func GetInstancesInfo(stackName string) (stackInstances StackInstances, err error) {
 	svc := connectors.GetAWSSession().EC2
 	instances, err := getClusterInstances(stackName)
 	if err != nil {
@@ -167,9 +167,9 @@ func getInstancesInfo(stackName string) (stackInstances StackInstances, err erro
 		instance := reservation.Instances[0]
 		arn := *instance.IamInstanceProfile.Arn
 		if strings.Contains(arn, "InstanceProfileBackend") {
-			stackInstances.backends = append(stackInstances.backends, instance)
+			stackInstances.Backends = append(stackInstances.Backends, instance)
 		} else if strings.Contains(arn, "InstanceProfileClient") {
-			stackInstances.clients = append(stackInstances.clients, instance)
+			stackInstances.Clients = append(stackInstances.Clients, instance)
 		}
 
 	}
@@ -376,6 +376,29 @@ func GetJoinAndFetchLambdaPolicy() (string, error) {
 	return string(policy), nil
 }
 
+func GetScaleInLambdaPolicy() (string, error) {
+	policyDocument := PolicyDocument{
+		Version: "2012-10-17",
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"ec2:CreateNetworkInterface",
+					"ec2:DescribeNetworkInterfaces",
+					"ec2:DeleteNetworkInterface",
+				},
+				Resource: "*",
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
 func GetLambdaAssumeRolePolicy() (string, error) {
 	policyDocument := AssumeRolePolicyDocument{
 		Version: "2012-10-17",
@@ -399,7 +422,7 @@ func GetLambdaAssumeRolePolicy() (string, error) {
 	return string(policy), nil
 }
 
-func createAutoScalingGroup(stackId, stackName, name string, role string, maxSize int, launchTemplateName string) (string, error) {
+func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, launchTemplateName string, vpcConfig lambda.VpcConfig) (string, error) {
 	hostGroup := HostGroup{
 		Name: name,
 		Role: role,
@@ -408,7 +431,11 @@ func createAutoScalingGroup(stackId, stackName, name string, role string, maxSiz
 			StackName: stackName,
 		},
 	}
-	policy, err := GetJoinAndFetchLambdaPolicy()
+	fetchAndJoinPolicy, err := GetJoinAndFetchLambdaPolicy()
+	if err != nil {
+		return "", err
+	}
+	scaleInPolicy, err := GetScaleInLambdaPolicy()
 	if err != nil {
 		return "", err
 	}
@@ -416,15 +443,15 @@ func createAutoScalingGroup(stackId, stackName, name string, role string, maxSiz
 	if err != nil {
 		return "", err
 	}
-	err = CreateLambdaEndPoint(hostGroup, "join", "Backends", assumeRolePolicy, policy)
+	err = CreateLambdaEndPoint(hostGroup, "join", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
 	if err != nil {
 		return "", err
 	}
-	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
+	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
 	if err != nil {
 		return "", err
 	}
-	scaleInLambda, err := CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, "")
+	scaleInLambda, err := CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, scaleInPolicy, vpcConfig)
 	if err != nil {
 		return "", err
 	}
@@ -676,7 +703,7 @@ func getMapCommonTags(hostGroup HostGroup) map[string]*string {
 	}
 }
 
-func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string) (*lambda.FunctionConfiguration, error) {
+func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
 	bucket, err := dist.GetLambdaBucket()
@@ -734,6 +761,7 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 		TracingConfig: &lambda.TracingConfig{
 			Mode: aws.String("Active"),
 		},
+		VpcConfig: &vpcConfig,
 	}
 
 	var lambdaCreateOutput *lambda.FunctionConfiguration
@@ -890,8 +918,8 @@ func addLambdaInvokePermissions(lambdaName, restApiId string) error {
 	return nil
 }
 
-func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string) error {
-	functionConfiguration, err := CreateLambda(hostGroup, lambdaType, name, assumeRolePolicy, policy)
+func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string, vpcConfig lambda.VpcConfig) error {
+	functionConfiguration, err := CreateLambda(hostGroup, lambdaType, name, assumeRolePolicy, policy, vpcConfig)
 	if err != nil {
 		return err
 	}
@@ -974,14 +1002,14 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
 
 	states := make(map[string]interface{})
 	states["HostGroupInfo"] = FirstState{
-		Type:       "Task",
-		Resource:   lambda.Fetch,
-		Next:       "Scale",
+		Type:     "Task",
+		Resource: lambda.Fetch,
+		Next:     "Scale",
 	}
 	states["Scale"] = EndState{
-		Type:       "Task",
-		Resource:   lambda.ScaleIn,
-		End:        true,
+		Type:     "Task",
+		Resource: lambda.ScaleIn,
+		End:      true,
 	}
 	stateMachine := StateMachine{
 		Comment: "Wekactl state machine",
@@ -1026,6 +1054,13 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
 	return nil
 }
 
+func GetLambdaVpcConfig(instance *ec2.Instance) lambda.VpcConfig {
+	return lambda.VpcConfig{
+		SubnetIds:        []*string{instance.SubnetId},
+		SecurityGroupIds: getInstanceSecurityGroupsId(instance),
+	}
+}
+
 func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Instance) error {
 	if len(roleInstances) == 0 {
 		logging.UserProgress("instances with role '%s' not found", role)
@@ -1043,7 +1078,9 @@ func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Ins
 	}
 
 	launchTemplateName := createLaunchTemplate(stackId, stackName, name, role, roleInstances[0])
-	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, len(roleInstances), launchTemplateName)
+
+	lambdaVpcConfig := GetLambdaVpcConfig(roleInstances[0])
+	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, len(roleInstances), launchTemplateName, lambdaVpcConfig)
 	if err != nil {
 		return err
 	}
@@ -1059,7 +1096,7 @@ func ImportCluster(stackName, username, password string) error {
 	if err != nil {
 		return err
 	}
-	stackInstances, err := getInstancesInfo(stackName)
+	stackInstances, err := GetInstancesInfo(stackName)
 	if err != nil {
 		return err
 	}
@@ -1069,11 +1106,11 @@ func ImportCluster(stackName, username, password string) error {
 		return err
 	}
 
-	err = importClusterRole(stackId, stackName, "client", stackInstances.clients)
+	err = importClusterRole(stackId, stackName, "client", stackInstances.Clients)
 	if err != nil {
 		return err
 	}
-	err = importClusterRole(stackId, stackName, "backend", stackInstances.backends)
+	err = importClusterRole(stackId, stackName, "backend", stackInstances.Backends)
 	if err != nil {
 		return err
 	}
