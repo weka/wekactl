@@ -89,22 +89,39 @@ type AssumeRolePolicyDocument struct {
 	Statement []AssumeRoleStatementEntry
 }
 
+type FirstState struct {
+	Type       string
+	Resource   string
+	ResultPath string
+	Next       string
+}
+
 type NextState struct {
-	Type     string
-	Resource string
-	Next     string
+	Type       string
+	Resource   string
+	InputPath  string
+	ResultPath string
+	Next       string
 }
 
 type EndState struct {
-	Type     string
-	Resource string
-	End      bool
+	Type       string
+	Resource   string
+	InputPath  string
+	ResultPath string
+	End        bool
 }
 
 type StateMachine struct {
 	Comment string
 	StartAt string
 	States  map[string]interface{}
+}
+
+type StateMachineLambdas struct {
+	Fetch              string
+	ScaleIn            string
+	TerminateInstances string
 }
 
 func GetStackId(stackName string) (string, error) {
@@ -364,7 +381,7 @@ func GetJoinAndFetchLambdaPolicy() (string, error) {
 	return string(policy), nil
 }
 
-func GetJoinAndFetchAssumeRolePolicy() (string, error) {
+func GetLambdaAssumeRolePolicy() (string, error) {
 	policyDocument := AssumeRolePolicyDocument{
 		Version: "2012-10-17",
 		Statement: []AssumeRoleStatementEntry{
@@ -400,7 +417,7 @@ func createAutoScalingGroup(stackId, stackName, name string, role string, maxSiz
 	if err != nil {
 		return "", err
 	}
-	assumeRolePolicy, err := GetJoinAndFetchAssumeRolePolicy()
+	assumeRolePolicy, err := GetLambdaAssumeRolePolicy()
 	if err != nil {
 		return "", err
 	}
@@ -408,11 +425,19 @@ func createAutoScalingGroup(stackId, stackName, name string, role string, maxSiz
 	if err != nil {
 		return "", err
 	}
-	lambdaConfiguration, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
+	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
 	if err != nil {
 		return "", err
 	}
-	err = CreateStateMachine(hostGroup, *lambdaConfiguration.FunctionArn)
+	scaleInLambda, err := CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, "")
+	if err != nil {
+		return "", err
+	}
+	lambdas := StateMachineLambdas{
+		Fetch:   *fetchLambda.FunctionArn,
+		ScaleIn: *scaleInLambda.FunctionArn,
+	}
+	err = CreateStateMachine(hostGroup, lambdas)
 	if err != nil {
 		return "", err
 	}
@@ -630,7 +655,7 @@ func createIamRole(hostGroup HostGroup, roleName, assumeRolePolicy, policyName, 
 	}
 	log.Debug().Msgf("role %s was created successfully!", roleName)
 
-	if policyName != "" {
+	if policy != "" {
 		policyOutput, err := createIamPolicy(policyName, policy)
 		if err != nil {
 			return nil, err
@@ -642,9 +667,6 @@ func createIamRole(hostGroup HostGroup, roleName, assumeRolePolicy, policyName, 
 		}
 		log.Debug().Msgf("policy %s was attached successfully!", policyName)
 	}
-
-	logging.UserProgress("Waiting for IAM role %s trust entity to finish update...", roleName)
-	time.Sleep(10 * time.Second) // it takes some time for the trust entity to be updated
 
 	return result.Role.Arn, nil
 }
@@ -666,7 +688,18 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	if err != nil {
 		return nil, err
 	}
-	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, string(dist.WekaCtl))
+
+	var lambdaPackage, lambdaHandler, runtime string
+	if lambdaType == "scale-in" {
+		lambdaPackage = string(dist.ScaleIn)
+		lambdaHandler = "scale_in_lambda.lambda_handler"
+		runtime = "python3.8"
+	} else {
+		lambdaPackage = string(dist.WekaCtl)
+		lambdaHandler = "lambdas-bin"
+		runtime = "go1.x"
+	}
+	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
 
 	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
 	roleName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, uuid.New().String())
@@ -680,6 +713,7 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	tableName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, "")
 	lambdaName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, lambdaType)
 
+	log.Debug().Msgf("creating lambda %s using: %s", lambdaName, s3Key)
 	input := &lambda.CreateFunctionInput{
 		Code: &lambda.FunctionCode{
 			S3Bucket: aws.String(bucket),
@@ -694,12 +728,12 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 				"TABLE_NAME": aws.String(tableName),
 			},
 		},
-		Handler:      aws.String("lambdas-bin"),
+		Handler:      aws.String(lambdaHandler),
 		FunctionName: aws.String(lambdaName),
 		MemorySize:   aws.Int64(256),
 		Publish:      aws.Bool(true),
 		Role:         roleArn,
-		Runtime:      aws.String("go1.x"),
+		Runtime:      aws.String(runtime),
 		Tags:         getMapCommonTags(hostGroup),
 		Timeout:      aws.Int64(15),
 		TracingConfig: &lambda.TracingConfig{
@@ -707,10 +741,20 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 		},
 	}
 
-	lambdaCreateOutput, err := svc.CreateFunction(input)
+	var lambdaCreateOutput *lambda.FunctionConfiguration
+	// it takes some time for the trust entity to be updated
+	for i := 0; i < 3; i++ {
+		lambdaCreateOutput, err = svc.CreateFunction(input)
+		if err == nil {
+			break
+		}
+		logging.UserProgress("Waiting for 10 sec for IAM role %s trust entity to finish update...", roleName)
+		time.Sleep(10 * time.Second)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	log.Debug().Msgf("lambda %s was created successfully!", lambdaName)
 
 	return lambdaCreateOutput, nil
@@ -929,15 +973,23 @@ func GetStateMachineRolePolicy() (string, error) {
 	return string(policy), nil
 }
 
-func CreateStateMachine(hostGroup HostGroup, lambdaArn string) error {
+func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
 	svc := connectors.GetAWSSession().SFN
 	stateMachineName := fmt.Sprintf("wekactl-%s-state-machine", hostGroup.Name)
 
 	states := make(map[string]interface{})
-	states["HostGroupInfo"] = EndState{
-		Type:     "Task",
-		Resource: lambdaArn,
-		End:      true,
+	states["HostGroupInfo"] = FirstState{
+		Type:       "Task",
+		Resource:   lambda.Fetch,
+		ResultPath: "$.taskresult",
+		Next:       "Scale",
+	}
+	states["Scale"] = EndState{
+		Type:       "Task",
+		Resource:   lambda.ScaleIn,
+		InputPath:  "$.taskresult.body",
+		ResultPath: "$.taskresult",
+		End:        true,
 	}
 	stateMachine := StateMachine{
 		Comment: "Wekactl state machine",

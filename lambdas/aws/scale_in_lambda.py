@@ -314,7 +314,7 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
 
     if role == 'backend':
         hosts_with_inactive_drives, \
-            fully_active_hosts_and_drives = find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status)
+        fully_active_hosts_and_drives = find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status)
 
         # deactivate hosts whose drives are all INACTIVE by sending their IDs
         host_ids_to_deactivate = [get_host_id(host_id) for host_id in hosts_with_inactive_drives]
@@ -361,11 +361,14 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
 # noinspection PyUnusedLocal
 def lambda_handler(event, context):
     from random import choice
+    if isinstance(event, str):
+        event = json.loads(event)
+
     private_ip = choice(event['private_ips'])
     conn = JsonRpcConnection(
         'http', private_ip, DEFAULT_PORT, DEFAULT_PATH,
         username=event['username'],
-        password=event['password]']
+        password=event['password']
     )
 
     hosts_data, inactive = scale(

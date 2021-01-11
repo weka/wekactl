@@ -23,7 +23,7 @@ fi
 GOOS=linux GOARCH=amd64 go build -o tmp/lambdas-bin cmd/wekactl-aws-lambdas/*.go
 cd tmp/
 zip wekactl-aws-lambdas.zip lambdas-bin
-zip scale_in_lambda.zip ../lambdas/aws/scale_in_lambda.py
+zip --junk-paths scale_in_lambda.zip ../lambdas/aws/scale_in_lambda.py
 cd -
 
 

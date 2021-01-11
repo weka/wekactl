@@ -103,8 +103,21 @@ func init() {
 	rootCmd.SetUsageFunc(Usage)
 }
 
-func main() {
+func configureLogging() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "" {
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	} else {
+		level, err := zerolog.ParseLevel(logLevel)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+		zerolog.SetGlobalLevel(level)
+	}
+}
+
+func main() {
+	configureLogging()
 	Execute()
 }

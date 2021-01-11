@@ -11,7 +11,21 @@ type FetchData struct {
 	Password        string   `json:"password"`
 	PrivateIps      []string `json:"private_ips"`
 	DesiredCapacity int      `json:"desired_capacity"`
-	InstanceIds     []string   `json:"instance_ids"`
+	InstanceIds     []string `json:"instance_ids"`
+	Role            string   `json:"role"`
+}
+
+func getRoleFromASGOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) string {
+	if len(asgOutput.AutoScalingGroups) == 0 {
+		return ""
+	}
+
+	for _, tag := range asgOutput.AutoScalingGroups[0].Tags {
+		if *tag.Key == "wekactl.io/hostgroup_type" {
+			return *tag.Value
+		}
+	}
+	return ""
 }
 
 func GetFetchDataParams(asgName, tableName string) (string, error) {
@@ -38,14 +52,15 @@ func GetFetchDataParams(asgName, tableName string) (string, error) {
 		return "", err
 	}
 
-	joinInfo := FetchData{
+	fetchData := FetchData{
 		Username:        username,
 		Password:        password,
 		PrivateIps:      ips,
 		DesiredCapacity: getAutoScalingGroupDesiredCapacity(asgOutput),
-		InstanceIds: ids,
+		InstanceIds:     ids,
+		Role:            getRoleFromASGOutput(asgOutput),
 	}
-	js, err := json.Marshal(joinInfo)
+	js, err := json.Marshal(fetchData)
 	if err != nil {
 		return "", err
 	}
