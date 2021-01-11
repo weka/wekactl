@@ -92,23 +92,18 @@ type AssumeRolePolicyDocument struct {
 type FirstState struct {
 	Type       string
 	Resource   string
-	ResultPath string
 	Next       string
 }
 
 type NextState struct {
 	Type       string
 	Resource   string
-	InputPath  string
-	ResultPath string
 	Next       string
 }
 
 type EndState struct {
 	Type       string
 	Resource   string
-	InputPath  string
-	ResultPath string
 	End        bool
 }
 
@@ -981,14 +976,11 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
 	states["HostGroupInfo"] = FirstState{
 		Type:       "Task",
 		Resource:   lambda.Fetch,
-		ResultPath: "$.taskresult",
 		Next:       "Scale",
 	}
 	states["Scale"] = EndState{
 		Type:       "Task",
 		Resource:   lambda.ScaleIn,
-		InputPath:  "$.taskresult.body",
-		ResultPath: "$.taskresult",
 		End:        true,
 	}
 	stateMachine := StateMachine{

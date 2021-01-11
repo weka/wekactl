@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"os"
@@ -8,9 +9,6 @@ import (
 	"wekactl/internal/env"
 )
 
-func defaultHandler() (events.APIGatewayProxyResponse, error) {
-	return events.APIGatewayProxyResponse{Body: "Unknown lambda type", StatusCode: 200}, nil
-}
 
 func joinHandler() (events.APIGatewayProxyResponse, error) {
 	result, err := lambdas.GetJoinParams(
@@ -23,16 +21,18 @@ func joinHandler() (events.APIGatewayProxyResponse, error) {
 	return events.APIGatewayProxyResponse{Body: result, StatusCode: 200}, nil
 }
 
-func fetchHandler() (events.APIGatewayProxyResponse, error) {
+
+func fetchHandler() (lambdas.FetchData, error) {
 	result, err := lambdas.GetFetchDataParams(
 		os.Getenv("ASG_NAME"),
 		os.Getenv("TABLE_NAME"),
 	)
 	if err != nil {
-		result = err.Error()
+		return lambdas.FetchData{}, err
 	}
-	return events.APIGatewayProxyResponse{Body: result, StatusCode: 200}, nil
+	return result, nil
 }
+
 
 func main() {
 	env.Config.Region = os.Getenv("REGION")
@@ -42,6 +42,6 @@ func main() {
 	case "fetch":
 		lambda.Start(fetchHandler)
 	default:
-		lambda.Start(defaultHandler)
+		lambda.Start(func() error {return errors.New("unsupported lambda command")})
 	}
 }
