@@ -8,6 +8,8 @@ import re
 import socket
 import sys
 import uuid
+from collections import defaultdict
+from logging import getLogger
 from operator import itemgetter
 from urllib.parse import urlparse
 
@@ -21,6 +23,8 @@ DEFAULT_PATH = '/api/v1'
 ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 DEFAULT_CONNECTION_TIMEOUT = 10
+
+logger = getLogger("scale-lambda")
 
 
 def parse_url(url, default_port=None, default_path='/'):
@@ -58,21 +62,13 @@ class WapiException(Exception):
         self.message = message
 
 
-def _get_credentials_from_environment():
-    org = os.environ['WEKA_ORG'] if ('WEKA_ORG' in os.environ) else None
-    for username_var, password_var in (('WEKA_USERNAME', 'WEKA_PASSWORD'), ('WEKA_USER', 'WEKA_PASS')):
-        if (username_var in os.environ) and (password_var in os.environ):
-            return org, os.environ[username_var], os.environ[password_var]
-    return None
-
-
 class WekaManagementCredentials:
     CREDENTIALS_FILENAME = '~/.weka/cli.conf'
     DEFAULT_CREDENTIALS = (None, 'admin', 'admin')
 
-    def __init__(self):
-        creds = _get_credentials_from_environment()
-        self.org, self.username, self.password = self.DEFAULT_CREDENTIALS if creds is None else creds
+    def __init__(self, username, password):
+        self.org = None
+        self.username, self.password = username, password
         self.authorization = None
 
     def login(self, host):
@@ -85,15 +81,6 @@ class WekaManagementCredentials:
         except HttpException as error:
             if error.error_code == httpclient.UNAUTHORIZED:
                 print('error: Incorrect username or password.')
-                print()
-                print('If you pass your credentials using environment variables, please make')
-                print('sure to pass them in WEKA_USERNAME/WEKA_PASSWORD environment variables.')
-                print()
-                print('You may need to pass WEKA_ORG if you are not in the root organization.')
-                print()
-                print('If you keep your credentials in {0}'.format(self.CREDENTIALS_FILENAME))
-                print('please make sure to update the file and try again.')
-                print()
                 raise SystemExit(1)
             raise
         self.authorization = '{0} {1}'.format(authorization['token_type'], authorization['access_token'])
@@ -106,7 +93,7 @@ class WekaManagementCredentials:
 
 
 class JsonRpcConnection:
-    def __init__(self, scheme, host, port, path, timeout=DEFAULT_CONNECTION_TIMEOUT):
+    def __init__(self, scheme, host, port, path, *, timeout=DEFAULT_CONNECTION_TIMEOUT, username=None, password=None):
 
         self._host = host
         self._port = port
@@ -115,8 +102,9 @@ class JsonRpcConnection:
             host=host, port=port, timeout=timeout)
         self._path = path
         self._timeout = timeout
-        self._creds = WekaManagementCredentials()
+        self._creds = WekaManagementCredentials(username, password)
         self.headers = self._creds.get_auth_headers()
+        self.login()
 
     @staticmethod
     def format_request(message_id, method, params):
@@ -124,6 +112,9 @@ class JsonRpcConnection:
                     method=method,
                     params=params,
                     id=message_id)
+
+    def login(self):
+        self._creds.login(self._host)
 
     @staticmethod
     def unique_id(alphabet=ALPHABET):
@@ -184,32 +175,15 @@ def print_results(results):
     return results
 
 
-def wapi_main(host, method, named_args):
-    host = host  # TODO: get host
+def wapi_main(conn, method, named_args):
     method_name = method.replace('-', '_')
 
-    host_port_and_path = get_scheme_host_port_and_path(host)
-
-    if host_port_and_path:
-        scheme, host, port, path = host_port_and_path
-        con = JsonRpcConnection(scheme, host, port, path)
-    else:
-        con = None
-
-    if con is None:
-        if method_name:
-            print('Could not connect to host')
-            return 1
-        else:
-            print("No connection required, no host")
-            return
-
-    con.headers['Client-Type'] = 'CLI'
+    conn.headers['Client-Type'] = 'CLI'
 
     try:
-        spec = con.rpc('getServiceSpec', {'method': method_name})
+        spec = conn.rpc('getServiceSpec', {'method': method_name})
         print(spec)
-        rpc_result, header_getter = con.rpc_with_header_getter(method_name, named_args)
+        rpc_result, header_getter = conn.rpc_with_header_getter(method_name, named_args)
         return print_results(rpc_result)
 
     except socket.timeout as e:
@@ -281,79 +255,125 @@ def find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status
 
 def organize_hosts_data(all_hosts):
     # organize all hosts into [host_id: {instance_id, status, added_time},...] by creating a new dict
-    organized_hosts = {}
+    organized_hosts = []
     for host, data in all_hosts.items():
         instance_id = data['aws']['instance_id'] if data['aws'] is not None else None
-        organized_hosts[host] = {'instance_id': instance_id, 'status': data['status'], 'added_time': data['added_time']}
+        organized_hosts.append(
+            {
+                'instance_id': instance_id,
+                'status': data['status'],
+                'added_time': data['added_time'],
+                "host_id": host,
+            }
+        )
     return organized_hosts
 
 
-def scale(ip, username, password, desired_capacity):
-    os.environ["WEKA_USERNAME"] = username
-    os.environ["WEKA_PASSWORD"] = password
-    host_to_drive_and_status = {}
+def get_host_id(host_id_str):
+    return host_id_str.split("<")[1].split(">")[0]
+
+
+def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
+    host_to_drive_and_status = defaultdict(list)
     inactive_hosts = []
     deactivating_hosts = []
     active_hosts = []
 
-    # list all drives and check which ones are inactive
-    drive_list = wapi_main(ip, 'disks-list', {'show_removed': False})
-    for drive, drive_data in drive_list.iteritems():
-        if drive_data['host_id'] not in host_to_drive_and_status.keys():
-            host_to_drive_and_status[drive_data['host_id']] = []
-        host_to_drive_and_status[drive_data['host_id']].append({drive_data['status']: drive_data['uuid']})
+    def host_belongs_to_hostgroup(_host):
+        return _host.get('aws', dict()).get('instance_id') in instance_ids
 
     # organize hosts with drives as active, inactive, and deactivating
-    all_hosts = wapi_main(ip, 'hosts-list', {})
+    all_hosts = wapi_main(jrpc_conn, 'hosts-list', {})
+
+    # list all drives and check which ones are inactive
+    drive_list = wapi_main(jrpc_conn, 'disks-list', {'show_removed': False})
+    for drive, drive_data in drive_list.iteritems():
+        host_id = drive_data['host_id']
+        if host_id in all_hosts and host_belongs_to_hostgroup(all_hosts[host_id]):
+            host_to_drive_and_status[host_id].append({drive_data['status']: drive_data['uuid']})
+
+    hostgroup_hosts = []
     all_backends_list = []
     for host, host_data in all_hosts.items():
+        if host_data['state'] == 'INACTIVE':
+            inactive_hosts.append(host)
+        if host_belongs_to_hostgroup(host_data):
+            continue
+        host_data['host_id'] = host
+        hostgroup_hosts.append(host_data)
         if host in host_to_drive_and_status:
-            host_data['host_id'] = host
             all_backends_list.append(host_data)
-            if host_data['state'] == 'INACTIVE':
-                inactive_hosts.append(host)
-            elif host_data['state'] == 'DEACTIVATING':
-                deactivating_hosts.append(host)
-            else:
-                host_data["host_id"] = host
-                active_hosts.append(host_data)
+        if host_data['state'] == 'DEACTIVATING':
+            deactivating_hosts.append(host)
+        else:
+            host_data["host_id"] = host
+            active_hosts.append(host_data)
 
     # sort by date so that we get the oldest instances first
     active_hosts.sort(key=itemgetter('added_time'))
 
-    hosts_with_inactive_drives, \
-        fully_active_hosts_and_drives = find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status)
+    if role == 'backend':
+        hosts_with_inactive_drives, \
+            fully_active_hosts_and_drives = find_hosts_with_inactive_drives(deactivating_hosts, host_to_drive_and_status)
 
-    # deactivate hosts whose drives are all INACTIVE by sending their IDs
-    wapi_main(ip, 'cluster-deactivate-hosts',
-              {"host_ids": [host_id.split("<")[1].split(">")[0] for host_id in hosts_with_inactive_drives],
-               "no_wait": False, "skip_resource_validation": False})
-
-    # Check if we need to deactivate more drives
-    if len(fully_active_hosts_and_drives) > desired_capacity:
-        number_of_hosts_to_deactivate = len(fully_active_hosts_and_drives) - desired_capacity
-        i = 0
-        for host in active_hosts:
-            if host['host_id'] in fully_active_hosts_and_drives:
-                if i < number_of_hosts_to_deactivate:
-                    wapi_main(ip, 'cluster-deactivate-drives',
+        # deactivate hosts whose drives are all INACTIVE by sending their IDs
+        host_ids_to_deactivate = [get_host_id(host_id) for host_id in hosts_with_inactive_drives]
+        wapi_main(jrpc_conn, 'cluster-deactivate-hosts',
+                  {"host_ids": host_ids_to_deactivate,
+                   "no_wait": False, "skip_resource_validation": False})
+        # Check if we need to deactivate more drives
+        if len(fully_active_hosts_and_drives) > desired_capacity:
+            number_of_hosts_to_deactivate = len(fully_active_hosts_and_drives) - desired_capacity
+            i = 0
+            for host in active_hosts:
+                if host['host_id'] in fully_active_hosts_and_drives:
+                    wapi_main(jrpc_conn, 'cluster-deactivate-drives',
                               {'drive_uuids': fully_active_hosts_and_drives[host['host_id']]})
                     i += 1
-                else:
-                    break
+                    if i >= number_of_hosts_to_deactivate:
+                        break
+    elif role == "client":
+        to_deactivate = len(active_hosts) - desired_capacity - len(deactivating_hosts)
+        if to_deactivate > 0:
+            host_ids_to_deactivate = [get_host_id(h['host_id']) for h in active_hosts[:to_deactivate]]
+            wapi_main(jrpc_conn, 'cluster-deactivate-hosts',
+                      {"host_ids": host_ids_to_deactivate,
+                       "no_wait": False, "skip_resource_validation": False})
 
     # remove deactivated hosts from cluster
     for host_id in inactive_hosts:
-        wapi_main(ip, 'cluster-remove-host',
-                  {"host_id": host_id.split("<")[1].split(">")[0]})
+        try:
+            host_id = host_id.split("<")[1].split(">")[0]
+            wapi_main(jrpc_conn, 'cluster-remove-host',
+                      {"host_id": host_id})
+        except HttpException as e:
+            if "host not found" in e.error_msg:
+                logger.debug("Host %s not found", host_id)
+            else:
+                raise
 
     # return updated hosts_list and instance_ids of inactive hosts
-    return organize_hosts_data(all_hosts), inactive_hosts
+    return dict(
+        hosts=organize_hosts_data(all_hosts),
+    )
 
 
 # noinspection PyUnusedLocal
 def lambda_handler(event, context):
-    hosts_data, inactive = scale(event['private_ips'], event['username'], event['password'], event['desired_capacity'])
+    from random import choice
+    private_ip = choice(event['private_ips'])
+    conn = JsonRpcConnection(
+        'http', private_ip, DEFAULT_PORT, DEFAULT_PATH,
+        username=event['username'],
+        password=event['password]']
+    )
+
+    hosts_data, inactive = scale(
+        instance_ids=event['instance_ids'],
+        jrpc_conn=conn,
+        desired_capacity=event['desired_capacity'],
+        role=event['role'],
+    )
     return {
         'hosts': hosts_data,
         'inactive': inactive,
