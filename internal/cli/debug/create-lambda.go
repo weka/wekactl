@@ -2,6 +2,7 @@ package debug
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/cluster"
 	"wekactl/internal/env"
@@ -27,6 +28,10 @@ var createLambdaCmd = &cobra.Command{
 					StackName: StackName,
 				},
 			}
+			if Lambda != "join" {
+				logging.UserFailure("Supported only with join lambda")
+				return nil
+			}
 			policy, err := cluster.GetJoinAndFetchLambdaPolicy()
 			if err != nil {
 				return err
@@ -35,7 +40,7 @@ var createLambdaCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			err = cluster.CreateLambdaEndPoint(hostGroup, Lambda, "Backends", assumeRolePolicy, policy)
+			err = cluster.CreateLambdaEndPoint(hostGroup, Lambda, "Backends", assumeRolePolicy, policy, lambda.VpcConfig{})
 			if err != nil {
 				return err
 			}
