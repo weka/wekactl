@@ -31,7 +31,7 @@ var createLambdaCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			assumeRolePolicy, err := cluster.GetJoinAndFetchAssumeRolePolicy()
+			assumeRolePolicy, err := cluster.GetLambdaAssumeRolePolicy()
 			if err != nil {
 				return err
 			}

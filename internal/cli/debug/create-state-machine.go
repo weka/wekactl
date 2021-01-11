@@ -30,15 +30,23 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			assumeRolePolicy, err := cluster.GetJoinAndFetchAssumeRolePolicy()
+			assumeRolePolicy, err := cluster.GetLambdaAssumeRolePolicy()
 			if err != nil {
 				return err
 			}
-			lambdaConfiguration, err := cluster.CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
+			fetchLambda, err := cluster.CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, policy)
 			if err != nil {
 				return err
 			}
-			err = cluster.CreateStateMachine(hostGroup, *lambdaConfiguration.FunctionArn)
+			scaleInLambda, err := cluster.CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, "")
+			if err != nil {
+				return err
+			}
+			lambdas := cluster.StateMachineLambdas{
+				Fetch:   *fetchLambda.FunctionArn,
+				ScaleIn: *scaleInLambda.FunctionArn,
+			}
+			err = cluster.CreateStateMachine(hostGroup, lambdas)
 			if err != nil {
 				return err
 			}
