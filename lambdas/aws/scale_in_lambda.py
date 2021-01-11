@@ -104,7 +104,6 @@ class JsonRpcConnection:
         self._timeout = timeout
         self._creds = WekaManagementCredentials(username, password)
         self.headers = self._creds.get_auth_headers()
-        self.login()
 
     @staticmethod
     def format_request(message_id, method, params):
@@ -182,7 +181,6 @@ def wapi_main(conn, method, named_args):
 
     try:
         spec = conn.rpc('getServiceSpec', {'method': method_name})
-        print(spec)
         rpc_result, header_getter = conn.rpc_with_header_getter(method_name, named_args)
         return print_results(rpc_result)
 
@@ -287,7 +285,7 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
 
     # list all drives and check which ones are inactive
     drive_list = wapi_main(jrpc_conn, 'disks-list', {'show_removed': False})
-    for drive, drive_data in drive_list.iteritems():
+    for drive, drive_data in drive_list.items():
         host_id = drive_data['host_id']
         if host_id in all_hosts and host_belongs_to_hostgroup(all_hosts[host_id]):
             host_to_drive_and_status[host_id].append({drive_data['status']: drive_data['uuid']})
@@ -361,8 +359,6 @@ def scale(*, instance_ids, jrpc_conn, desired_capacity, role):
 # noinspection PyUnusedLocal
 def lambda_handler(event, context):
     from random import choice
-    if isinstance(event, str):
-        event = json.loads(event)
 
     private_ip = choice(event['private_ips'])
     conn = JsonRpcConnection(
@@ -370,14 +366,11 @@ def lambda_handler(event, context):
         username=event['username'],
         password=event['password']
     )
+    conn.login()
 
-    hosts_data, inactive = scale(
+    return scale(
         instance_ids=event['instance_ids'],
         jrpc_conn=conn,
         desired_capacity=event['desired_capacity'],
         role=event['role'],
     )
-    return {
-        'hosts': hosts_data,
-        'inactive': inactive,
-    }

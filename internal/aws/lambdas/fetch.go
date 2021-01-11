@@ -1,7 +1,6 @@
 package lambdas
 
 import (
-	"encoding/json"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"wekactl/internal/connectors"
 )
@@ -28,18 +27,18 @@ func getRoleFromASGOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput
 	return ""
 }
 
-func GetFetchDataParams(asgName, tableName string) (string, error) {
+func GetFetchDataParams(asgName, tableName string) (fd FetchData, err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
 	asgOutput, err := svc.DescribeAutoScalingGroups(input)
 	if err != nil {
-		return "", err
+		return
 	}
 
 	instanceIds := getAutoScalingGroupInstanceIds(asgOutput)
 	ips, err := getAutoScalingGroupInstanceIps(instanceIds)
 	if err != nil {
-		return "", err
+		return
 	}
 
 	var ids []string
@@ -49,21 +48,15 @@ func GetFetchDataParams(asgName, tableName string) (string, error) {
 
 	username, password, err := getUsernameAndPassword(tableName)
 	if err != nil {
-		return "", err
+		return
 	}
 
-	fetchData := FetchData{
+	return FetchData{
 		Username:        username,
 		Password:        password,
 		PrivateIps:      ips,
 		DesiredCapacity: getAutoScalingGroupDesiredCapacity(asgOutput),
 		InstanceIds:     ids,
 		Role:            getRoleFromASGOutput(asgOutput),
-	}
-	js, err := json.Marshal(fetchData)
-	if err != nil {
-		return "", err
-	}
-
-	return string(js), nil
+	}, nil
 }
