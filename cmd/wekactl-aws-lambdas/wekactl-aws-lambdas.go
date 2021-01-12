@@ -9,7 +9,6 @@ import (
 	"wekactl/internal/env"
 )
 
-
 func joinHandler() (events.APIGatewayProxyResponse, error) {
 	result, err := lambdas.GetJoinParams(
 		os.Getenv("ASG_NAME"),
@@ -20,7 +19,6 @@ func joinHandler() (events.APIGatewayProxyResponse, error) {
 	}
 	return events.APIGatewayProxyResponse{Body: result, StatusCode: 200}, nil
 }
-
 
 func fetchHandler() (lambdas.FetchData, error) {
 	result, err := lambdas.GetFetchDataParams(
@@ -33,6 +31,16 @@ func fetchHandler() (lambdas.FetchData, error) {
 	return result, nil
 }
 
+func terminateHandler(clusterHostInfo lambdas.ClusterHostInfo) (lambdas.TerminatedInstances, error) {
+	result, err := lambdas.TerminateInstances(
+		os.Getenv("ASG_NAME"),
+		clusterHostInfo,
+	)
+	if err != nil {
+		return lambdas.TerminatedInstances{}, nil
+	}
+	return result, nil
+}
 
 func main() {
 	env.Config.Region = os.Getenv("REGION")
@@ -41,7 +49,9 @@ func main() {
 		lambda.Start(joinHandler)
 	case "fetch":
 		lambda.Start(fetchHandler)
+	case "terminate":
+		lambda.Start(terminateHandler)
 	default:
-		lambda.Start(func() error {return errors.New("unsupported lambda command")})
+		lambda.Start(func() error { return errors.New("unsupported lambda command") })
 	}
 }

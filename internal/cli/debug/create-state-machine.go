@@ -43,6 +43,10 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
+			terminatePolicy, err := cluster.GetTerminateLambdaPolicy()
+			if err != nil {
+				return err
+			}
 			stackInstances, err := cluster.GetInstancesInfo(StackName)
 			if err != nil {
 				return err
@@ -52,9 +56,14 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
+			terminateLambda, err := cluster.CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, terminatePolicy, lambdaVpcConfig)
+			if err != nil {
+				return err
+			}
 			lambdas := cluster.StateMachineLambdas{
-				Fetch:   *fetchLambda.FunctionArn,
-				ScaleIn: *scaleInLambda.FunctionArn,
+				Fetch:     *fetchLambda.FunctionArn,
+				ScaleIn:   *scaleInLambda.FunctionArn,
+				Terminate: *terminateLambda.FunctionArn,
 			}
 			err = cluster.CreateStateMachine(hostGroup, lambdas)
 			if err != nil {
