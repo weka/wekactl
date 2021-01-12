@@ -35,7 +35,7 @@ func GetFetchDataParams(asgName, tableName string) (fd FetchData, err error) {
 		return
 	}
 
-	instanceIds := getAutoScalingGroupInstanceIds(asgOutput)
+	instanceIds := getInstanceIdsFromAutoScalingGroupOutput(asgOutput)
 	ips, err := getAutoScalingGroupInstanceIps(instanceIds)
 	if err != nil {
 		return

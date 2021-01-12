@@ -19,7 +19,17 @@ func getAutoScalingGroupDesiredCapacity(asgOutput *autoscaling.DescribeAutoScali
 	return int(*asgOutput.AutoScalingGroups[0].DesiredCapacity)
 }
 
-func getAutoScalingGroupInstanceIds(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) []*string {
+func getAutoScalingGroupInstanceIds(asgName string) ([]*string, error) {
+	svc := connectors.GetAWSSession().ASG
+	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
+	asgOutput, err := svc.DescribeAutoScalingGroups(input)
+	if err != nil {
+		return []*string{}, err
+	}
+	return getInstanceIdsFromAutoScalingGroupOutput(asgOutput), nil
+}
+
+func getInstanceIdsFromAutoScalingGroupOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) []*string {
 	var instanceIds []*string
 	if len(asgOutput.AutoScalingGroups) == 0 {
 		return []*string{}

@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,11 +18,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/sync/semaphore"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
@@ -89,12 +86,6 @@ type AssumeRolePolicyDocument struct {
 	Statement []AssumeRoleStatementEntry
 }
 
-type FirstState struct {
-	Type     string
-	Resource string
-	Next     string
-}
-
 type NextState struct {
 	Type     string
 	Resource string
@@ -114,9 +105,9 @@ type StateMachine struct {
 }
 
 type StateMachineLambdas struct {
-	Fetch              string
-	ScaleIn            string
-	TerminateInstances string
+	Fetch     string
+	ScaleIn   string
+	Terminate string
 }
 
 func GetStackId(stackName string) (string, error) {
@@ -182,51 +173,6 @@ func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
 		instanceIds = append(instanceIds, instance.InstanceId)
 	}
 	return instanceIds
-}
-
-func disableInstanceApiTermination(instanceId string) (*ec2.ModifyInstanceAttributeOutput, error) {
-	svc := connectors.GetAWSSession().EC2
-	input := &ec2.ModifyInstanceAttributeInput{
-		DisableApiTermination: &ec2.AttributeBooleanValue{
-			Value: aws.Bool(true),
-		},
-		InstanceId: aws.String(instanceId),
-	}
-	return svc.ModifyInstanceAttribute(input)
-}
-
-var terminationSemaphore *semaphore.Weighted
-
-func init() {
-	terminationSemaphore = semaphore.NewWeighted(20)
-}
-
-func disableInstancesApiTermination(instances []*ec2.Instance) error {
-	instanceIds := getInstancesIdsFromEc2Instance(instances)
-
-	var wg sync.WaitGroup
-	var failedInstances int64
-
-	wg.Add(len(instanceIds))
-	for i := range instanceIds {
-		go func(i int) {
-			_ = terminationSemaphore.Acquire(context.Background(), 1)
-			defer terminationSemaphore.Release(1)
-			defer wg.Done()
-
-			_, err := disableInstanceApiTermination(*instanceIds[i])
-			if err != nil {
-				atomic.AddInt64(&failedInstances, 1)
-				log.Error().Msgf("failed to set DisableApiTermination on %s", *instanceIds[i])
-			}
-		}(i)
-	}
-	wg.Wait()
-	if failedInstances != 0 {
-		return errors.New(fmt.Sprintf("failed to set DisableApiTermination on %d instances", failedInstances))
-	}
-	return nil
-
 }
 
 func getUuidFromStackId(stackId string) string {
@@ -399,6 +345,31 @@ func GetScaleInLambdaPolicy() (string, error) {
 	return string(policy), nil
 }
 
+func GetTerminateLambdaPolicy() (string, error) {
+	policyDocument := PolicyDocument{
+		Version: "2012-10-17",
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"ec2:CreateNetworkInterface",
+					"ec2:DescribeNetworkInterfaces",
+					"ec2:DeleteNetworkInterface",
+					"autoscaling:Describe*",
+					"ec2:Describe*",
+				},
+				Resource: "*",
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
 func GetLambdaAssumeRolePolicy() (string, error) {
 	policyDocument := AssumeRolePolicyDocument{
 		Version: "2012-10-17",
@@ -439,6 +410,10 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
+	terminatePolicy, err := GetTerminateLambdaPolicy()
+	if err != nil {
+		return "", err
+	}
 	assumeRolePolicy, err := GetLambdaAssumeRolePolicy()
 	if err != nil {
 		return "", err
@@ -455,9 +430,14 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
+	terminateLambda, err := CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, terminatePolicy, vpcConfig)
+	if err != nil {
+		return "", err
+	}
 	lambdas := StateMachineLambdas{
-		Fetch:   *fetchLambda.FunctionArn,
-		ScaleIn: *scaleInLambda.FunctionArn,
+		Fetch:     *fetchLambda.FunctionArn,
+		ScaleIn:   *scaleInLambda.FunctionArn,
+		Terminate: *terminateLambda.FunctionArn,
 	}
 	err = CreateStateMachine(hostGroup, lambdas)
 	if err != nil {
@@ -1001,14 +981,19 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
 	stateMachineName := fmt.Sprintf("wekactl-%s-state-machine", hostGroup.Name)
 
 	states := make(map[string]interface{})
-	states["HostGroupInfo"] = FirstState{
+	states["HostGroupInfo"] = NextState{
 		Type:     "Task",
 		Resource: lambda.Fetch,
 		Next:     "Scale",
 	}
-	states["Scale"] = EndState{
+	states["Scale"] = NextState{
 		Type:     "Task",
 		Resource: lambda.ScaleIn,
+		Next:     "Terminate",
+	}
+	states["Terminate"] = EndState{
+		Type:     "Task",
+		Resource: lambda.Terminate,
 		End:      true,
 	}
 	stateMachine := StateMachine{
@@ -1101,7 +1086,8 @@ func ImportCluster(stackName, username, password string) error {
 		return err
 	}
 
-	err = disableInstancesApiTermination(stackInstances.All())
+	instanceIds := getInstancesIdsFromEc2Instance(stackInstances.All())
+	err = common.DisableInstancesApiTermination(instanceIds, true)
 	if err != nil {
 		return err
 	}

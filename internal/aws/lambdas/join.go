@@ -21,7 +21,7 @@ func GetJoinParams(asgName, tableName string) (string, error) {
 		return "", err
 	}
 
-	instanceIds := getAutoScalingGroupInstanceIds(asgOutput)
+	instanceIds := getInstanceIdsFromAutoScalingGroupOutput(asgOutput)
 	ips, err := getAutoScalingGroupInstanceIps(instanceIds)
 	if err != nil {
 		return "", err
