@@ -7,6 +7,7 @@ import (
 )
 
 var StackName string
+var Lambda string
 
 var Debug = &cobra.Command{
 	Use:   "debug [command] [flags]",

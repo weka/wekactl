@@ -1,6 +1,7 @@
 package debug
 
 import (
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/spf13/cobra"
@@ -9,9 +10,8 @@ import (
 	"wekactl/internal/logging"
 )
 
-var Lambda string
 var createLambdaCmd = &cobra.Command{
-	Use:   "create-lambda-endpoint",
+	Use:   "create-lambda",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -28,11 +28,25 @@ var createLambdaCmd = &cobra.Command{
 					StackName: StackName,
 				},
 			}
-			if Lambda != "join" {
-				logging.UserFailure("Supported only with join lambda")
-				return nil
+
+			stackInstances, err := cluster.GetInstancesInfo(StackName)
+			var lambdaVpcConfig lambda.VpcConfig
+			var policy string
+			switch Lambda {
+			case "join":
+				policy, err = cluster.GetJoinAndFetchLambdaPolicy()
+			case "fetch":
+				policy, err = cluster.GetJoinAndFetchLambdaPolicy()
+			case "scale":
+				policy, err = cluster.GetScaleLambdaPolicy()
+				lambdaVpcConfig = cluster.GetLambdaVpcConfig(stackInstances.Backends[0])
+
+			case "terminate":
+				policy, err = cluster.GetTerminateLambdaPolicy()
+			default:
+				err = errors.New("invalid lambda type")
 			}
-			policy, err := cluster.GetJoinAndFetchLambdaPolicy()
+
 			if err != nil {
 				return err
 			}
@@ -40,7 +54,11 @@ var createLambdaCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			err = cluster.CreateLambdaEndPoint(hostGroup, Lambda, "Backends", assumeRolePolicy, policy, lambda.VpcConfig{})
+
+			if err != nil {
+				return err
+			}
+			_, err = cluster.CreateLambda(hostGroup, Lambda, "Backends", assumeRolePolicy, policy, lambdaVpcConfig)
 			if err != nil {
 				return err
 			}

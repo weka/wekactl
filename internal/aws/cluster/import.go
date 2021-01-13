@@ -438,7 +438,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
-	terminateLambda, err := CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, terminatePolicy, vpcConfig)
+	terminateLambda, err := CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, terminatePolicy, lambda.VpcConfig{})
 	if err != nil {
 		return "", err
 	}
