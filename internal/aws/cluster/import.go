@@ -331,6 +331,9 @@ func GetScaleLambdaPolicy() (string, error) {
 			{
 				Effect: "Allow",
 				Action: []string{
+					"logs:CreateLogStream",
+					"logs:PutLogEvents",
+					"logs:CreateLogGroup",
 					"ec2:CreateNetworkInterface",
 					"ec2:DescribeNetworkInterfaces",
 					"ec2:DeleteNetworkInterface",
@@ -354,6 +357,9 @@ func GetTerminateLambdaPolicy() (string, error) {
 			{
 				Effect: "Allow",
 				Action: []string{
+					"logs:CreateLogStream",
+					"logs:PutLogEvents",
+					"logs:CreateLogGroup",
 					"ec2:CreateNetworkInterface",
 					"ec2:DescribeNetworkInterfaces",
 					"ec2:DeleteNetworkInterface",
