@@ -65,7 +65,7 @@ var createStateMachineCmd = &cobra.Command{
 				ScaleIn:   *scaleInLambda.FunctionArn,
 				Terminate: *terminateLambda.FunctionArn,
 			}
-			err = cluster.CreateStateMachine(hostGroup, lambdas)
+			_, err = cluster.CreateStateMachine(hostGroup, lambdas)
 			if err != nil {
 				return err
 			}
