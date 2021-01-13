@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -439,7 +440,11 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 		ScaleIn:   *scaleInLambda.FunctionArn,
 		Terminate: *terminateLambda.FunctionArn,
 	}
-	err = CreateStateMachine(hostGroup, lambdas)
+	stateMachineArn, err := CreateStateMachine(hostGroup, lambdas)
+	if err != nil {
+		return "", err
+	}
+	err = CreateCloudWatchEventRule(hostGroup, stateMachineArn)
 	if err != nil {
 		return "", err
 	}
@@ -976,7 +981,7 @@ func GetStateMachineRolePolicy() (string, error) {
 	return string(policy), nil
 }
 
-func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
+func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) (*string, error) {
 	svc := connectors.GetAWSSession().SFN
 	stateMachineName := fmt.Sprintf("wekactl-%s-state-machine", hostGroup.Name)
 
@@ -1005,19 +1010,104 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
 	b, err := json.Marshal(&stateMachine)
 	if err != nil {
 		log.Debug().Msg("Error marshaling stateMachine")
-		return err
+		return nil, err
 	}
 	definition := string(b)
 	log.Debug().Msgf("Creating state machine :%s", stateMachineName)
 	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
-	roleName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, uuid.New().String())
-	policyName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, getUuidFromStackId(hostGroup.Stack.StackId))
+	roleName := fmt.Sprintf("wekactl-%s-sm-%s", hostGroup.Name, uuid.New().String())
+	policyName := fmt.Sprintf("wekactl-%s-sm-%s", hostGroup.Name, getUuidFromStackId(hostGroup.Stack.StackId))
 	assumeRolePolicy, err := GetStateMachineAssumeRolePolicy()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	policy, err := GetStateMachineRolePolicy()
+	if err != nil {
+		return nil, err
+	}
+	roleArn, err := createIamRole(hostGroup, roleName, assumeRolePolicy, policyName, policy)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := svc.CreateStateMachine(&sfn.CreateStateMachineInput{
+		Name:       aws.String(stateMachineName),
+		RoleArn:    roleArn,
+		Tags:       getStateMachineTags(hostGroup),
+		Definition: aws.String(definition),
+	})
+	if err != nil {
+		return nil, err
+	}
+	log.Debug().Msgf("State machine %s was created successfully!", stateMachineName)
+	return result.StateMachineArn, nil
+}
+
+func getCloudWatchEventTags(hostGroup HostGroup) []*cloudwatchevents.Tag {
+	var cloudWatchEventTags []*cloudwatchevents.Tag
+	for _, tag := range getHostGroupTags(hostGroup) {
+		cloudWatchEventTags = append(cloudWatchEventTags, &cloudwatchevents.Tag{
+			Key:   tag.Key,
+			Value: tag.Value,
+		})
+	}
+	return cloudWatchEventTags
+}
+
+func GetCloudWatchEventAssumeRolePolicy() (string, error) {
+	policyDocument := AssumeRolePolicyDocument{
+		Version: "2012-10-17",
+		Statement: []AssumeRoleStatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"sts:AssumeRole",
+				},
+				Principal: Principal{
+					Service: "events.amazonaws.com",
+				},
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
+func GetCloudWatchEventRolePolicy() (string, error) {
+	policyDocument := PolicyDocument{
+		Version: "2012-10-17",
+		Statement: []StatementEntry{
+			{
+				Effect: "Allow",
+				Action: []string{
+					"states:StartExecution",
+				},
+				Resource: "*",
+			},
+		},
+	}
+	policy, err := json.Marshal(&policyDocument)
+	if err != nil {
+		log.Debug().Msg("Error marshaling policy")
+		return "", err
+	}
+	return string(policy), nil
+}
+
+func CreateCloudWatchEventRule(hostGroup HostGroup, arn *string) error {
+	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
+	roleName := fmt.Sprintf("wekactl-%s-cle-%s", hostGroup.Name, uuid.New().String())
+	policyName := fmt.Sprintf("wekactl-%s-cle-%s", hostGroup.Name, getUuidFromStackId(hostGroup.Stack.StackId))
+	assumeRolePolicy, err := GetCloudWatchEventAssumeRolePolicy()
+	if err != nil {
+		return err
+	}
+	policy, err := GetCloudWatchEventRolePolicy()
 	if err != nil {
 		return err
 	}
@@ -1026,16 +1116,34 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) error {
 		return err
 	}
 
-	_, err = svc.CreateStateMachine(&sfn.CreateStateMachineInput{
-		Name:       aws.String(stateMachineName),
-		RoleArn:    roleArn,
-		Tags:       getStateMachineTags(hostGroup),
-		Definition: aws.String(definition),
+	svc := connectors.GetAWSSession().CloudWatchEvents
+	ruleName := fmt.Sprintf("wekactl-%s-state-machine", hostGroup.Name)
+	_, err = svc.PutRule(&cloudwatchevents.PutRuleInput{
+		Name:               &ruleName,
+		ScheduleExpression: aws.String("rate(1 minute)"),
+		State:              aws.String("ENABLED"),
+		Tags:               getCloudWatchEventTags(hostGroup),
 	})
 	if err != nil {
 		return err
 	}
-	log.Debug().Msgf("State machine %s was created successfully!", stateMachineName)
+	log.Debug().Msgf("cloudwatch rule %s was created successfully!", ruleName)
+
+	_, err = svc.PutTargets(&cloudwatchevents.PutTargetsInput{
+		Rule: &ruleName,
+		Targets: []*cloudwatchevents.Target{
+			{
+				Arn:     arn,
+				Id:      aws.String(uuid.New().String()),
+				RoleArn: roleArn,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("cloudwatch state machine target was set successfully!")
+
 	return nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
+	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -20,17 +21,18 @@ import (
 
 type SAwsSession struct {
 	sync.RWMutex
-	Session    *session.Session
-	CF         *cloudformation.CloudFormation
-	EC2        *ec2.EC2
-	ASG        *autoscaling.AutoScaling
-	KMS        *kms.KMS
-	DynamoDB   *dynamodb.DynamoDB
-	IAM        *iam.IAM
-	Lambda     *lambda.Lambda
-	ApiGateway *apigateway.APIGateway
-	STS        *sts.STS
-	SFN        *sfn.SFN
+	Session          *session.Session
+	CF               *cloudformation.CloudFormation
+	EC2              *ec2.EC2
+	ASG              *autoscaling.AutoScaling
+	KMS              *kms.KMS
+	DynamoDB         *dynamodb.DynamoDB
+	IAM              *iam.IAM
+	Lambda           *lambda.Lambda
+	ApiGateway       *apigateway.APIGateway
+	STS              *sts.STS
+	SFN              *sfn.SFN
+	CloudWatchEvents *cloudwatchevents.CloudWatchEvents
 }
 
 var awsSession SAwsSession
@@ -53,6 +55,7 @@ func GetAWSSession() *SAwsSession {
 		awsSession.ApiGateway = apigateway.New(awsSession.Session)
 		awsSession.STS = sts.New(awsSession.Session)
 		awsSession.SFN = sfn.New(awsSession.Session)
+		awsSession.CloudWatchEvents = cloudwatchevents.New(awsSession.Session)
 	}
 	return &awsSession
 }
