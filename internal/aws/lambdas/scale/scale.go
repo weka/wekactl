@@ -154,11 +154,17 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		// Then hosts sorted by add time
 		a := hostsList[i]
 		b := hostsList[j]
-		if !a.areDiskBeingRemoved() && b.areDiskBeingRemoved() {
+		if a.areDiskBeingRemoved() && !b.areDiskBeingRemoved() {
 			return true
+		}
+		if !a.areDiskBeingRemoved() && b.areDiskBeingRemoved() {
+			return false
 		}
 		if a.numNotActiveDrives() < b.numNotActiveDrives() {
 			return true
+		}
+		if a.numNotActiveDrives() > b.numNotActiveDrives() {
+			return false
 		}
 		return a.AddedTime.Before(b.AddedTime)
 	})
