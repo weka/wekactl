@@ -13,8 +13,10 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/rs/zerolog v1.20.0
 	github.com/spf13/cobra v1.1.1
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 	golang.org/x/text v0.3.4 // indirect
+	golang.org/x/tools v0.0.0-20191112195655-aa38f8e97acc // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

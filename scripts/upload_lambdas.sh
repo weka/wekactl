@@ -23,7 +23,6 @@ fi
 GOOS=linux GOARCH=amd64 go build -o tmp/lambdas-bin cmd/wekactl-aws-lambdas/*.go
 cd tmp/
 zip wekactl-aws-lambdas.zip lambdas-bin
-zip --junk-paths scale_in_lambda.zip ../lambdas/aws/scale_in_lambda.py
 cd -
 
 
@@ -53,7 +52,6 @@ if [[ -n $WEKACTL_AWS_LAMBDAS_BUCKETS ]]; then
     distribute tmp/wekactl-aws-lambdas.zip
     go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" $LAMBDAS_ID $AWS_DIST
   fi
-  distribute tmp/scale_in_lambda.zip
 fi
 
 cd -

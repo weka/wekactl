@@ -6,6 +6,8 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"os"
 	"wekactl/internal/aws/lambdas"
+	"wekactl/internal/aws/lambdas/protocol"
+	"wekactl/internal/aws/lambdas/scale"
 	"wekactl/internal/env"
 )
 
@@ -20,13 +22,13 @@ func joinHandler() (events.APIGatewayProxyResponse, error) {
 	return events.APIGatewayProxyResponse{Body: result, StatusCode: 200}, nil
 }
 
-func fetchHandler() (lambdas.FetchData, error) {
+func fetchHandler() (protocol.HostGroupInfoResponse, error) {
 	result, err := lambdas.GetFetchDataParams(
 		os.Getenv("ASG_NAME"),
 		os.Getenv("TABLE_NAME"),
 	)
 	if err != nil {
-		return lambdas.FetchData{}, err
+		return protocol.HostGroupInfoResponse{}, err
 	}
 	return result, nil
 }
@@ -49,6 +51,8 @@ func main() {
 		lambda.Start(joinHandler)
 	case "fetch":
 		lambda.Start(fetchHandler)
+	case "scale":
+		lambda.Start(scale.Handler)
 	case "terminate":
 		lambda.Start(terminateHandler)
 	default:
