@@ -10,9 +10,9 @@ type JrpcMethod string
 const (
 	JrpcHostList         JrpcMethod = "hosts_list"
 	JrpcDrivesList       JrpcMethod = "disks_list"
-	JrpcRemoveHost       JrpcMethod = "cluster-remove-host"
-	JrpcDeactivateDrives JrpcMethod = "cluster-deactivate-drives"
-	JrpcDeactivateHosts  JrpcMethod = "cluster-deactivate-hosts"
+	JrpcRemoveHost       JrpcMethod = "cluster_remove_host"
+	JrpcDeactivateDrives JrpcMethod = "cluster_deactivate_drives"
+	JrpcDeactivateHosts  JrpcMethod = "cluster_deactivate_hosts"
 )
 
 type HostListResponse map[HostId]Host
