@@ -8,6 +8,7 @@ import (
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/aws/lambdas/scale"
+	"wekactl/internal/aws/lambdas/terminate"
 	"wekactl/internal/env"
 )
 
@@ -33,17 +34,6 @@ func fetchHandler() (protocol.HostGroupInfoResponse, error) {
 	return result, nil
 }
 
-func terminateHandler(clusterHostInfo lambdas.ClusterHostInfo) (lambdas.TerminatedInstances, error) {
-	result, err := lambdas.TerminateInstances(
-		os.Getenv("ASG_NAME"),
-		clusterHostInfo,
-	)
-	if err != nil {
-		return lambdas.TerminatedInstances{}, nil
-	}
-	return result, nil
-}
-
 func main() {
 	env.Config.Region = os.Getenv("REGION")
 	switch lambdaType := os.Getenv("LAMBDA"); lambdaType {
@@ -54,7 +44,7 @@ func main() {
 	case "scale":
 		lambda.Start(scale.Handler)
 	case "terminate":
-		lambda.Start(terminateHandler)
+		lambda.Start(terminate.Handler)
 	default:
 		lambda.Start(func() error { return errors.New("unsupported lambda command") })
 	}

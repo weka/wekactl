@@ -108,7 +108,7 @@ type StateMachine struct {
 
 type StateMachineLambdas struct {
 	Fetch     string
-	Scale   string
+	Scale     string
 	Terminate string
 }
 
@@ -438,7 +438,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	}
 	lambdas := StateMachineLambdas{
 		Fetch:     *fetchLambda.FunctionArn,
-		Scale:   *scaleLambda.FunctionArn,
+		Scale:     *scaleLambda.FunctionArn,
 		Terminate: *terminateLambda.FunctionArn,
 	}
 	stateMachineArn, err := CreateStateMachine(hostGroup, lambdas)
@@ -471,19 +471,12 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	return resourceName, nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func attachInstancesToAutoScalingGroups(roleInstances []*ec2.Instance, autoScalingGroupsName string) error {
 	svc := connectors.GetAWSSession().ASG
 	limit := 20
 	instancesIds := getInstancesIdsFromEc2Instance(roleInstances)
 	for i := 0; i < len(instancesIds); i += limit {
-		batch := instancesIds[i:min(i+limit, len(instancesIds))]
+		batch := instancesIds[i:common.Min(i+limit, len(instancesIds))]
 		_, err := svc.AttachInstances(&autoscaling.AttachInstancesInput{
 			AutoScalingGroupName: &autoScalingGroupsName,
 			InstanceIds:          batch,
@@ -749,7 +742,7 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	retry := true
 	for i := 0; i < 3 && retry; i++ {
 		retry = false
-		log.Debug().Msgf("try %d: creating lambda %s using: %s", i + 1, lambdaName, s3Key)
+		log.Debug().Msgf("try %d: creating lambda %s using: %s", i+1, lambdaName, s3Key)
 		lambdaCreateOutput, err = svc.CreateFunction(input)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
@@ -1197,9 +1190,9 @@ func ImportCluster(stackName, username, password string) error {
 	}
 
 	instanceIds := getInstancesIdsFromEc2Instance(stackInstances.All())
-	err = common.DisableInstancesApiTermination(instanceIds, true)
-	if err != nil {
-		return err
+	_, errs := common.SetDisableInstancesApiTermination(instanceIds, true)
+	if len(errs) != 0 {
+		return errs[0]
 	}
 
 	err = importClusterRole(stackId, stackName, "client", stackInstances.Clients)

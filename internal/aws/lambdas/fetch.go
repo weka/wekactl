@@ -2,6 +2,7 @@ package lambdas
 
 import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/connectors"
 )
@@ -27,8 +28,8 @@ func GetFetchDataParams(asgName, tableName string) (fd protocol.HostGroupInfoRes
 		return
 	}
 
-	instanceIds := getInstanceIdsFromAutoScalingGroupOutput(asgOutput)
-	ips, err := getAutoScalingGroupInstanceIps(instanceIds)
+	instanceIds := common.GetInstanceIdsFromAutoScalingGroupOutput(asgOutput)
+	ips, err := common.GetAutoScalingGroupInstanceIps(instanceIds)
 	if err != nil {
 		return
 	}
@@ -43,6 +44,8 @@ func GetFetchDataParams(asgName, tableName string) (fd protocol.HostGroupInfoRes
 		return
 	}
 
+	// TODO: Replace with call to GetInstance and return structs of InstanceId+PrivateIp,
+	// 	so we can select Inactive hosts that belong to HostGroip
 	return protocol.HostGroupInfoResponse{
 		Username:        username,
 		Password:        password,
