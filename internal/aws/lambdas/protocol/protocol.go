@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"fmt"
 	"time"
 	"wekactl/internal/lib/weka"
 )
@@ -26,9 +27,9 @@ type ScaleResponse struct {
 	TransientErrors []string
 }
 
-func (r *ScaleResponse) AddTransientErrors(errs []error) {
+func (r *ScaleResponse) AddTransientErrors(errs []error, caller string) {
 	for _, err := range errs {
-		r.TransientErrors = append(r.TransientErrors, err.Error())
+		r.TransientErrors = append(r.TransientErrors, fmt.Sprintf("%s:%s",caller, err.Error()))
 	}
 }
 

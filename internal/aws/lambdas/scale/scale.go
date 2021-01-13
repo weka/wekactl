@@ -163,12 +163,12 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		return a.AddedTime.Before(b.AddedTime)
 	})
 
-	response.AddTransientErrors(removeInactive(inactiveHosts, jpool))
+	response.AddTransientErrors(removeInactive(inactiveHosts, jpool), "removeInactive")
 	numToDeactivate := len(hostsList) - info.DesiredCapacity
 
 	if numToDeactivate > 0 {
-		response.AddTransientErrors(deactivateDrives(hostsList[0:numToDeactivate], jpool))
-		response.AddTransientErrors(deactivateHosts(hostsList[0:numToDeactivate], jpool))
+		response.AddTransientErrors(deactivateDrives(hostsList[0:numToDeactivate], jpool), "deactivateDrives")
+		response.AddTransientErrors(deactivateHosts(hostsList[0:numToDeactivate], jpool), "deactivateHosts")
 	}
 
 	for _, host := range hostsList {
@@ -188,7 +188,6 @@ func deactivateHosts(hosts []hostInfo, jpool *jrpcPool) (errs []error) {
 			jpool.drop(host.HostIp)
 			err := jpool.call(weka.JrpcDeactivateHosts, types.JsonDict{
 				"host_ids":                 []weka.HostId{host.id},
-				"no_wait":                  false,
 				"skip_resource_validation": false,
 			}, nil)
 			if err != nil {
@@ -221,7 +220,7 @@ func removeInactive(hosts []hostInfo, jpool *jrpcPool) (errors []error) {
 	for _, host := range hosts {
 		jpool.drop(host.HostIp)
 		err := jpool.call(weka.JrpcRemoveHost, types.JsonDict{
-			"host_id": host.id,
+			"host_id": host.id.Int(),
 		}, nil)
 		if err != nil {
 			log.Error().Err(err)
