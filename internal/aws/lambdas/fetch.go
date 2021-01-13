@@ -2,17 +2,9 @@ package lambdas
 
 import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/connectors"
 )
-
-type FetchData struct {
-	Username        string   `json:"username"`
-	Password        string   `json:"password"`
-	PrivateIps      []string `json:"private_ips"`
-	DesiredCapacity int      `json:"desired_capacity"`
-	InstanceIds     []string `json:"instance_ids"`
-	Role            string   `json:"role"`
-}
 
 func getRoleFromASGOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) string {
 	if len(asgOutput.AutoScalingGroups) == 0 {
@@ -27,7 +19,7 @@ func getRoleFromASGOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput
 	return ""
 }
 
-func GetFetchDataParams(asgName, tableName string) (fd FetchData, err error) {
+func GetFetchDataParams(asgName, tableName string) (fd protocol.HostGroupInfoResponse, err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
 	asgOutput, err := svc.DescribeAutoScalingGroups(input)
@@ -51,7 +43,7 @@ func GetFetchDataParams(asgName, tableName string) (fd FetchData, err error) {
 		return
 	}
 
-	return FetchData{
+	return protocol.HostGroupInfoResponse{
 		Username:        username,
 		Password:        password,
 		PrivateIps:      ips,
