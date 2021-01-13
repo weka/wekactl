@@ -56,7 +56,7 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			terminateLambda, err := cluster.CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, terminatePolicy, lambdaVpcConfig)
+			terminateLambda, err := cluster.CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, terminatePolicy, lambda.VpcConfig{})
 			if err != nil {
 				return err
 			}
