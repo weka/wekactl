@@ -15,6 +15,10 @@ type HostId struct {
 	wekaHostId string
 }
 
+func (h HostId) Int() int {
+	return h.hostId
+}
+
 func (h HostId) String() string {
 	return h.wekaHostId
 }
