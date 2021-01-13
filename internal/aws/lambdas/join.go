@@ -3,6 +3,7 @@ package lambdas
 import (
 	"encoding/json"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/connectors"
 )
 
@@ -21,8 +22,8 @@ func GetJoinParams(asgName, tableName string) (string, error) {
 		return "", err
 	}
 
-	instanceIds := getInstanceIdsFromAutoScalingGroupOutput(asgOutput)
-	ips, err := getAutoScalingGroupInstanceIps(instanceIds)
+	instanceIds := common.GetInstanceIdsFromAutoScalingGroupOutput(asgOutput)
+	ips, err := common.GetAutoScalingGroupInstanceIps(instanceIds)
 	if err != nil {
 		return "", err
 	}

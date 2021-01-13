@@ -3,15 +3,14 @@ package common
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/olekukonko/tablewriter"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/semaphore"
 	"os"
 	"sync"
-	"sync/atomic"
 	"wekactl/internal/connectors"
 )
 
@@ -23,7 +22,7 @@ func RenderTable(fields []string, data [][]string) {
 	table.Render()
 }
 
-func disableInstanceApiTermination(instanceId string, value bool) (*ec2.ModifyInstanceAttributeOutput, error) {
+func setDisableInstanceApiTermination(instanceId string, value bool) (*ec2.ModifyInstanceAttributeOutput, error) {
 	svc := connectors.GetAWSSession().EC2
 	input := &ec2.ModifyInstanceAttributeInput{
 		DisableApiTermination: &ec2.AttributeBooleanValue{
@@ -40,9 +39,9 @@ func init() {
 	terminationSemaphore = semaphore.NewWeighted(20)
 }
 
-func DisableInstancesApiTermination(instanceIds []*string, value bool) error {
+func SetDisableInstancesApiTermination(instanceIds []*string, value bool) (updated []*string, errs []error) {
 	var wg sync.WaitGroup
-	var failedInstances int64
+	var responseLock sync.Mutex
 
 	wg.Add(len(instanceIds))
 	for i := range instanceIds {
@@ -51,17 +50,80 @@ func DisableInstancesApiTermination(instanceIds []*string, value bool) error {
 			defer terminationSemaphore.Release(1)
 			defer wg.Done()
 
-			_, err := disableInstanceApiTermination(*instanceIds[i], value)
+			responseLock.Lock()
+			defer responseLock.Unlock()
+			_, err := setDisableInstanceApiTermination(*instanceIds[i], value)
 			if err != nil {
-				atomic.AddInt64(&failedInstances, 1)
+				errs = append(errs, err)
+				log.Error().Err(err)
 				log.Error().Msgf("failed to set DisableApiTermination on %s", *instanceIds[i])
 			}
+			updated = append(updated, instanceIds[i])
 		}(i)
 	}
 	wg.Wait()
-	if failedInstances != 0 {
-		return errors.New(fmt.Sprintf("failed to set DisableApiTermination on %d instances", failedInstances))
-	}
-	return nil
+	return
+}
 
+func GetAutoScalingGroupInstanceIds(asgName string) ([]*string, error) {
+	svc := connectors.GetAWSSession().ASG
+	asgOutput, err := svc.DescribeAutoScalingGroups(
+		&autoscaling.DescribeAutoScalingGroupsInput{
+			AutoScalingGroupNames: []*string{&asgName},
+		},
+	)
+	if err != nil {
+		return []*string{}, err
+	}
+	return GetInstanceIdsFromAutoScalingGroupOutput(asgOutput), nil
+}
+
+func GetInstanceIdsFromAutoScalingGroupOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) []*string {
+	var instanceIds []*string
+	if len(asgOutput.AutoScalingGroups) == 0 {
+		return []*string{}
+	}
+	for _, instance := range asgOutput.AutoScalingGroups[0].Instances {
+		instanceIds = append(instanceIds, instance.InstanceId)
+	}
+	return instanceIds
+}
+
+func GetAutoScalingGroupInstanceIps(instanceIds []*string) ([]string, error) {
+
+	ec2svc := connectors.GetAWSSession().EC2
+	input := &ec2.DescribeInstancesInput{InstanceIds: instanceIds}
+	result, err := ec2svc.DescribeInstances(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var instanceIps []string
+	for _, reservation := range result.Reservations {
+		if len(reservation.Instances) > 0 {
+			instanceIps = append(instanceIps, *reservation.Instances[0].PrivateIpAddress)
+		}
+	}
+	return instanceIps, nil
+}
+
+func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) {
+	if len(instanceIds) == 0 {
+		err = errors.New("instanceIds list must not be empty")
+		return
+	}
+	svc := connectors.GetAWSSession().EC2
+	describeResponse, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: instanceIds,
+	})
+	if err != nil {
+		return
+	}
+
+	for _, reservation := range describeResponse.Reservations {
+		for _, instance := range reservation.Instances {
+			instances = append(instances, instance)
+		}
+	}
+	return
 }

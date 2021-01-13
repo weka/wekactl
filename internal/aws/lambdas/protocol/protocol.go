@@ -31,3 +31,18 @@ func (r *ScaleResponse) AddTransientErrors(errs []error) {
 		r.TransientErrors = append(r.TransientErrors, err.Error())
 	}
 }
+
+type TerminatedInstance struct {
+	InstanceId string    `json:"instance_id"`
+	Creation   time.Time `json:"creation_date"`
+}
+type TerminatedInstancesResponse struct {
+	Instances       []TerminatedInstance `json:"set_to_terminate_instances"`
+	TransientErrors []string
+}
+
+func (r *TerminatedInstancesResponse) AddTransientErrors(errs []error) {
+	for _, err := range errs {
+		r.TransientErrors = append(r.TransientErrors, err.Error())
+	}
+}
