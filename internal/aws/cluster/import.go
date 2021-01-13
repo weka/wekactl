@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -107,7 +108,7 @@ type StateMachine struct {
 
 type StateMachineLambdas struct {
 	Fetch     string
-	ScaleIn   string
+	Scale   string
 	Terminate string
 }
 
@@ -323,7 +324,7 @@ func GetJoinAndFetchLambdaPolicy() (string, error) {
 	return string(policy), nil
 }
 
-func GetScaleInLambdaPolicy() (string, error) {
+func GetScaleLambdaPolicy() (string, error) {
 	policyDocument := PolicyDocument{
 		Version: "2012-10-17",
 		Statement: []StatementEntry{
@@ -407,7 +408,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
-	scaleInPolicy, err := GetScaleInLambdaPolicy()
+	scalePolicy, err := GetScaleLambdaPolicy()
 	if err != nil {
 		return "", err
 	}
@@ -427,7 +428,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
-	scaleInLambda, err := CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, scaleInPolicy, vpcConfig)
+	scaleLambda, err := CreateLambda(hostGroup, "scale", "Backends", assumeRolePolicy, scalePolicy, vpcConfig)
 	if err != nil {
 		return "", err
 	}
@@ -437,7 +438,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	}
 	lambdas := StateMachineLambdas{
 		Fetch:     *fetchLambda.FunctionArn,
-		ScaleIn:   *scaleInLambda.FunctionArn,
+		Scale:   *scaleLambda.FunctionArn,
 		Terminate: *terminateLambda.FunctionArn,
 	}
 	stateMachineArn, err := CreateStateMachine(hostGroup, lambdas)
@@ -696,16 +697,10 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 		return nil, err
 	}
 
-	var lambdaPackage, lambdaHandler, runtime string
-	if lambdaType == "scale-in" {
-		lambdaPackage = string(dist.ScaleIn)
-		lambdaHandler = "scale_in_lambda.lambda_handler"
-		runtime = "python3.8"
-	} else {
-		lambdaPackage = string(dist.WekaCtl)
-		lambdaHandler = "lambdas-bin"
-		runtime = "go1.x"
-	}
+	lambdaPackage := string(dist.WekaCtl)
+	lambdaHandler := "lambdas-bin"
+	runtime := "go1.x"
+
 	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
 
 	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
@@ -720,7 +715,6 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	tableName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, "")
 	lambdaName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, lambdaType)
 
-	log.Debug().Msgf("creating lambda %s using: %s", lambdaName, s3Key)
 	input := &lambda.CreateFunctionInput{
 		Code: &lambda.FunctionCode{
 			S3Bucket: aws.String(bucket),
@@ -750,14 +744,22 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	}
 
 	var lambdaCreateOutput *lambda.FunctionConfiguration
+
 	// it takes some time for the trust entity to be updated
-	for i := 0; i < 3; i++ {
+	retry := true
+	for i := 0; i < 3 && retry; i++ {
+		retry = false
+		log.Debug().Msgf("try %d: creating lambda %s using: %s", i + 1, lambdaName, s3Key)
 		lambdaCreateOutput, err = svc.CreateFunction(input)
-		if err == nil {
-			break
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				if aerr.Code() == lambda.ErrCodeInvalidParameterValueException {
+					logging.UserProgress("\"%s\" lambda creation failed, waiting for 10 sec for IAM role trust entity to finish update", lambdaType)
+					time.Sleep(10 * time.Second)
+					retry = true
+				}
+			}
 		}
-		logging.UserProgress("Waiting for 10 sec for IAM role %s trust entity to finish update...", roleName)
-		time.Sleep(10 * time.Second)
 	}
 	if err != nil {
 		return nil, err
@@ -993,7 +995,7 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) (*strin
 	}
 	states["Scale"] = NextState{
 		Type:     "Task",
-		Resource: lambda.ScaleIn,
+		Resource: lambda.Scale,
 		Next:     "Terminate",
 	}
 	states["Terminate"] = EndState{

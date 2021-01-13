@@ -12,7 +12,6 @@ var LambdasID string
 type LambdaPackage string
 
 const (
-	ScaleIn LambdaPackage = "scale_in_lambda.zip"
 	WekaCtl LambdaPackage = "wekactl-aws-lambdas.zip"
 )
 

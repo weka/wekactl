@@ -102,6 +102,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		clients: map[string]*jrpc.BaseClient{},
 		active:  "",
 		builder: jrpcBuilder,
+		ctx: ctx,
 	}
 
 	hostsApiList := weka.HostListResponse{}

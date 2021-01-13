@@ -39,7 +39,7 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			scaleInPolicy, err := cluster.GetScaleInLambdaPolicy()
+			scalePolicy, err := cluster.GetScaleLambdaPolicy()
 			if err != nil {
 				return err
 			}
@@ -52,7 +52,7 @@ var createStateMachineCmd = &cobra.Command{
 				return err
 			}
 			lambdaVpcConfig := cluster.GetLambdaVpcConfig(stackInstances.Backends[0])
-			scaleInLambda, err := cluster.CreateLambda(hostGroup, "scale-in", "Backends", assumeRolePolicy, scaleInPolicy, lambdaVpcConfig)
+			scaleLambda, err := cluster.CreateLambda(hostGroup, "scale", "Backends", assumeRolePolicy, scalePolicy, lambdaVpcConfig)
 			if err != nil {
 				return err
 			}
@@ -62,7 +62,7 @@ var createStateMachineCmd = &cobra.Command{
 			}
 			lambdas := cluster.StateMachineLambdas{
 				Fetch:     *fetchLambda.FunctionArn,
-				ScaleIn:   *scaleInLambda.FunctionArn,
+				Scale:     *scaleLambda.FunctionArn,
 				Terminate: *terminateLambda.FunctionArn,
 			}
 			_, err = cluster.CreateStateMachine(hostGroup, lambdas)
