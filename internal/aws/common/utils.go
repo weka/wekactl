@@ -89,6 +89,16 @@ func GetInstanceIdsFromAutoScalingGroupOutput(asgOutput *autoscaling.DescribeAut
 	return instanceIds
 }
 
+func GetInstanceTypeFromAutoScalingGroupOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) string {
+	if len(asgOutput.AutoScalingGroups) == 0 {
+		return ""
+	}
+	if len(asgOutput.AutoScalingGroups[0].Instances) == 0 {
+		return ""
+	}
+	return *asgOutput.AutoScalingGroups[0].Instances[0].InstanceType
+}
+
 func GetAutoScalingGroupInstanceIps(instanceIds []*string) ([]string, error) {
 
 	ec2svc := connectors.GetAWSSession().EC2

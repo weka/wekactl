@@ -731,6 +731,7 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 				"REGION":     aws.String(env.Config.Region),
 				"ASG_NAME":   aws.String(asgName),
 				"TABLE_NAME": aws.String(tableName),
+				"ROLE":       aws.String(hostGroup.Role),
 			},
 		},
 		Handler:      aws.String(lambdaHandler),
