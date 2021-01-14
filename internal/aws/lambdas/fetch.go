@@ -7,20 +7,7 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func getRoleFromASGOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) string {
-	if len(asgOutput.AutoScalingGroups) == 0 {
-		return ""
-	}
-
-	for _, tag := range asgOutput.AutoScalingGroups[0].Tags {
-		if *tag.Key == "wekactl.io/hostgroup_type" {
-			return *tag.Value
-		}
-	}
-	return ""
-}
-
-func GetFetchDataParams(asgName, tableName string) (fd protocol.HostGroupInfoResponse, err error) {
+func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupInfoResponse, err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
 	asgOutput, err := svc.DescribeAutoScalingGroups(input)
@@ -52,6 +39,6 @@ func GetFetchDataParams(asgName, tableName string) (fd protocol.HostGroupInfoRes
 		PrivateIps:      ips,
 		DesiredCapacity: getAutoScalingGroupDesiredCapacity(asgOutput),
 		InstanceIds:     ids,
-		Role:            getRoleFromASGOutput(asgOutput),
+		Role:            role,
 	}, nil
 }

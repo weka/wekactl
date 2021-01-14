@@ -16,7 +16,7 @@ var GetInstanceJoinParamsCmd = &cobra.Command{
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		if env.Config.Provider == "aws" {
-			res, err := lambdas.GetJoinParams(AsgName, TableName)
+			res, err := lambdas.GetJoinParams(AsgName, TableName, "Backends")
 			if err != nil {
 				fmt.Println(err)
 			} else {

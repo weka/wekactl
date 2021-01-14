@@ -16,6 +16,7 @@ func joinHandler() (events.APIGatewayProxyResponse, error) {
 	result, err := lambdas.GetJoinParams(
 		os.Getenv("ASG_NAME"),
 		os.Getenv("TABLE_NAME"),
+		os.Getenv("ROLE"),
 	)
 	if err != nil {
 		result = err.Error()
@@ -27,6 +28,7 @@ func fetchHandler() (protocol.HostGroupInfoResponse, error) {
 	result, err := lambdas.GetFetchDataParams(
 		os.Getenv("ASG_NAME"),
 		os.Getenv("TABLE_NAME"),
+		os.Getenv("ROLE"),
 	)
 	if err != nil {
 		return protocol.HostGroupInfoResponse{}, err
