@@ -254,6 +254,9 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 			InstanceType: instance.InstanceType,
 			KeyName:      instance.KeyName,
 			UserData:     aws.String(""), // TODO: add necessary init script here
+			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
+				Arn: instance.IamInstanceProfile.Arn,
+			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
