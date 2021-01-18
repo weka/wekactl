@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/google/uuid"
+	"github.com/lithammer/dedent"
 	"github.com/rs/zerolog/log"
 	"strings"
 	"time"
@@ -110,6 +112,12 @@ type StateMachineLambdas struct {
 	Fetch     string
 	Scale     string
 	Terminate string
+}
+
+type RestApiGateway struct {
+	id     string
+	url    string
+	apiKey string
 }
 
 func GetStackId(stackName string) (string, error) {
@@ -222,7 +230,7 @@ func getHostGroupTags(hostGroup HostGroup) []Tag {
 	return tags
 }
 
-func getEc2Tags(name, role, stackId string) []*ec2.Tag {
+func getEc2Tags(name, role, stackId, stackName string) []*ec2.Tag {
 	var ec2Tags []*ec2.Tag
 	for _, tag := range getHostGroupTags(HostGroup{
 		Name:  name,
@@ -234,6 +242,10 @@ func getEc2Tags(name, role, stackId string) []*ec2.Tag {
 			Value: tag.Value,
 		})
 	}
+	ec2Tags = append(ec2Tags, &ec2.Tag{
+		Key:   aws.String("Name"),
+		Value: aws.String(fmt.Sprintf("%s-%s", stackName, name)),
+	})
 	return ec2Tags
 }
 
@@ -245,22 +257,28 @@ func generateResourceName(stackId, stackName, resourceName string) string {
 	return name + getUuidFromStackId(stackId)
 }
 
-func createLaunchTemplate(stackId, stackName, name string, role string, instance *ec2.Instance) string {
+func createLaunchTemplate(stackId, stackName, name string, role string, instance *ec2.Instance, restApiGateway RestApiGateway) string {
 	svc := connectors.GetAWSSession().EC2
 	launchTemplateName := generateResourceName(stackId, stackName, name)
+	userDataTemplate :=`
+	#!/usr/bin/env bash
+	curl --location --request GET '%s' --header 'x-api-key: %s' | sudo sh
+	`
+	userData := fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.url, restApiGateway.apiKey)
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
-			ImageId:      instance.ImageId,
-			InstanceType: instance.InstanceType,
-			KeyName:      instance.KeyName,
-			UserData:     aws.String(""), // TODO: add necessary init script here
+			ImageId:               instance.ImageId,
+			InstanceType:          instance.InstanceType,
+			KeyName:               instance.KeyName,
+			UserData:              aws.String(base64.StdEncoding.EncodeToString([]byte(userData))),
+			DisableApiTermination: aws.Bool(true),
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Arn: instance.IamInstanceProfile.Arn,
 			},
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
-					Tags:         getEc2Tags(name, role, stackId),
+					Tags:         getEc2Tags(name, role, stackId, stackName),
 				},
 			},
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -406,7 +424,7 @@ func GetLambdaAssumeRolePolicy() (string, error) {
 	return string(policy), nil
 }
 
-func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, launchTemplateName string, vpcConfig lambda.VpcConfig) (string, error) {
+func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, instance *ec2.Instance, vpcConfig lambda.VpcConfig) (string, error) {
 	hostGroup := HostGroup{
 		Name: name,
 		Role: role,
@@ -431,10 +449,12 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
-	err = CreateLambdaEndPoint(hostGroup, "join", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
+	restApiGateway, err := CreateLambdaEndPoint(hostGroup, "join", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
 	if err != nil {
 		return "", err
 	}
+	launchTemplateName := createLaunchTemplate(stackId, stackName, name, role, instance, restApiGateway)
+
 	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
 	if err != nil {
 		return "", err
@@ -775,7 +795,7 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	return lambdaCreateOutput, nil
 }
 
-func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (string, error) {
+func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri, lambdaName string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 	apiGatewayName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, lambdaType)
 
@@ -786,7 +806,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		ApiKeySource: aws.String("HEADER"),
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 	restApiId := createApiOutput.Id
 	log.Debug().Msgf("rest api gateway id:%s for lambda:%s was created successfully!", *restApiId, apiGatewayName)
@@ -795,7 +815,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		RestApiId: restApiId,
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 
 	rootResource := resources.Items[0]
@@ -805,7 +825,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		PathPart:  aws.String(apiGatewayName),
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 	log.Debug().Msgf("rest api gateway resource %s was created successfully!", apiGatewayName)
 
@@ -819,7 +839,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		ApiKeyRequired:    aws.Bool(true),
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 	log.Debug().Msgf("rest api %s method was created successfully!", httpMethod)
 
@@ -833,7 +853,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		Uri:                   aws.String(lambdaUri),
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 	log.Debug().Msgf("rest api %s method integration created successfully!", httpMethod)
 
@@ -854,7 +874,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		},
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 	log.Debug().Msgf("usage plan %s was created successfully!", *usagePlanOutput.Name)
 
@@ -864,7 +884,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		Tags:    getMapCommonTags(hostGroup),
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 	log.Debug().Msgf("api key %s was created successfully!", *apiKeyOutput.Name)
 
@@ -874,11 +894,16 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (st
 		KeyType:     aws.String("API_KEY"),
 	})
 	if err != nil {
-		return "", err
+		return
 	}
 	log.Debug().Msg("api key was associated to usage plan successfully!")
 
-	return *restApiId, nil
+	restApiGateway = RestApiGateway{
+		id:     *restApiId,
+		url:    fmt.Sprintf("https://%s.execute-api.%s.amazonaws.com/default/%s", *restApiId, env.Config.Region, lambdaName),
+		apiKey: *apiKeyOutput.Value,
+	}
+	return
 }
 
 func getAccountId() (string, error) {
@@ -910,27 +935,28 @@ func addLambdaInvokePermissions(lambdaName, restApiId string) error {
 	return nil
 }
 
-func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string, vpcConfig lambda.VpcConfig) error {
+func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string, vpcConfig lambda.VpcConfig) (restApiGateway RestApiGateway, err error) {
 	functionConfiguration, err := CreateLambda(hostGroup, lambdaType, name, assumeRolePolicy, policy, vpcConfig)
 	if err != nil {
-		return err
+		return
 	}
 
 	lambdaUri := fmt.Sprintf(
 		"arn:aws:apigateway:%s:lambda:path/2015-03-31/functions/%s/invocations",
 		env.Config.Region, *functionConfiguration.FunctionArn)
 
-	restApiId, err := createRestApiGateway(hostGroup, lambdaType, lambdaUri)
+	restApiGateway, err = createRestApiGateway(hostGroup, lambdaType, lambdaUri, *functionConfiguration.FunctionName)
+
 	if err != nil {
-		return err
+		return
 	}
 
-	err = addLambdaInvokePermissions(*functionConfiguration.FunctionName, restApiId)
+	err = addLambdaInvokePermissions(*functionConfiguration.FunctionName, restApiGateway.id)
 	if err != nil {
-		return err
+		return
 	}
 
-	return nil
+	return
 }
 
 func getStateMachineTags(hostGroup HostGroup) []*sfn.Tag {
@@ -1177,10 +1203,8 @@ func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Ins
 		return errors.New(fmt.Sprintf("import of role %s is unsupported", role))
 	}
 
-	launchTemplateName := createLaunchTemplate(stackId, stackName, name, role, roleInstances[0])
-
 	lambdaVpcConfig := GetLambdaVpcConfig(roleInstances[0])
-	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, len(roleInstances), launchTemplateName, lambdaVpcConfig)
+	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, len(roleInstances), roleInstances[0], lambdaVpcConfig)
 	if err != nil {
 		return err
 	}
@@ -1199,12 +1223,6 @@ func ImportCluster(stackName, username, password string) error {
 	stackInstances, err := GetInstancesInfo(stackName)
 	if err != nil {
 		return err
-	}
-
-	instanceIds := getInstancesIdsFromEc2Instance(stackInstances.All())
-	_, errs := common.SetDisableInstancesApiTermination(instanceIds, true)
-	if len(errs) != 0 {
-		return errs[0]
 	}
 
 	err = importClusterRole(stackId, stackName, "client", stackInstances.Clients)
