@@ -210,7 +210,7 @@ func deactivateDrives(hosts []hostInfo, jpool *jrpcPool) (errs []error) {
 		for _, drive := range host.drives {
 			if drive.ShouldBeActive {
 				err := jpool.call(weka.JrpcDeactivateDrives, types.JsonDict{
-					"drive-uuids": []uuid.UUID{drive.Uuid},
+					"drive_uuids": []uuid.UUID{drive.Uuid},
 				}, nil)
 				if err != nil {
 					log.Error().Err(err)
