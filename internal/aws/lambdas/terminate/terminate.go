@@ -69,7 +69,10 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance) (term
 		if time.Now().Sub(*instance.LaunchTime) < time.Minute*30 {
 			continue
 		}
-		terminateInstanceIds = append(terminateInstanceIds, instance.InstanceId)
+		instanceState := *instance.State.Name
+		if instanceState != ec2.InstanceStateNameShuttingDown && instanceState != ec2.InstanceStateNameTerminated{
+			terminateInstanceIds = append(terminateInstanceIds, instance.InstanceId)
+		}
 	}
 
 	setToTerminate, errs := common.SetDisableInstancesApiTermination(
