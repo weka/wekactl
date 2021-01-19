@@ -99,22 +99,12 @@ func GetInstanceTypeFromAutoScalingGroupOutput(asgOutput *autoscaling.DescribeAu
 	return *asgOutput.AutoScalingGroups[0].Instances[0].InstanceType
 }
 
-func GetAutoScalingGroupInstanceIps(instanceIds []*string) ([]string, error) {
-
-	ec2svc := connectors.GetAWSSession().EC2
-	input := &ec2.DescribeInstancesInput{InstanceIds: instanceIds}
-	result, err := ec2svc.DescribeInstances(input)
-	if err != nil {
-		return nil, err
-	}
-
+func GetInstancesIps(instances []*ec2.Instance) []string {
 	var instanceIps []string
-	for _, reservation := range result.Reservations {
-		for _, instance := range reservation.Instances{
-			instanceIps = append(instanceIps, *instance.PrivateIpAddress)
-		}
+	for _, instance := range instances {
+		instanceIps = append(instanceIps, *instance.PrivateIpAddress)
 	}
-	return instanceIps, nil
+	return instanceIps
 }
 
 func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) {

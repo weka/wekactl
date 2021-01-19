@@ -9,6 +9,7 @@ import (
 
 const hostIdPrefix = "HostId<"
 const driveIdPrefix = "DiskId<"
+const nodeIdPrefix = "NodeId<"
 
 type HostId struct {
 	hostId     int
@@ -60,6 +61,34 @@ func (h *DriveId) UnmarshalText(bytes []byte) error {
 	}
 	h.driveId = hid
 	return nil
+}
+
+type NodeId struct {
+	nodeId     int
+	wekaNodeId string
+}
+
+func (h NodeId) String() string {
+	return h.wekaNodeId
+}
+
+func (h *NodeId) MarshalText() ([]byte, error) {
+	return []byte(h.wekaNodeId), nil
+}
+
+func (h *NodeId) UnmarshalText(bytes []byte) error {
+	hid, err := unmarshalPrefixedID([]byte(nodeIdPrefix), bytes)
+	h.wekaNodeId = string(bytes)
+	if err != nil {
+		log.Error().Err(err)
+		return err
+	}
+	h.nodeId = hid
+	return nil
+}
+
+func (h *NodeId) IsManagement() bool {
+	return h.nodeId%20 == 0
 }
 
 func unmarshalPrefixedID(prefix, text []byte) (int, error) {

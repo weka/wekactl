@@ -57,11 +57,11 @@ func GetJoinParams(asgName, tableName, role string) (string, error) {
 	}
 
 	instanceIds := common.GetInstanceIdsFromAutoScalingGroupOutput(asgOutput)
-	ips, err := common.GetAutoScalingGroupInstanceIps(instanceIds)
+	instances, err := common.GetInstances(instanceIds)
 	if err != nil {
 		return "", err
 	}
-
+	ips := common.GetInstancesIps(instances)
 	instanceType := common.GetInstanceTypeFromAutoScalingGroupOutput(asgOutput)
 	shuffleSlice(ips)
 	username, password, err := getUsernameAndPassword(tableName)
@@ -95,7 +95,7 @@ func GetJoinParams(asgName, tableName, role string) (string, error) {
 	weka local stop && weka local rm --all -f
 	weka local setup host --cores %d --frontend-dedicated-cores %d --drives-dedicated-cores %d --join-ips %s`
 
-	isReady:=`
+	isReady := `
 	while ! weka debug manhole -s 0 operational_status | grep '"is_ready": true' ; do
 		sleep 1
 	done

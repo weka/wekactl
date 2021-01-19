@@ -2,6 +2,7 @@ package lambdas
 
 import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/connectors"
@@ -16,7 +17,7 @@ func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupI
 	}
 
 	instanceIds := common.GetInstanceIdsFromAutoScalingGroupOutput(asgOutput)
-	ips, err := common.GetAutoScalingGroupInstanceIps(instanceIds)
+	instances, err := common.GetInstances(instanceIds)
 	if err != nil {
 		return
 	}
@@ -36,9 +37,18 @@ func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupI
 	return protocol.HostGroupInfoResponse{
 		Username:        username,
 		Password:        password,
-		PrivateIps:      ips,
 		DesiredCapacity: getAutoScalingGroupDesiredCapacity(asgOutput),
-		InstanceIds:     ids,
+		Instances:       getHostGroupInfoInstances(instances),
 		Role:            role,
 	}, nil
+}
+
+func getHostGroupInfoInstances(instances []*ec2.Instance) (ret []protocol.HgInstance) {
+	for _, i := range instances {
+		ret = append(ret, protocol.HgInstance{
+			Id:        *i.InstanceId,
+			PrivateIp: *i.PrivateIpAddress,
+		})
+	}
+	return
 }
