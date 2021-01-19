@@ -170,7 +170,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	driveApiList := weka.DriveListResponse{}
 	nodeApiList := weka.NodeListResponse{}
 
-	err = jpool.call(weka.JrpcStatus, struct{}{}, &hostsApiList)
+	err = jpool.call(weka.JrpcStatus, struct{}{}, &systemStatus)
 	if err != nil {
 		return
 	}
