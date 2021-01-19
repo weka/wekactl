@@ -11,6 +11,7 @@ const (
 	JrpcHostList         JrpcMethod = "hosts_list"
 	JrpcNodeList         JrpcMethod = "nodes_list"
 	JrpcDrivesList       JrpcMethod = "disks_list"
+	JrpcRemoveDrive       JrpcMethod = "cluster_remove_drives"
 	JrpcRemoveHost       JrpcMethod = "cluster_remove_host"
 	JrpcDeactivateDrives JrpcMethod = "cluster_deactivate_drives"
 	JrpcDeactivateHosts  JrpcMethod = "cluster_deactivate_hosts"

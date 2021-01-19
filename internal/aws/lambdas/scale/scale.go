@@ -261,6 +261,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	})
 
 	removeInactive(inactiveHosts, jpool, info.Instances, &response)
+	removeInactiveDrives(driveApiList, jpool, &response)
 	numToDeactivate := getNumToDeactivate(hostsList, info.DesiredCapacity)
 
 	deactivateHost := func(host hostInfo) {
@@ -398,6 +399,28 @@ func removeInactive(hosts []hostInfo, jpool *jrpcPool, instances []protocol.HgIn
 		if instance != nil {
 			p.ToTerminate = append(p.ToTerminate, *instance)
 		}
+
+		for _, drive := range host.drives {
+			removeDrive(jpool, drive, p)
+		}
 	}
 	return
+}
+
+func removeInactiveDrives(drives weka.DriveListResponse, jpool *jrpcPool, p *protocol.ScaleResponse) {
+	for _, drive := range drives {
+		if drive.HostId.Int() == -1 {
+			removeDrive(jpool, drive, p)
+		}
+	}
+}
+
+func removeDrive(jpool *jrpcPool, drive weka.Drive, p *protocol.ScaleResponse) {
+	err := jpool.call(weka.JrpcRemoveDrive, types.JsonDict{
+		"drive_uuids": []uuid.UUID{drive.Uuid},
+	}, nil)
+	if err != nil {
+		log.Error().Err(err)
+		p.AddTransientError(err, "removeDrive")
+	}
 }
