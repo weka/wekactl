@@ -190,9 +190,11 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	if err != nil {
 		return
 	}
-	err = jpool.call(weka.JrpcDrivesList, struct{}{}, &driveApiList)
-	if err != nil {
-		return
+	if info.Role == "backend" {
+		err = jpool.call(weka.JrpcDrivesList, struct{}{}, &driveApiList)
+		if err != nil {
+			return
+		}
 	}
 	err = jpool.call(weka.JrpcNodeList, struct{}{}, &nodeApiList)
 	if err != nil {

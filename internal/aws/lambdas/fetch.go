@@ -32,8 +32,6 @@ func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupI
 		return
 	}
 
-	// TODO: Replace with call to GetInstance and return structs of InstanceId+PrivateIp,
-	// 	so we can select Inactive hosts that belong to HostGroip
 	return protocol.HostGroupInfoResponse{
 		Username:        username,
 		Password:        password,
