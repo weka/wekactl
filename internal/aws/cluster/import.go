@@ -727,10 +727,11 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	runtime := "go1.x"
 
 	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
+	stackUuid := getUuidFromStackId(hostGroup.Stack.StackId)
 
 	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
 	roleName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, uuid.New().String())
-	policyName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, getUuidFromStackId(hostGroup.Stack.StackId))
+	policyName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, stackUuid)
 	roleArn, err := createIamRole(hostGroup, roleName, assumeRolePolicy, policyName, policy)
 	if err != nil {
 		return nil, err
@@ -738,7 +739,7 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 
 	asgName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, name)
 	tableName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, "")
-	lambdaName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, lambdaType)
+	lambdaName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, lambdaType, stackUuid)
 
 	input := &lambda.CreateFunctionInput{
 		Code: &lambda.FunctionCode{
@@ -1017,7 +1018,7 @@ func GetStateMachineRolePolicy() (string, error) {
 
 func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) (*string, error) {
 	svc := connectors.GetAWSSession().SFN
-	stateMachineName := fmt.Sprintf("wekactl-%s-state-machine", hostGroup.Name)
+	stateMachineName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
 
 	states := make(map[string]interface{})
 	states["HostGroupInfo"] = NextState{
@@ -1151,7 +1152,7 @@ func CreateCloudWatchEventRule(hostGroup HostGroup, arn *string) error {
 	}
 
 	svc := connectors.GetAWSSession().CloudWatchEvents
-	ruleName := fmt.Sprintf("wekactl-%s-state-machine", hostGroup.Name)
+	ruleName :=  generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
 	_, err = svc.PutRule(&cloudwatchevents.PutRuleInput{
 		Name:               &ruleName,
 		ScheduleExpression: aws.String("rate(1 minute)"),
