@@ -110,8 +110,8 @@ func GetAutoScalingGroupInstanceIps(instanceIds []*string) ([]string, error) {
 
 	var instanceIps []string
 	for _, reservation := range result.Reservations {
-		if len(reservation.Instances) > 0 {
-			instanceIps = append(instanceIps, *reservation.Instances[0].PrivateIpAddress)
+		for _, instance := range reservation.Instances{
+			instanceIps = append(instanceIps, *instance.PrivateIpAddress)
 		}
 	}
 	return instanceIps, nil
