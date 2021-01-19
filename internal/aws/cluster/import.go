@@ -1229,6 +1229,12 @@ func ImportCluster(stackName, username, password string) error {
 		return err
 	}
 
+	instanceIds := getInstancesIdsFromEc2Instance(stackInstances.All())
+	_, errs := common.SetDisableInstancesApiTermination(instanceIds, true)
+	if len(errs) != 0 {
+		return errs[0]
+	}
+
 	err = importClusterRole(stackId, stackName, "client", stackInstances.Clients)
 	if err != nil {
 		return err
