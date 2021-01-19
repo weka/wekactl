@@ -60,10 +60,15 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
+			transientLambda, err := cluster.CreateLambda(hostGroup, "transient", "Backends", assumeRolePolicy, "", lambda.VpcConfig{})
+			if err != nil {
+				return err
+			}
 			lambdas := cluster.StateMachineLambdas{
 				Fetch:     *fetchLambda.FunctionArn,
 				Scale:     *scaleLambda.FunctionArn,
 				Terminate: *terminateLambda.FunctionArn,
+				Transient: *transientLambda.FunctionArn,
 			}
 			_, err = cluster.CreateStateMachine(hostGroup, lambdas)
 			if err != nil {

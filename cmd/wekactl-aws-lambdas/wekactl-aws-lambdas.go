@@ -9,6 +9,7 @@ import (
 	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/aws/lambdas/scale"
 	"wekactl/internal/aws/lambdas/terminate"
+	"wekactl/internal/aws/lambdas/transient"
 	"wekactl/internal/env"
 )
 
@@ -47,6 +48,8 @@ func main() {
 		lambda.Start(scale.Handler)
 	case "terminate":
 		lambda.Start(terminate.Handler)
+	case "transient":
+		lambda.Start(transient.Handler)
 	default:
 		lambda.Start(func() error { return errors.New("unsupported lambda command") })
 	}
