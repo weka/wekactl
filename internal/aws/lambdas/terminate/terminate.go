@@ -70,7 +70,7 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance) (term
 			continue
 		}
 		instanceState := *instance.State.Name
-		if instanceState != ec2.InstanceStateNameShuttingDown && instanceState != ec2.InstanceStateNameTerminated{
+		if instanceState != ec2.InstanceStateNameShuttingDown && instanceState != ec2.InstanceStateNameTerminated {
 			terminateInstanceIds = append(terminateInstanceIds, instance.InstanceId)
 		}
 	}
@@ -114,6 +114,9 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 		return
 	}
 
+	if len(deltaInstanceIds) == 0 {
+		return
+	}
 	candidatesToTerminate, err := common.GetInstances(deltaInstanceIds)
 	if err != nil {
 		return
