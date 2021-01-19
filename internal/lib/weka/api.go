@@ -11,7 +11,7 @@ const (
 	JrpcHostList         JrpcMethod = "hosts_list"
 	JrpcNodeList         JrpcMethod = "nodes_list"
 	JrpcDrivesList       JrpcMethod = "disks_list"
-	JrpcRemoveDrive       JrpcMethod = "cluster_remove_drives"
+	JrpcRemoveDrive      JrpcMethod = "cluster_remove_drives"
 	JrpcRemoveHost       JrpcMethod = "cluster_remove_host"
 	JrpcDeactivateDrives JrpcMethod = "cluster_deactivate_drives"
 	JrpcDeactivateHosts  JrpcMethod = "cluster_deactivate_hosts"
@@ -28,11 +28,12 @@ type StatusResponse struct {
 }
 
 type Host struct {
-	AddedTime time.Time `json:"added_time"`
-	State     string    `json:"state"`
-	Status    string    `json:"status"`
-	HostIp    string    `json:"host_ip"`
-	Aws       struct {
+	AddedTime        time.Time `json:"added_time"`
+	StateChangedTime time.Time `json:"state_changed_time"`
+	State            string    `json:"state"`
+	Status           string    `json:"status"`
+	HostIp           string    `json:"host_ip"`
+	Aws              struct {
 		InstanceId string `json:"instance_id"`
 	} `json:"aws"`
 }

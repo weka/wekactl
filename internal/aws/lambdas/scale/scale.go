@@ -64,6 +64,19 @@ func (c *jrpcPool) call(method weka.JrpcMethod, params, result interface{}) (err
 
 type hostState int
 
+func (h hostState) String() string {
+	switch h {
+	case DEACTIVATING:
+		return "DEACTIVATING"
+	case HEALTHY:
+		return "HEALTHY"
+	case UNHEALTHY:
+		return "UNHEALTHY"
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", h)
+	}
+}
+
 const (
 	/*
 		Order matters, it defines priority of hosts removal
@@ -267,6 +280,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	numToDeactivate := getNumToDeactivate(hostsList, info.DesiredCapacity)
 
 	deactivateHost := func(host hostInfo) {
+		log.Info().Msgf("Trying to deactivate host %s", host.id)
 		for _, drive := range host.drives {
 			if drive.ShouldBeActive {
 				err := jpool.call(weka.JrpcDeactivateDrives, types.JsonDict{
@@ -336,7 +350,9 @@ func getNumToDeactivate(hostInfo []hostInfo, desired int) int {
 		}
 	}
 
-	return calculateDeactivateTarget(nHealthy, nUnhealthy, nDeactivating, desired)
+	toDeactivate := calculateDeactivateTarget(nHealthy, nUnhealthy, nDeactivating, desired)
+	log.Info().Msgf("%d hosts set to deactivate", toDeactivate)
+	return toDeactivate
 }
 
 func calculateDeactivateTarget(nHealthy int, nUnhealthy int, nDeactivating int, desired int) int {
