@@ -58,16 +58,24 @@ func removeAutoScalingProtection(asgName string, instanceIds []*string) error {
 	return nil
 }
 
-func terminateUnneededInstances(asgName string, instances []*ec2.Instance) (terminated []*ec2.Instance, errs []error) {
+func setForExplicitRemoval(instance *ec2.Instance, toRemove []protocol.HgInstance) bool {
+	for _, i := range toRemove {
+		if *instance.PrivateIpAddress == i.PrivateIp && *instance.InstanceId == i.Id {
+			return true
+		}
+	}
+	return false
+}
+
+func terminateUnneededInstances(asgName string, instances []*ec2.Instance, explicitRemoval []protocol.HgInstance) (terminated []*ec2.Instance, errs []error) {
 	terminateInstanceIds := make([]*string, 0, 0)
 	imap := instancesToMap(instances)
 
 	for _, instance := range instances {
-		// TODO: With this logic we will never terminate new instances
-		// 	Once we have reliable inactive list working
-		//	we can return explicit list of instances to terminate
-		if time.Now().Sub(*instance.LaunchTime) < time.Minute*30 {
-			continue
+		if !setForExplicitRemoval(instance, explicitRemoval) {
+			if time.Now().Sub(*instance.LaunchTime) < time.Minute*30 {
+				continue
+			}
 		}
 		instanceState := *instance.State.Name
 		if instanceState != ec2.InstanceStateNameShuttingDown && instanceState != ec2.InstanceStateNameTerminated {
@@ -122,7 +130,7 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 		return
 	}
 
-	terminatedInstances, errs := terminateUnneededInstances(asgName, candidatesToTerminate)
+	terminatedInstances, errs := terminateUnneededInstances(asgName, candidatesToTerminate, scaleResponse.ToTerminate)
 	response.AddTransientErrors(errs)
 
 	for _, instance := range terminatedInstances {

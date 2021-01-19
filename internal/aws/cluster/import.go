@@ -166,7 +166,7 @@ func GetInstancesInfo(stackName string) (stackInstances StackInstances, err erro
 	}
 
 	for _, reservation := range result.Reservations {
-		for _, instance := range reservation.Instances{
+		for _, instance := range reservation.Instances {
 			arn := *instance.IamInstanceProfile.Arn
 			if strings.Contains(arn, "InstanceProfileBackend") {
 				stackInstances.Backends = append(stackInstances.Backends, instance)
@@ -261,7 +261,7 @@ func generateResourceName(stackId, stackName, resourceName string) string {
 func createLaunchTemplate(stackId, stackName, name string, role string, instance *ec2.Instance, restApiGateway RestApiGateway) string {
 	svc := connectors.GetAWSSession().EC2
 	launchTemplateName := generateResourceName(stackId, stackName, name)
-	userDataTemplate :=`
+	userDataTemplate := `
 	#!/usr/bin/env bash
 	curl --location --request GET '%s' --header 'x-api-key: %s' | sudo sh
 	`
@@ -1202,7 +1202,7 @@ func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Ins
 		maxSize = 10 * len(roleInstances)
 	case "client":
 		name = "Clients"
-		maxSize = int(math.Ceil(float64(len(roleInstances))/ float64(500))) * 500
+		maxSize = int(math.Ceil(float64(len(roleInstances))/float64(500))) * 500
 	default:
 		return errors.New(fmt.Sprintf("import of role %s is unsupported", role))
 	}

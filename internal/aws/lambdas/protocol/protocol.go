@@ -6,13 +6,18 @@ import (
 	"wekactl/internal/lib/weka"
 )
 
+type HgInstance struct {
+	Id        string
+	PrivateIp string
+}
+
 type HostGroupInfoResponse struct {
-	Username        string   `json:"username"`
-	Password        string   `json:"password"`
-	PrivateIps      []string `json:"private_ips"`
-	DesiredCapacity int      `json:"desired_capacity"`
-	InstanceIds     []string `json:"instance_ids"`
-	Role            string   `json:"role"`
+	Username        string       `json:"username"`
+	Password        string       `json:"password"`
+	DesiredCapacity int          `json:"desired_capacity"`
+	InstanceIds     []string     `json:"instance_ids"` //TODO: Remove
+	Instances       []HgInstance `json:"instances"`
+	Role            string       `json:"role"`
 }
 
 type ScaleResponseHost struct {
@@ -24,13 +29,18 @@ type ScaleResponseHost struct {
 
 type ScaleResponse struct {
 	Hosts           []ScaleResponseHost `json:"hosts"`
+	ToTerminate     []HgInstance        `json:"to_terminate"`
 	TransientErrors []string
 }
 
 func (r *ScaleResponse) AddTransientErrors(errs []error, caller string) {
 	for _, err := range errs {
-		r.TransientErrors = append(r.TransientErrors, fmt.Sprintf("%s:%s",caller, err.Error()))
+		r.TransientErrors = append(r.TransientErrors, fmt.Sprintf("%s:%s", caller, err.Error()))
 	}
+}
+
+func (r *ScaleResponse) AddTransientError(err error, caller string) {
+	r.TransientErrors = append(r.TransientErrors, fmt.Sprintf("%s:%s", caller, err.Error()))
 }
 
 type TerminatedInstance struct {
