@@ -197,6 +197,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 			Host:   host,
 			id:     hostId,
 			drives: driveMap{},
+			nodes: nodeMap{},
 		}
 	}
 	for driveId, drive := range driveApiList {
