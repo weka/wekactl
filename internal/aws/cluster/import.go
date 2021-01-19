@@ -165,14 +165,14 @@ func GetInstancesInfo(stackName string) (stackInstances StackInstances, err erro
 	}
 
 	for _, reservation := range result.Reservations {
-		instance := reservation.Instances[0]
-		arn := *instance.IamInstanceProfile.Arn
-		if strings.Contains(arn, "InstanceProfileBackend") {
-			stackInstances.Backends = append(stackInstances.Backends, instance)
-		} else if strings.Contains(arn, "InstanceProfileClient") {
-			stackInstances.Clients = append(stackInstances.Clients, instance)
+		for _, instance := range reservation.Instances{
+			arn := *instance.IamInstanceProfile.Arn
+			if strings.Contains(arn, "InstanceProfileBackend") {
+				stackInstances.Backends = append(stackInstances.Backends, instance)
+			} else if strings.Contains(arn, "InstanceProfileClient") {
+				stackInstances.Clients = append(stackInstances.Clients, instance)
+			}
 		}
-
 	}
 	return stackInstances, nil
 }
