@@ -97,10 +97,26 @@ type NextState struct {
 	Next     string
 }
 
+type IsNullChoice struct {
+	Variable string
+	IsNull   bool
+	Next     string
+}
+
+type IsNullChoiceState struct {
+	Type    string
+	Choices []IsNullChoice
+	Default string
+}
+
 type EndState struct {
 	Type     string
 	Resource string
 	End      bool
+}
+
+type SuccessState struct {
+	Type string
 }
 
 type StateMachine struct {
@@ -113,6 +129,7 @@ type StateMachineLambdas struct {
 	Fetch     string
 	Scale     string
 	Terminate string
+	Transient string
 }
 
 type RestApiGateway struct {
@@ -469,10 +486,15 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
+	transientLambda, err := CreateLambda(hostGroup, "transient", "Backends", assumeRolePolicy, "", lambda.VpcConfig{})
+	if err != nil {
+		return "", err
+	}
 	lambdas := StateMachineLambdas{
 		Fetch:     *fetchLambda.FunctionArn,
 		Scale:     *scaleLambda.FunctionArn,
 		Terminate: *terminateLambda.FunctionArn,
+		Transient: *transientLambda.FunctionArn,
 	}
 	stateMachineArn, err := CreateStateMachine(hostGroup, lambdas)
 	if err != nil {
@@ -1025,9 +1047,31 @@ func CreateStateMachine(hostGroup HostGroup, lambda StateMachineLambdas) (*strin
 		Resource: lambda.Scale,
 		Next:     "Terminate",
 	}
-	states["Terminate"] = EndState{
+	states["Terminate"] = NextState{
 		Type:     "Task",
 		Resource: lambda.Terminate,
+		Next:     "ErrorCheck",
+	}
+
+	states["ErrorCheck"] = IsNullChoiceState{
+		Type: "Choice",
+		Choices: []IsNullChoice{
+			{
+				Variable: "$.TransientErrors",
+				IsNull:   false,
+				Next:     "Transient",
+			},
+		},
+		Default: "Success",
+	}
+
+	states["Success"] = SuccessState{
+		Type: "Succeed",
+	}
+
+	states["Transient"] = EndState{
+		Type:     "Task",
+		Resource: lambda.Transient,
 		End:      true,
 	}
 	stateMachine := StateMachine{
