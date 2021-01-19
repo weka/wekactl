@@ -47,7 +47,7 @@ func (c *jrpcPool) drop(toDrop string) {
 func (c *jrpcPool) call(method weka.JrpcMethod, params, result interface{}) (err error) {
 	if c.active == "" {
 		c.Lock()
-		c.active = c.ips[len(c.ips)-1]
+		c.active = c.ips[0]
 		c.clients[c.active] = c.builder(c.active)
 		c.Unlock()
 	}
