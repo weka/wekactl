@@ -261,7 +261,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	})
 
 	removeInactive(inactiveHosts, jpool, info.Instances, &response)
-	removeInactiveDrives(driveApiList, jpool, &response)
+	removeOldDrives(driveApiList, jpool, &response)
 	numToDeactivate := getNumToDeactivate(hostsList, info.DesiredCapacity)
 
 	deactivateHost := func(host hostInfo) {
@@ -407,9 +407,9 @@ func removeInactive(hosts []hostInfo, jpool *jrpcPool, instances []protocol.HgIn
 	return
 }
 
-func removeInactiveDrives(drives weka.DriveListResponse, jpool *jrpcPool, p *protocol.ScaleResponse) {
+func removeOldDrives(drives weka.DriveListResponse, jpool *jrpcPool, p *protocol.ScaleResponse) {
 	for _, drive := range drives {
-		if drive.HostId.Int() == -1 {
+		if drive.HostId.Int() == -1 && drive.Status == "INACTIVE" {
 			removeDrive(jpool, drive, p)
 		}
 	}
