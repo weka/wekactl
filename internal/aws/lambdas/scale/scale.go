@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"sort"
+	strings2 "strings"
 	"sync"
 	"time"
 	"wekactl/internal/aws/lambdas/protocol"
@@ -51,7 +52,14 @@ func (c *jrpcPool) call(method weka.JrpcMethod, params, result interface{}) (err
 		c.clients[c.active] = c.builder(c.active)
 		c.Unlock()
 	}
-	return c.clients[c.active].Call(c.ctx, string(method), params, result)
+	err = c.clients[c.active].Call(c.ctx, string(method), params, result)
+	if err != nil {
+		if strings2.Contains(err.Error(), "connection refused"){
+			c.drop(c.active)
+			return c.call(method, params, result)
+		}
+	}
+	return nil
 }
 
 type hostState int
