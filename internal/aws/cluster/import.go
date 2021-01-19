@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lithammer/dedent"
 	"github.com/rs/zerolog/log"
+	"math"
 	"strings"
 	"time"
 	"wekactl/internal/aws/common"
@@ -1194,17 +1195,20 @@ func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Ins
 	}
 
 	var name string
+	var maxSize int
 	switch role {
 	case "backend":
 		name = "Backends"
+		maxSize = 10 * len(roleInstances)
 	case "client":
 		name = "Clients"
+		maxSize = int(math.Ceil(float64(len(roleInstances))/ float64(500))) * 500
 	default:
 		return errors.New(fmt.Sprintf("import of role %s is unsupported", role))
 	}
 
 	lambdaVpcConfig := GetLambdaVpcConfig(roleInstances[0])
-	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, len(roleInstances), roleInstances[0], lambdaVpcConfig)
+	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, maxSize, roleInstances[0], lambdaVpcConfig)
 	if err != nil {
 		return err
 	}
