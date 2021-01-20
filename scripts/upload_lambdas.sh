@@ -35,7 +35,8 @@ distribute () {
   FILENAME=$(basename "$ZIP_PATH")
   first_target=""
   echo "Distributing lambdas to AWS regions"
-  echo "$WEKACTL_AWS_LAMBDAS_BUCKETS" | while IFS=, read -r awspair; do
+  echo "$WEKACTL_AWS_LAMBDAS_BUCKETS" | tr ',' '\n' | while read -r awspair; do
+    echo "pair:" $awspair
   IFS="=" read -r region bucket <<< "$awspair"
   if [[ "$first_target" == "" ]]; then
     first_target="s3://$bucket/$LAMBDAS_ID/$FILENAME"
