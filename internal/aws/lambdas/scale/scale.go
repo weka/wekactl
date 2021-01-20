@@ -54,7 +54,7 @@ func (c *jrpcPool) call(method weka.JrpcMethod, params, result interface{}) (err
 	}
 	err = c.clients[c.active].Call(c.ctx, string(method), params, result)
 	if err != nil {
-		if strings2.Contains(err.Error(), "connection refused"){
+		if strings2.Contains(err.Error(), "connection refused") {
 			c.drop(c.active)
 			return c.call(method, params, result)
 		}
@@ -220,7 +220,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 			Host:   host,
 			id:     hostId,
 			drives: driveMap{},
-			nodes: nodeMap{},
+			nodes:  nodeMap{},
 		}
 	}
 	for driveId, drive := range driveApiList {

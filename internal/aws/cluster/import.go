@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -26,6 +25,7 @@ import (
 	"strings"
 	"time"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
@@ -618,22 +618,13 @@ func createAndUpdateDB(stackName, stackId, username, password string) error {
 	}
 
 	logging.UserProgress("Table %s was created successfully!", tableName)
-	item := JoinParamsDb{
+	err = db.PutItem(tableName, JoinParamsDb{
 		Key:      "cluster-creds",
 		Username: username,
 		Password: password,
-	}
-	av, err := dynamodbattribute.MarshalMap(item)
-	if err != nil {
-		log.Debug().Msg("Got error marshalling user name and password")
-		return err
-	}
-	_, err = svc.PutItem(&dynamodb.PutItemInput{
-		Item:      av,
-		TableName: aws.String(tableName),
 	})
 	if err != nil {
-		log.Debug().Msg("Got error inserting username and password to DB")
+		log.Debug().Msgf("error saving creds to DB %v", err)
 		return err
 	}
 	log.Debug().Msgf("Username:%s and Password:%s were added to DB successfully!", username, strings.Repeat("*", len(password)))
@@ -1152,7 +1143,7 @@ func CreateCloudWatchEventRule(hostGroup HostGroup, arn *string) error {
 	}
 
 	svc := connectors.GetAWSSession().CloudWatchEvents
-	ruleName :=  generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
+	ruleName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
 	_, err = svc.PutRule(&cloudwatchevents.PutRuleInput{
 		Name:               &ruleName,
 		ScheduleExpression: aws.String("rate(1 minute)"),
@@ -1200,7 +1191,7 @@ func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Ins
 	switch role {
 	case "backend":
 		name = "Backends"
-		maxSize = 10 * len(roleInstances)
+		maxSize = 7 * len(roleInstances)
 	case "client":
 		name = "Clients"
 		maxSize = int(math.Ceil(float64(len(roleInstances))/float64(500))) * 500
