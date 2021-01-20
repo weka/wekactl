@@ -2,6 +2,7 @@ package jrpc
 
 import (
 	"context"
+	"github.com/rs/zerolog/log"
 	"strings"
 	"sync"
 	"wekactl/internal/lib/weka"
@@ -18,6 +19,7 @@ type Pool struct {
 }
 
 func (c *Pool) Drop(toDrop string) {
+	log.Debug().Msgf("dropping %s from pool", toDrop)
 	c.Lock()
 	defer c.Unlock()
 	if c.Active == toDrop {

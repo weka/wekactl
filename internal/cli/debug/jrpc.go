@@ -14,7 +14,7 @@ import (
 
 var jrpcArgs struct {
 	Method   string
-	Host     []string
+	Host     *[]string
 	Port     int
 	Username string
 	Password string
@@ -30,7 +30,7 @@ var jrpcCmd = &cobra.Command{
 			return connectors.NewJrpcClient(ctx, ip, weka.ManagementJrpcPort, jrpcArgs.Username, jrpcArgs.Password)
 		}
 		jpool := &jrpc.Pool{
-			Ips:     jrpcArgs.Host,
+			Ips:     *jrpcArgs.Host,
 			Clients: map[string]*jrpc.BaseClient{},
 			Active:  "",
 			Builder: jrpcBuilder,
@@ -47,7 +47,7 @@ var jrpcCmd = &cobra.Command{
 
 func init() {
 	jrpcCmd.Flags().StringVarP(&jrpcArgs.Method, "method", "m", "", "jrpc method")
-	jrpcArgs.Host = *jrpcCmd.Flags().StringSlice( "host", []string{}, "jrpc host")
+	jrpcArgs.Host = jrpcCmd.Flags().StringSlice( "host", []string{}, "jrpc host")
 	jrpcCmd.Flags().StringVarP(&jrpcArgs.Username, "username", "", "", "jrpc username")
 	jrpcCmd.Flags().StringVarP(&jrpcArgs.Password, "password", "", "", "jrpc password")
 	jrpcCmd.Flags().IntVarP(&jrpcArgs.Port, "port", "p", 14000, "jrpc port")

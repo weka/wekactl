@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"math/rand"
 	"sort"
 	"time"
 	"wekactl/internal/aws/lambdas/protocol"
@@ -133,6 +134,9 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	jrpcBuilder := func(ip string) *jrpc.BaseClient {
 		return connectors.NewJrpcClient(ctx, ip, weka.ManagementJrpcPort, info.Username, info.Password)
 	}
+	ips := instancesIps(info.Instances)
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(ips), func(i, j int) { ips[i], ips[j] = ips[j], ips[i] })
 	jpool := &jrpc.Pool{
 		Ips:     instancesIps(info.Instances),
 		Clients: map[string]*jrpc.BaseClient{},
