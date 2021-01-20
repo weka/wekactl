@@ -117,6 +117,7 @@ type StateMachineLambdas struct {
 
 type RestApiGateway struct {
 	id     string
+	name   string
 	url    string
 	apiKey string
 }
@@ -902,7 +903,8 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri, lambdaName
 
 	restApiGateway = RestApiGateway{
 		id:     *restApiId,
-		url:    fmt.Sprintf("https://%s.execute-api.%s.amazonaws.com/default/%s", *restApiId, env.Config.Region, lambdaName),
+		name:   apiGatewayName,
+		url:    fmt.Sprintf("https://%s.execute-api.%s.amazonaws.com/default/%s", *restApiId, env.Config.Region, apiGatewayName),
 		apiKey: *apiKeyOutput.Value,
 	}
 	return
@@ -917,13 +919,13 @@ func getAccountId() (string, error) {
 	return *result.Account, nil
 }
 
-func addLambdaInvokePermissions(lambdaName, restApiId string) error {
+func addLambdaInvokePermissions(lambdaName, restApiId, apiGatewayName string) error {
 	svc := connectors.GetAWSSession().Lambda
 	account, err := getAccountId()
 	if err != nil {
 		return err
 	}
-	sourceArn := fmt.Sprintf("arn:aws:execute-api:eu-central-1:%s:%s/*/GET/%s", account, restApiId, lambdaName)
+	sourceArn := fmt.Sprintf("arn:aws:execute-api:eu-central-1:%s:%s/*/GET/%s", account, restApiId, apiGatewayName)
 	_, err = svc.AddPermission(&lambda.AddPermissionInput{
 		FunctionName: aws.String(lambdaName),
 		StatementId:  aws.String(lambdaName + "-" + uuid.New().String()),
@@ -953,7 +955,7 @@ func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolic
 		return
 	}
 
-	err = addLambdaInvokePermissions(*functionConfiguration.FunctionName, restApiGateway.id)
+	err = addLambdaInvokePermissions(*functionConfiguration.FunctionName, restApiGateway.id, restApiGateway.name)
 	if err != nil {
 		return
 	}
@@ -1152,7 +1154,7 @@ func CreateCloudWatchEventRule(hostGroup HostGroup, arn *string) error {
 	}
 
 	svc := connectors.GetAWSSession().CloudWatchEvents
-	ruleName :=  generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
+	ruleName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
 	_, err = svc.PutRule(&cloudwatchevents.PutRuleInput{
 		Name:               &ruleName,
 		ScheduleExpression: aws.String("rate(1 minute)"),
