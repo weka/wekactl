@@ -1,16 +1,20 @@
 package debug
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"time"
 	"wekactl/internal/connectors"
+	"wekactl/internal/lib/jrpc"
+	"wekactl/internal/lib/weka"
 )
 
 var jrpcArgs struct {
 	Method   string
-	Host     string
+	Host     []string
 	Port     int
 	Username string
 	Password string
@@ -21,9 +25,19 @@ var jrpcCmd = &cobra.Command{
 	Short: "",
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
-		client := connectors.NewJrpcClient(cmd.Context(), jrpcArgs.Host, jrpcArgs.Port, jrpcArgs.Username, jrpcArgs.Password)
+		ctx, _ := context.WithTimeout(cmd.Context(), time.Second * 3)
+		jrpcBuilder := func(ip string) *jrpc.BaseClient {
+			return connectors.NewJrpcClient(ctx, ip, weka.ManagementJrpcPort, jrpcArgs.Username, jrpcArgs.Password)
+		}
+		jpool := &jrpc.Pool{
+			Ips:     jrpcArgs.Host,
+			Clients: map[string]*jrpc.BaseClient{},
+			Active:  "",
+			Builder: jrpcBuilder,
+			Ctx:     ctx,
+		}
 		result := json.RawMessage{}
-		err := client.Call(cmd.Context(), jrpcArgs.Method, struct{}{}, &result)
+		err := jpool.Call(weka.JrpcMethod(jrpcArgs.Method), struct{}{}, &result)
 		if err != nil {
 			log.Fatal().Msg(err.Error())
 		}
@@ -33,7 +47,7 @@ var jrpcCmd = &cobra.Command{
 
 func init() {
 	jrpcCmd.Flags().StringVarP(&jrpcArgs.Method, "method", "m", "", "jrpc method")
-	jrpcCmd.Flags().StringVarP(&jrpcArgs.Host, "host", "", "", "jrpc host")
+	jrpcArgs.Host = *jrpcCmd.Flags().StringSlice( "host", []string{}, "jrpc host")
 	jrpcCmd.Flags().StringVarP(&jrpcArgs.Username, "username", "", "", "jrpc username")
 	jrpcCmd.Flags().StringVarP(&jrpcArgs.Password, "password", "", "", "jrpc password")
 	jrpcCmd.Flags().IntVarP(&jrpcArgs.Port, "port", "p", 14000, "jrpc port")

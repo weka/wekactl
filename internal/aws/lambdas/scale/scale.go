@@ -7,8 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"sort"
-	strings2 "strings"
-	"sync"
 	"time"
 	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/connectors"
@@ -18,51 +16,6 @@ import (
 	"wekactl/internal/lib/types"
 	"wekactl/internal/lib/weka"
 )
-
-type jrpcClientBuilder func(ip string) *jrpc.BaseClient
-type jrpcPool struct {
-	sync.RWMutex
-	ips     []string
-	clients map[string]*jrpc.BaseClient
-	active  string
-	builder jrpcClientBuilder
-	ctx     context.Context
-}
-
-func (c *jrpcPool) drop(toDrop string) {
-	c.Lock()
-	defer c.Unlock()
-	if c.active == toDrop {
-		c.active = ""
-	}
-
-	for i, ip := range c.ips {
-		if ip == toDrop {
-			c.ips[i] = c.ips[len(c.ips)-1]
-			c.ips = c.ips[:len(c.ips)-1]
-			break
-		}
-	}
-}
-
-func (c *jrpcPool) call(method weka.JrpcMethod, params, result interface{}) (err error) {
-	if c.active == "" {
-		c.Lock()
-		c.active = c.ips[0]
-		c.clients[c.active] = c.builder(c.active)
-		c.Unlock()
-	}
-	err = c.clients[c.active].Call(c.ctx, string(method), params, result)
-	if err != nil {
-		if strings2.Contains(err.Error(), "connection refused") {
-			c.drop(c.active)
-			return c.call(method, params, result)
-		}else{
-			return err
-		}
-	}
-	return nil
-}
 
 type hostState int
 
@@ -180,12 +133,12 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	jrpcBuilder := func(ip string) *jrpc.BaseClient {
 		return connectors.NewJrpcClient(ctx, ip, weka.ManagementJrpcPort, info.Username, info.Password)
 	}
-	jpool := &jrpcPool{
-		ips:     instancesIps(info.Instances),
-		clients: map[string]*jrpc.BaseClient{},
-		active:  "",
-		builder: jrpcBuilder,
-		ctx:     ctx,
+	jpool := &jrpc.Pool{
+		Ips:     instancesIps(info.Instances),
+		Clients: map[string]*jrpc.BaseClient{},
+		Active:  "",
+		Builder: jrpcBuilder,
+		Ctx:     ctx,
 	}
 
 	systemStatus := weka.StatusResponse{}
@@ -193,7 +146,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	driveApiList := weka.DriveListResponse{}
 	nodeApiList := weka.NodeListResponse{}
 
-	err = jpool.call(weka.JrpcStatus, struct{}{}, &systemStatus)
+	err = jpool.Call(weka.JrpcStatus, struct{}{}, &systemStatus)
 	if err != nil {
 		return
 	}
@@ -201,17 +154,17 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	if err != nil {
 		return
 	}
-	err = jpool.call(weka.JrpcHostList, struct{}{}, &hostsApiList)
+	err = jpool.Call(weka.JrpcHostList, struct{}{}, &hostsApiList)
 	if err != nil {
 		return
 	}
 	if info.Role == "backend" {
-		err = jpool.call(weka.JrpcDrivesList, struct{}{}, &driveApiList)
+		err = jpool.Call(weka.JrpcDrivesList, struct{}{}, &driveApiList)
 		if err != nil {
 			return
 		}
 	}
-	err = jpool.call(weka.JrpcNodeList, struct{}{}, &nodeApiList)
+	err = jpool.Call(weka.JrpcNodeList, struct{}{}, &nodeApiList)
 	if err != nil {
 		return
 	}
@@ -285,7 +238,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		log.Info().Msgf("Trying to deactivate host %s", host.id)
 		for _, drive := range host.drives {
 			if drive.ShouldBeActive {
-				err := jpool.call(weka.JrpcDeactivateDrives, types.JsonDict{
+				err := jpool.Call(weka.JrpcDeactivateDrives, types.JsonDict{
 					"drive_uuids": []uuid.UUID{drive.Uuid},
 				}, nil)
 				if err != nil {
@@ -296,8 +249,8 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		}
 
 		if host.allDrivesInactive() {
-			jpool.drop(host.HostIp)
-			err := jpool.call(weka.JrpcDeactivateHosts, types.JsonDict{
+			jpool.Drop(host.HostIp)
+			err := jpool.Call(weka.JrpcDeactivateHosts, types.JsonDict{
 				"host_ids":                 []weka.HostId{host.id},
 				"skip_resource_validation": false,
 			}, nil)
@@ -404,10 +357,10 @@ func selectInstanceByIp(ip string, instances []protocol.HgInstance) *protocol.Hg
 	return nil
 }
 
-func removeInactive(hosts []hostInfo, jpool *jrpcPool, instances []protocol.HgInstance, p *protocol.ScaleResponse) {
+func removeInactive(hosts []hostInfo, jpool *jrpc.Pool, instances []protocol.HgInstance, p *protocol.ScaleResponse) {
 	for _, host := range hosts {
-		jpool.drop(host.HostIp)
-		err := jpool.call(weka.JrpcRemoveHost, types.JsonDict{
+		jpool.Drop(host.HostIp)
+		err := jpool.Call(weka.JrpcRemoveHost, types.JsonDict{
 			"host_id": host.id.Int(),
 		}, nil)
 		if err != nil {
@@ -427,7 +380,7 @@ func removeInactive(hosts []hostInfo, jpool *jrpcPool, instances []protocol.HgIn
 	return
 }
 
-func removeOldDrives(drives weka.DriveListResponse, jpool *jrpcPool, p *protocol.ScaleResponse) {
+func removeOldDrives(drives weka.DriveListResponse, jpool *jrpc.Pool, p *protocol.ScaleResponse) {
 	for _, drive := range drives {
 		if drive.HostId.Int() == -1 && drive.Status == "INACTIVE" {
 			removeDrive(jpool, drive, p)
@@ -435,8 +388,8 @@ func removeOldDrives(drives weka.DriveListResponse, jpool *jrpcPool, p *protocol
 	}
 }
 
-func removeDrive(jpool *jrpcPool, drive weka.Drive, p *protocol.ScaleResponse) {
-	err := jpool.call(weka.JrpcRemoveDrive, types.JsonDict{
+func removeDrive(jpool *jrpc.Pool, drive weka.Drive, p *protocol.ScaleResponse) {
+	err := jpool.Call(weka.JrpcRemoveDrive, types.JsonDict{
 		"drive_uuids": []uuid.UUID{drive.Uuid},
 	}, nil)
 	if err != nil {
