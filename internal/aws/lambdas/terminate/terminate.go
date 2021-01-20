@@ -83,6 +83,9 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance, expli
 		}
 	}
 
+	if len(terminateInstanceIds) == 0 {
+		return
+	}
 	setToTerminate, errs := common.SetDisableInstancesApiTermination(
 		terminateInstanceIds[:common.Min(len(terminateInstanceIds), 50)],
 		false,
