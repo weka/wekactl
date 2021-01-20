@@ -858,8 +858,9 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri, lambdaName
 	})
 	log.Debug().Msgf("rest api gateway deployment for stage %s was created successfully!", stageName)
 
+	resourceName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
 	usagePlanOutput, err := svc.CreateUsagePlan(&apigateway.CreateUsagePlanInput{
-		Name: aws.String(apiGatewayName + "-usage-plan"),
+		Name: aws.String(resourceName),
 		ApiStages: []*apigateway.ApiStage{
 			{
 				ApiId: restApiId,
@@ -874,7 +875,7 @@ func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri, lambdaName
 
 	apiKeyOutput, err := svc.CreateApiKey(&apigateway.CreateApiKeyInput{
 		Enabled: aws.Bool(true),
-		Name:    aws.String(apiGatewayName + "-api-key"),
+		Name:    aws.String(resourceName),
 		Tags:    getMapCommonTags(hostGroup),
 	})
 	if err != nil {
