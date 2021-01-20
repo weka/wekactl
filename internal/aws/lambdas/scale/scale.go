@@ -57,6 +57,8 @@ func (c *jrpcPool) call(method weka.JrpcMethod, params, result interface{}) (err
 		if strings2.Contains(err.Error(), "connection refused") {
 			c.drop(c.active)
 			return c.call(method, params, result)
+		}else{
+			return err
 		}
 	}
 	return nil
