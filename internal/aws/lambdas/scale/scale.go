@@ -117,7 +117,7 @@ func (host hostInfo) belongsToHgIpBased(instances []protocol.HgInstance) bool {
 func (host hostInfo) numNotHealthyDrives() int {
 	notActive := 0
 	for _, drive := range host.drives {
-		if strings.AnyOf(drive.Status, "INACTIVE", "FAILED") {
+		if strings.AnyOf(drive.Status, "INACTIVE") {
 			notActive += 1
 		}
 	}
