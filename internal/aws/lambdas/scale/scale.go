@@ -138,7 +138,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(ips), func(i, j int) { ips[i], ips[j] = ips[j], ips[i] })
 	jpool := &jrpc.Pool{
-		Ips:     instancesIps(info.Instances),
+		Ips:     ips,
 		Clients: map[string]*jrpc.BaseClient{},
 		Active:  "",
 		Builder: jrpcBuilder,
