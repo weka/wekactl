@@ -9,30 +9,25 @@ package cluster
 */
 
 type Resource interface {
-	CurrentVersion() string
+	Fetch() error
+	DeployedVersion() string
 	TargetVersion() string
-	Delete() error // Consider if it's public part of interface and if needed at all, assuming we have Update
-	Create() error // same
-	//IsUpdatable() bool
+	Delete() error
+	Create() error
 	Update() error
+	Init()
 }
 
 func EnsureResource(r Resource) error {
-	if r.CurrentVersion() == "" {
+	r.Fetch()
+	if r.DeployedVersion() == "" {
 		return r.Create()
 	}
 
-	if r.CurrentVersion() != r.TargetVersion() {
+	if r.DeployedVersion() != r.TargetVersion() {
 		return r.Update()
 	}
 	return nil
-}
-
-func UpdateByRecreate(r Resource) error {
-	if err := r.Delete(); err != nil {
-		return err
-	}
-	return r.Create()
 }
 
 /*

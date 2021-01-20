@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -28,6 +27,7 @@ import (
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/dist"
+	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
@@ -43,94 +43,8 @@ func (s *StackInstances) All() []*ec2.Instance {
 }
 
 type Tag struct {
-	Key   *string
-	Value *string
-}
-
-type JoinParamsDb struct {
-	Key      string
-	Username string
-	Password string
-}
-
-type Stack struct {
-	StackId       string
-	StackName     string
-	DynamodbTable string
-}
-
-type HostGroup struct {
-	Role  string
-	Name  string
-	Stack Stack
-}
-
-type StatementEntry struct {
-	Effect   string
-	Action   []string
-	Resource string
-}
-
-type PolicyDocument struct {
-	Version   string
-	Statement []StatementEntry
-}
-
-type Principal struct {
-	Service string
-}
-
-//Resource is prohibited for assume role
-type AssumeRoleStatementEntry struct {
-	Effect    string
-	Action    []string
-	Principal Principal
-}
-
-type AssumeRolePolicyDocument struct {
-	Version   string
-	Statement []AssumeRoleStatementEntry
-}
-
-type NextState struct {
-	Type     string
-	Resource string
-	Next     string
-}
-
-type IsNullChoice struct {
-	Variable string
-	IsNull   bool
-	Next     string
-}
-
-type IsNullChoiceState struct {
-	Type    string
-	Choices []IsNullChoice
-	Default string
-}
-
-type EndState struct {
-	Type     string
-	Resource string
-	End      bool
-}
-
-type SuccessState struct {
-	Type string
-}
-
-type StateMachine struct {
-	Comment string
-	StartAt string
-	States  map[string]interface{}
-}
-
-type StateMachineLambdas struct {
-	Fetch     string
-	Scale     string
-	Terminate string
-	Transient string
+	Key   string
+	Value string
 }
 
 type RestApiGateway struct {
@@ -152,7 +66,7 @@ func GetStackId(stackName string) (string, error) {
 	return *result.Stacks[0].StackId, nil
 }
 
-func getClusterInstances(stackName string) ([]*string, error) {
+func getStackInstances(stackName string) ([]*string, error) {
 	svc := connectors.GetAWSSession().CF
 
 	result, err := svc.DescribeStackResources(&cloudformation.DescribeStackResourcesInput{
@@ -171,9 +85,9 @@ func getClusterInstances(stackName string) ([]*string, error) {
 	return instancesIds, nil
 }
 
-func GetInstancesInfo(stackName string) (stackInstances StackInstances, err error) {
+func GetStackInstancesInfo(stackName string) (stackInstances StackInstances, err error) {
 	svc := connectors.GetAWSSession().EC2
-	instances, err := getClusterInstances(stackName)
+	instances, err := getStackInstances(stackName)
 	if err != nil {
 		return
 	}
@@ -197,57 +111,34 @@ func GetInstancesInfo(stackName string) (stackInstances StackInstances, err erro
 	return stackInstances, nil
 }
 
-func getInstancesIdsFromEc2Instance(instances []*ec2.Instance) []*string {
-	var instanceIds []*string
-	for _, instance := range instances {
-		instanceIds = append(instanceIds, instance.InstanceId)
-	}
-	return instanceIds
-}
-
 func getUuidFromStackId(stackId string) string {
 	s := strings.Split(stackId, "/")
 	return s[len(s)-1]
 }
 
-func getInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
-	var securityGroupIds []*string
+func getInstanceSecurityGroupsId(instance *ec2.Instance) []string {
+	var securityGroupIds []string
 	for _, securityGroup := range instance.SecurityGroups {
-		securityGroupIds = append(securityGroupIds, securityGroup.GroupId)
+		securityGroupIds = append(securityGroupIds, *securityGroup.GroupId)
 	}
 	return securityGroupIds
 }
 
-func getCommonTags(stack Stack) []Tag {
-	tags := []Tag{
-		{
-			Key:   aws.String("wekactl.io/managed"),
-			Value: aws.String("true"),
-		},
-		{
-			Key:   aws.String("wekactl.io/api_version"),
-			Value: aws.String("v1"),
-		},
-		{
-			Key:   aws.String("wekactl.io/stack_id"),
-			Value: aws.String(stack.StackId),
-		},
+func getCommonTags(clusterName cluster.ClusterName) common.Tags {
+	tags := common.Tags{
+		"wekactl.io/managed":      "true",
+		"wekactl.io/api_version":  "v1",
+		"wekactl.io/cluster_name": string(clusterName),
 	}
 	return tags
 }
 
-func getHostGroupTags(hostGroup HostGroup) []Tag {
-	tags := getCommonTags(hostGroup.Stack)
-	tags = append(
-		tags, Tag{
-			Key:   aws.String("wekactl.io/name"),
-			Value: aws.String(hostGroup.Name),
-		}, Tag{
-			Key:   aws.String("wekactl.io/hostgroup_type"),
-			Value: aws.String(hostGroup.Role),
-		},
-	)
-	return tags
+func getHostGroupTags(hostGroup HostGroupInfo) common.Tags {
+	tags := getCommonTags(hostGroup.ClusterName)
+	return tags.Update(common.Tags{
+		"wekactl.io/hg_name": string(hostGroup.Name),
+		"wekactl.io/hg_type": string(hostGroup.Role),
+	})
 }
 
 func getEc2Tags(name, role, stackId string) []*ec2.Tag {
@@ -265,8 +156,8 @@ func getEc2Tags(name, role, stackId string) []*ec2.Tag {
 	return ec2Tags
 }
 
-func generateResourceName(stackId, stackName, resourceName string) string {
-	name := "weka-" + stackName + "-"
+func generateResourceName(stackId string, clusterName cluster.ClusterName, resourceName string) string {
+	name := "weka-" + string(clusterName) + "-"
 	if resourceName != "" {
 		name += resourceName + "-"
 	}
@@ -380,7 +271,7 @@ func getAutoScalingTags(name, role, stackId, stackName string) []*autoscaling.Ta
 	return autoscalingTags
 }
 
-func GetJoinAndFetchLambdaPolicy() (string, error) {
+func GetJoinAndFetchLambdaPolicy() PolicyDocument {
 	policyDocument := PolicyDocument{
 		Version: "2012-10-17",
 		Statement: []StatementEntry{
@@ -399,15 +290,10 @@ func GetJoinAndFetchLambdaPolicy() (string, error) {
 			},
 		},
 	}
-	policy, err := json.Marshal(&policyDocument)
-	if err != nil {
-		log.Debug().Msg("Error marshaling policy")
-		return "", err
-	}
-	return string(policy), nil
+	return policyDocument
 }
 
-func GetScaleLambdaPolicy() (string, error) {
+func GetScaleLambdaPolicy() string {
 	policyDocument := PolicyDocument{
 		Version: "2012-10-17",
 		Statement: []StatementEntry{
@@ -427,13 +313,12 @@ func GetScaleLambdaPolicy() (string, error) {
 	}
 	policy, err := json.Marshal(&policyDocument)
 	if err != nil {
-		log.Debug().Msg("Error marshaling policy")
-		return "", err
+		log.Fatal().Msg("Error marshaling policy")
 	}
-	return string(policy), nil
+	return string(policy)
 }
 
-func GetTerminateLambdaPolicy() (string, error) {
+func GetTerminateLambdaPolicy() string {
 	policyDocument := PolicyDocument{
 		Version: "2012-10-17",
 		Statement: []StatementEntry{
@@ -457,16 +342,15 @@ func GetTerminateLambdaPolicy() (string, error) {
 	}
 	policy, err := json.Marshal(&policyDocument)
 	if err != nil {
-		log.Debug().Msg("Error marshaling policy")
-		return "", err
+		log.Fatal().Msg("Error marshaling policy")
 	}
-	return string(policy), nil
+	return string(policy)
 }
 
-func GetLambdaAssumeRolePolicy() (string, error) {
+func GetLambdaAssumeRolePolicy() string {
 	policyDocument := AssumeRolePolicyDocument{
 		Version: "2012-10-17",
-		Statement: []AssumeRoleStatementEntry{
+		Statement: []PolicyStatement{
 			{
 				Effect: "Allow",
 				Action: []string{
@@ -480,38 +364,37 @@ func GetLambdaAssumeRolePolicy() (string, error) {
 	}
 	policy, err := json.Marshal(&policyDocument)
 	if err != nil {
-		log.Debug().Msg("Error marshaling policy")
-		return "", err
+		log.Fatal().Msg("Error marshaling policy")
 	}
-	return string(policy), nil
+	return string(policy)
 }
 
-func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, instance *ec2.Instance, vpcConfig lambda.VpcConfig) (string, error) {
-	hostGroup := HostGroup{
-		Name: name,
-		Role: role,
-		Stack: Stack{
-			StackId:   stackId,
-			StackName: stackName,
+func getMaxSize(role string, initialSize int) int {
+	var maxSize int
+	switch role {
+	case "backend":
+		maxSize = 7 * initialSize
+	case "client":
+		maxSize = int(math.Ceil(float64(initialSize)/float64(500))) * 500
+	default:
+		maxSize = 1000
+	}
+	return maxSize
+}
+
+func createHostGroup(awsCluster *AWSCluster, hgParams HGParams, name string, role InstanceRole, instancesIds []string) error {
+	hostGroup := &HostGroup{
+		HostGroupInfo: HostGroupInfo{
+			Name:        HostGroupName(name),
+			Role:        role,
+			ClusterName: awsCluster.Name,
 		},
 	}
-	fetchAndJoinPolicy, err := GetJoinAndFetchLambdaPolicy()
-	if err != nil {
-		return "", err
-	}
-	scalePolicy, err := GetScaleLambdaPolicy()
-	if err != nil {
-		return "", err
-	}
-	terminatePolicy, err := GetTerminateLambdaPolicy()
-	if err != nil {
-		return "", err
-	}
-	assumeRolePolicy, err := GetLambdaAssumeRolePolicy()
-	if err != nil {
-		return "", err
-	}
-	restApiGateway, err := CreateLambdaEndPoint(hostGroup, "join", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
+	hostGroup.Init()
+	cluster.EnsureResource(hostGroup)
+	assumeRolePolicy := GetLambdaAssumeRolePolicy()
+
+	restApiGateway, err := CreateJoinApi(hostGroup, "join", "Backends", assumeRolePolicy, lambda.VpcConfig{})
 	if err != nil {
 		return "", err
 	}
@@ -520,15 +403,15 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 		return "", err
 	}
 
-	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
+	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, GetJoinAndFetchLambdaPolicy(), lambda.VpcConfig{})
 	if err != nil {
 		return "", err
 	}
-	scaleLambda, err := CreateLambda(hostGroup, "scale", "Backends", assumeRolePolicy, scalePolicy, vpcConfig)
+	scaleLambda, err := CreateLambda(hostGroup, "scale", "Backends", assumeRolePolicy, GetScaleLambdaPolicy(), vpcConfig)
 	if err != nil {
 		return "", err
 	}
-	terminateLambda, err := CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, terminatePolicy, lambda.VpcConfig{})
+	terminateLambda, err := CreateLambda(hostGroup, "terminate", "Backends", assumeRolePolicy, GetTerminateLambdaPolicy(), lambda.VpcConfig{})
 	if err != nil {
 		return "", err
 	}
@@ -561,7 +444,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 			Version:            aws.String("1"),
 		},
 		MinSize: aws.Int64(0),
-		MaxSize: aws.Int64(int64(maxSize)),
+		MaxSize: aws.Int64(int64(getMaxSize(role, len(instancesIds)))),
 		Tags:    getAutoScalingTags(name, role, stackId, stackName),
 	}
 	_, err = svc.CreateAutoScalingGroup(input)
@@ -575,7 +458,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 func attachInstancesToAutoScalingGroups(roleInstances []*ec2.Instance, autoScalingGroupsName string) error {
 	svc := connectors.GetAWSSession().ASG
 	limit := 20
-	instancesIds := getInstancesIdsFromEc2Instance(roleInstances)
+	instancesIds := common.GetInstancesIds(roleInstances)
 	for i := 0; i < len(instancesIds); i += limit {
 		batch := instancesIds[i:common.Min(i+limit, len(instancesIds))]
 		_, err := svc.AttachInstances(&autoscaling.AttachInstancesInput{
@@ -590,7 +473,7 @@ func attachInstancesToAutoScalingGroups(roleInstances []*ec2.Instance, autoScali
 	return nil
 }
 
-func getKMSTags(stackId string) []*kms.Tag {
+func getKMSTags(stackId cluster.ClusterName) []*kms.Tag {
 	var kmsTags []*kms.Tag
 	for _, tag := range getCommonTags(Stack{StackId: stackId}) {
 		kmsTags = append(kmsTags, &kms.Tag{
@@ -599,105 +482,6 @@ func getKMSTags(stackId string) []*kms.Tag {
 		})
 	}
 	return kmsTags
-}
-
-func createKMSKey(stackId, stackName string) (*string, error) {
-	svc := connectors.GetAWSSession().KMS
-
-	input := &kms.CreateKeyInput{
-		Tags: getKMSTags(stackId),
-	}
-	result, err := svc.CreateKey(input)
-	if err != nil {
-		log.Debug().Msgf(err.Error())
-		return nil, err
-	} else {
-		log.Debug().Msgf("KMS key %s was created successfully!", *result.KeyMetadata.KeyId)
-		alias := generateResourceName(stackId, stackName, "")
-		input := &kms.CreateAliasInput{
-			AliasName:   aws.String("alias/" + alias),
-			TargetKeyId: result.KeyMetadata.KeyId,
-		}
-		_, err := svc.CreateAlias(input)
-		if err != nil {
-			log.Debug().Msgf(err.Error())
-		}
-		return result.KeyMetadata.KeyId, nil
-	}
-}
-
-func getDynamodbTags(stackId string) []*dynamodb.Tag {
-	var dynamodbTags []*dynamodb.Tag
-	for _, tag := range getCommonTags(Stack{StackId: stackId}) {
-		dynamodbTags = append(dynamodbTags, &dynamodb.Tag{
-			Key:   tag.Key,
-			Value: tag.Value,
-		})
-	}
-	return dynamodbTags
-}
-
-func createAndUpdateDB(stackName, stackId, username, password string) error {
-	kmsKey, err := createKMSKey(stackId, stackName)
-	if err != nil {
-		log.Debug().Msg("Failed creating KMS key, DB was not created")
-		return err
-	}
-
-	svc := connectors.GetAWSSession().DynamoDB
-
-	tableName := generateResourceName(stackId, stackName, "")
-
-	input := &dynamodb.CreateTableInput{
-		AttributeDefinitions: []*dynamodb.AttributeDefinition{
-			{
-				AttributeName: aws.String("Key"),
-				AttributeType: aws.String("S"),
-			},
-		},
-		KeySchema: []*dynamodb.KeySchemaElement{
-			{
-				AttributeName: aws.String("Key"),
-				KeyType:       aws.String("HASH"),
-			},
-		},
-		BillingMode: aws.String(dynamodb.BillingModePayPerRequest),
-		TableName:   aws.String(tableName),
-		Tags:        getDynamodbTags(stackId),
-		SSESpecification: &dynamodb.SSESpecification{
-			Enabled:        aws.Bool(true),
-			KMSMasterKeyId: kmsKey,
-			SSEType:        aws.String("KMS"),
-		},
-	}
-
-	_, err = svc.CreateTable(input)
-	if err != nil {
-		log.Debug().Msg("Failed creating table")
-		return err
-	}
-
-	logging.UserProgress("Waiting for table \"%s\" to be created...", tableName)
-	err = svc.WaitUntilTableExists(&dynamodb.DescribeTableInput{
-		TableName: aws.String(tableName),
-	})
-
-	if err != nil {
-		return err
-	}
-
-	logging.UserProgress("Table %s was created successfully!", tableName)
-	err = db.PutItem(tableName, JoinParamsDb{
-		Key:      "cluster-creds",
-		Username: username,
-		Password: password,
-	})
-	if err != nil {
-		log.Debug().Msgf("error saving creds to DB %v", err)
-		return err
-	}
-	log.Debug().Msgf("Username:%s and Password:%s were added to DB successfully!", username, strings.Repeat("*", len(password)))
-	return nil
 }
 
 func getIAMTags(hostGroup HostGroup) []*iam.Tag {
@@ -770,7 +554,7 @@ func getMapCommonTags(hostGroup HostGroup) map[string]*string {
 		"wekactl.io/api_version":    aws.String("v1"),
 		"wekactl.io/stack_id":       aws.String(hostGroup.Stack.StackId),
 		"wekactl.io/name":           aws.String(hostGroup.Name),
-		"wekactl.io/hostgroup_type": aws.String(hostGroup.Role),
+		"wekactl.io/hostgroup_type": aws.String(string(hostGroup.Role)),
 	}
 }
 
@@ -999,8 +783,15 @@ func addLambdaInvokePermissions(lambdaName, restApiId, apiGatewayName string) er
 	return nil
 }
 
-func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, policy string, vpcConfig lambda.VpcConfig) (restApiGateway RestApiGateway, err error) {
-	functionConfiguration, err := CreateLambda(hostGroup, lambdaType, name, assumeRolePolicy, policy, vpcConfig)
+func CreateJoinApi(hostGroup HostGroup, lambdaType, name, assumeRolePolicy string, vpcConfig lambda.VpcConfig) (restApiGateway RestApiGateway, err error) {
+	functionConfiguration, err := CreateLambda(
+		hostGroup,
+		lambdaType,
+		name,
+		assumeRolePolicy,
+		GetJoinAndFetchLambdaPolicy(),
+		vpcConfig,
+	)
 	if err != nil {
 		return
 	}
@@ -1037,7 +828,7 @@ func getStateMachineTags(hostGroup HostGroup) []*sfn.Tag {
 func GetStateMachineAssumeRolePolicy() (string, error) {
 	policyDocument := AssumeRolePolicyDocument{
 		Version: "2012-10-17",
-		Statement: []AssumeRoleStatementEntry{
+		Statement: []PolicyStatement{
 			{
 				Effect: "Allow",
 				Action: []string{
@@ -1177,7 +968,7 @@ func getCloudWatchEventTags(hostGroup HostGroup) []*cloudwatchevents.Tag {
 func GetCloudWatchEventAssumeRolePolicy() (string, error) {
 	policyDocument := AssumeRolePolicyDocument{
 		Version: "2012-10-17",
-		Statement: []AssumeRoleStatementEntry{
+		Statement: []PolicyStatement{
 			{
 				Effect: "Allow",
 				Action: []string{
@@ -1324,68 +1115,112 @@ func attachLoadBalancer(stackName, AutoScalingGroupName string) (err error) {
 	return
 }
 
-func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Instance) error {
-	if len(roleInstances) == 0 {
-		logging.UserProgress("instances with role '%s' not found", role)
-		return nil
-	}
-
+func importClusterRole(awsCluster *AWSCluster, hgParams HGParams, role InstanceRole, instanceIds []string) error {
 	var name string
-	var maxSize int
-	switch role {
-	case "backend":
+	if role == RoleBackend {
 		name = "Backends"
-		maxSize = 7 * len(roleInstances)
-	case "client":
+	} else {
 		name = "Clients"
-		maxSize = int(math.Ceil(float64(len(roleInstances))/float64(500))) * 500
-	default:
-		return errors.New(fmt.Sprintf("import of role %s is unsupported", role))
 	}
-
-	lambdaVpcConfig := GetLambdaVpcConfig(roleInstances[0])
-	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, maxSize, roleInstances[0], lambdaVpcConfig)
+	autoScalingGroupName, err := createHostGroup(awsCluster, hgParams, name, role, instanceIds)
 	if err != nil {
 		return err
 	}
-
-	if role == "backend" {
-		err = attachLoadBalancer(stackName, autoScalingGroupName)
-		if err != nil {
-			return err
-		}
-	}
-
 	return attachInstancesToAutoScalingGroups(roleInstances, autoScalingGroupName)
 }
 
 func ImportCluster(stackName, username, password string) error {
+	/*
+	EnsureDatabase
+	AWSCluster{
+		HostGroups:{}
+	}
+	PopulateFromExistingInstances(AWSCluster)
+	EnsureResource(AWSCluster)
+	AttachResources()
+
+	 */
 	stackId, err := GetStackId(stackName)
 	if err != nil {
 		return err
 	}
-	err = createAndUpdateDB(stackName, stackId, username, password)
+	clusterName := cluster.ClusterName(stackName)
+	tableName, err := createDb(clusterName, stackId)
 	if err != nil {
 		return err
 	}
-	stackInstances, err := GetInstancesInfo(stackName)
+	err = saveCredentials(tableName, username, password)
+	if err != nil {
+		return err
+	}
+	stackInstances, err := GetStackInstancesInfo(stackName)
 	if err != nil {
 		return err
 	}
 
-	instanceIds := getInstancesIdsFromEc2Instance(stackInstances.All())
+	instanceIds := common.GetInstancesIds(stackInstances.All())
 	_, errs := common.SetDisableInstancesApiTermination(instanceIds, true)
 	if len(errs) != 0 {
 		return errs[0]
 	}
 
-	err = importClusterRole(stackId, stackName, "client", stackInstances.Clients)
+	awsCluster := &AWSCluster{
+		Name:          clusterName,
+		DefaultParams: db.DefaultClusterParams{},
+		CFStack: Stack{
+			StackId:   stackId,
+			StackName: stackName,
+		},
+	}
+
+	err = importClusterParamsFromCF(awsCluster, stackInstances)
 	if err != nil {
 		return err
 	}
-	err = importClusterRole(stackId, stackName, "backend", stackInstances.Backends)
+
+	err = importClusterRole(
+		awsCluster,
+		awsCluster.DefaultParams.Backends,
+		RoleBackend,
+		common.GetInstancesIds(stackInstances.Backends),
+	)
 	if err != nil {
 		return err
+	}
+	if len(stackInstances.Clients) != 0 {
+		err = importClusterRole(
+			awsCluster,
+			awsCluster.DefaultParams.Clients,
+			RoleClient,
+			common.GetInstancesIds(stackInstances.Clients),
+		)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func importClusterParamsFromCF(awsCluster *AWSCluster, instances StackInstances) error {
+	if len(instances.Backends) == 0 {
+		return errors.New("backend instances not found, can't proceed with import")
+	}
+
+	importRoleParams(&awsCluster.DefaultParams.Backends, instances.Backends[0])
+	if len(instances.Clients) == 0 {
+		awsCluster.DefaultParams.Clients = awsCluster.DefaultParams.Backends
+	}
+	importRoleParams(&awsCluster.DefaultParams.Clients, instances.Clients[0])
+	awsCluster.DefaultParams.Subnet = awsCluster.DefaultParams.Backends.Subnet
+	awsCluster.DefaultParams.VPC = *instances.Backends[0].VpcId
+	return nil
+}
+
+func importRoleParams(hgParams *HGParams, instance *ec2.Instance) {
+	hgParams.SecurityGroupsIds = getInstanceSecurityGroupsId(instance)
+	hgParams.ImageID = *instance.ImageId
+	hgParams.KeyName = *instance.KeyName
+	hgParams.IamArn = *instance.IamInstanceProfile.Arn
+	hgParams.InstanceType = *instance.InstanceType
+	hgParams.Subnet = *instance.SubnetId
 }

@@ -5,7 +5,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/rs/zerolog/log"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/connectors"
+	"wekactl/internal/logging"
 )
 
 func PutItem(tableName string, item interface{}) error {
@@ -21,3 +23,71 @@ func PutItem(tableName string, item interface{}) error {
 	})
 	return err
 }
+
+func GetItem(tableName string, key string, item interface{}) error {
+	svc := connectors.GetAWSSession().DynamoDB
+	result, err := svc.GetItem(&dynamodb.GetItemInput{
+		TableName: aws.String(tableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			"Key": {
+				S: aws.String(key),
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = dynamodbattribute.UnmarshalMap(result.Item, &item)
+	if err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func CreateDb(tableName, kmsKey string, tags common.Tags) error {
+	svc := connectors.GetAWSSession().DynamoDB
+
+	input := &dynamodb.CreateTableInput{
+		AttributeDefinitions: []*dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("Key"),
+				AttributeType: aws.String("S"),
+			},
+		},
+		KeySchema: []*dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("Key"),
+				KeyType:       aws.String("HASH"),
+			},
+		},
+		BillingMode: aws.String(dynamodb.BillingModePayPerRequest),
+		TableName:   aws.String(tableName),
+		Tags:        tags.ToDynamoDb(),
+		SSESpecification: &dynamodb.SSESpecification{
+			Enabled:        aws.Bool(true),
+			KMSMasterKeyId: &kmsKey,
+			SSEType:        aws.String("KMS"),
+		},
+	}
+
+	_, err := svc.CreateTable(input)
+	if err != nil {
+		log.Debug().Msg("Failed creating table")
+		return err
+	}
+
+	logging.UserProgress("Waiting for table \"%s\" to be created...", tableName)
+	err = svc.WaitUntilTableExists(&dynamodb.DescribeTableInput{
+		TableName: aws.String(tableName),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	logging.UserProgress("Table %s was created successfully!", tableName)
+	return nil
+}
+
