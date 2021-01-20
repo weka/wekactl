@@ -67,6 +67,20 @@ func setForExplicitRemoval(instance *ec2.Instance, toRemove []protocol.HgInstanc
 	return false
 }
 
+func terminateInstances(instanceIds []*string) (terminatingInstances []*string, err error) {
+	svc := connectors.GetAWSSession().EC2
+	res, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
+		InstanceIds: instanceIds,
+	})
+	if err != nil {
+		return
+	}
+	for _, terminatingInstance := range res.TerminatingInstances {
+		terminatingInstances = append(terminatingInstances, terminatingInstance.InstanceId)
+	}
+	return
+}
+
 func terminateUnneededInstances(asgName string, instances []*ec2.Instance, explicitRemoval []protocol.HgInstance) (terminated []*ec2.Instance, errs []error) {
 	terminateInstanceIds := make([]*string, 0, 0)
 	imap := instancesToMap(instances)
@@ -101,7 +115,12 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance, expli
 		errs = append(errs, err)
 	}
 
-	for _, id := range setToTerminate {
+	terminatingInstances, err := terminateInstances(setToTerminate)
+	if err != nil {
+		return
+	}
+
+	for _, id := range terminatingInstances {
 		terminated = append(terminated, imap[*id])
 	}
 	return
