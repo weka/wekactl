@@ -232,7 +232,7 @@ func getHostGroupTags(hostGroup HostGroup) []Tag {
 	return tags
 }
 
-func getEc2Tags(name, role, stackId, stackName string) []*ec2.Tag {
+func getEc2Tags(name, role, stackId string) []*ec2.Tag {
 	var ec2Tags []*ec2.Tag
 	for _, tag := range getHostGroupTags(HostGroup{
 		Name:  name,
@@ -244,10 +244,6 @@ func getEc2Tags(name, role, stackId, stackName string) []*ec2.Tag {
 			Value: tag.Value,
 		})
 	}
-	ec2Tags = append(ec2Tags, &ec2.Tag{
-		Key:   aws.String("Name"),
-		Value: aws.String(fmt.Sprintf("%s-%s", stackName, name)),
-	})
 	return ec2Tags
 }
 
@@ -280,7 +276,7 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
-					Tags:         getEc2Tags(name, role, stackId, stackName),
+					Tags:         getEc2Tags(name, role, stackId),
 				},
 			},
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -305,7 +301,7 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 	return launchTemplateName
 }
 
-func getAutoScalingTags(name, role, stackId string) []*autoscaling.Tag {
+func getAutoScalingTags(name, role, stackId, stackName string) []*autoscaling.Tag {
 	var autoscalingTags []*autoscaling.Tag
 	for _, tag := range getHostGroupTags(HostGroup{
 		Name:  name,
@@ -317,6 +313,10 @@ func getAutoScalingTags(name, role, stackId string) []*autoscaling.Tag {
 			Value: tag.Value,
 		})
 	}
+	autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
+		Key:   aws.String("Name"),
+		Value: aws.String(fmt.Sprintf("%s-%s", stackName, name)),
+	})
 	return autoscalingTags
 }
 
@@ -494,7 +494,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 		},
 		MinSize: aws.Int64(0),
 		MaxSize: aws.Int64(int64(maxSize)),
-		Tags:    getAutoScalingTags(name, role, stackId),
+		Tags:    getAutoScalingTags(name, role, stackId, stackName),
 	}
 	_, err = svc.CreateAutoScalingGroup(input)
 	if err != nil {
