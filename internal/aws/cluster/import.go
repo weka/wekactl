@@ -789,7 +789,7 @@ func CreateLambda(hostGroup HostGroup, lambdaType, name, assumeRolePolicy, polic
 	return lambdaCreateOutput, nil
 }
 
-func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri, lambdaName string) (restApiGateway RestApiGateway, err error) {
+func createRestApiGateway(hostGroup HostGroup, lambdaType, lambdaUri string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 	apiGatewayName := fmt.Sprintf("wekactl-%s-%s", hostGroup.Name, lambdaType)
 
@@ -941,7 +941,7 @@ func CreateLambdaEndPoint(hostGroup HostGroup, lambdaType, name, assumeRolePolic
 		"arn:aws:apigateway:%s:lambda:path/2015-03-31/functions/%s/invocations",
 		env.Config.Region, *functionConfiguration.FunctionArn)
 
-	restApiGateway, err = createRestApiGateway(hostGroup, lambdaType, lambdaUri, *functionConfiguration.FunctionName)
+	restApiGateway, err = createRestApiGateway(hostGroup, lambdaType, lambdaUri)
 
 	if err != nil {
 		return
