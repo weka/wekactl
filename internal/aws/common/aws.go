@@ -12,6 +12,7 @@ import (
 	"os"
 	"sync"
 	"wekactl/internal/connectors"
+	"wekactl/internal/lib/strings"
 )
 
 func RenderTable(fields []string, data [][]string) {
@@ -39,7 +40,7 @@ func init() {
 	terminationSemaphore = semaphore.NewWeighted(20)
 }
 
-func SetDisableInstancesApiTermination(instanceIds []*string, value bool) (updated []*string, errs []error) {
+func SetDisableInstancesApiTermination(instanceIds []string, value bool) (updated []string, errs []error) {
 	var wg sync.WaitGroup
 	var responseLock sync.Mutex
 
@@ -52,11 +53,11 @@ func SetDisableInstancesApiTermination(instanceIds []*string, value bool) (updat
 
 			responseLock.Lock()
 			defer responseLock.Unlock()
-			_, err := setDisableInstanceApiTermination(*instanceIds[i], value)
+			_, err := setDisableInstanceApiTermination(instanceIds[i], value)
 			if err != nil {
 				errs = append(errs, err)
 				log.Error().Err(err)
-				log.Error().Msgf("failed to set DisableApiTermination on %s", *instanceIds[i])
+				log.Error().Msgf("failed to set DisableApiTermination on %s", instanceIds[i])
 			}
 			updated = append(updated, instanceIds[i])
 		}(i)
@@ -105,6 +106,19 @@ func GetInstancesIps(instances []*ec2.Instance) []string {
 		instanceIps = append(instanceIps, *instance.PrivateIpAddress)
 	}
 	return instanceIps
+}
+
+
+func GetInstancesIds(instances []*ec2.Instance) []string {
+	var instanceIds []string
+	for _, instance := range instances {
+		instanceIds = append(instanceIds, *instance.InstanceId)
+	}
+	return instanceIds
+}
+
+func GetInstancesIdsRefs(instances []*ec2.Instance) []*string {
+	return strings.ListToRefList(GetInstancesIds(instances))
 }
 
 func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) {

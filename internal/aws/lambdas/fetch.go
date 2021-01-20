@@ -27,14 +27,14 @@ func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupI
 		ids = append(ids, *instanceId)
 	}
 
-	username, password, err := getUsernameAndPassword(tableName)
+	creds, err := getUsernameAndPassword(tableName)
 	if err != nil {
 		return
 	}
 
 	return protocol.HostGroupInfoResponse{
-		Username:        username,
-		Password:        password,
+		Username:        creds.Username,
+		Password:        creds.Password,
 		DesiredCapacity: getAutoScalingGroupDesiredCapacity(asgOutput),
 		Instances:       getHostGroupInfoInstances(instances),
 		Role:            role,

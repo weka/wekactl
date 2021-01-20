@@ -47,7 +47,7 @@ var createStateMachineCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			stackInstances, err := cluster.GetInstancesInfo(StackName)
+			stackInstances, err := cluster.GetStackInstancesInfo(StackName)
 			if err != nil {
 				return err
 			}

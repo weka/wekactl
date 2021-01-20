@@ -11,6 +11,7 @@ import (
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/connectors"
+	"wekactl/internal/lib/strings"
 	"wekactl/internal/lib/types"
 )
 
@@ -45,11 +46,11 @@ func getDeltaInstancesIds(asgInstanceIds []*string, scaleResponse protocol.Scale
 	return deltaInstanceIDs, nil
 }
 
-func removeAutoScalingProtection(asgName string, instanceIds []*string) error {
+func removeAutoScalingProtection(asgName string, instanceIds []string) error {
 	svc := connectors.GetAWSSession().ASG
 	_, err := svc.SetInstanceProtection(&autoscaling.SetInstanceProtectionInput{
 		AutoScalingGroupName: &asgName,
-		InstanceIds:          instanceIds,
+		InstanceIds:          strings.ListToRefList(instanceIds),
 		ProtectedFromScaleIn: aws.Bool(false),
 	})
 	if err != nil {
@@ -82,7 +83,7 @@ func terminateInstances(instanceIds []*string) (terminatingInstances []*string, 
 }
 
 func terminateUnneededInstances(asgName string, instances []*ec2.Instance, explicitRemoval []protocol.HgInstance) (terminated []*ec2.Instance, errs []error) {
-	terminateInstanceIds := make([]*string, 0, 0)
+	terminateInstanceIds := make([]string, 0, 0)
 	imap := instancesToMap(instances)
 
 	for _, instance := range instances {
@@ -93,7 +94,7 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance, expli
 		}
 		instanceState := *instance.State.Name
 		if instanceState != ec2.InstanceStateNameShuttingDown && instanceState != ec2.InstanceStateNameTerminated {
-			terminateInstanceIds = append(terminateInstanceIds, instance.InstanceId)
+			terminateInstanceIds = append(terminateInstanceIds, *instance.InstanceId)
 		}
 	}
 

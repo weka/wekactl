@@ -64,7 +64,7 @@ func GetJoinParams(asgName, tableName, role string) (string, error) {
 	ips := common.GetInstancesIps(instances)
 	instanceType := common.GetInstanceTypeFromAutoScalingGroupOutput(asgOutput)
 	shuffleSlice(ips)
-	username, password, err := getUsernameAndPassword(tableName)
+	creds, err := getUsernameAndPassword(tableName)
 	if err != nil {
 		return "", err
 	}
@@ -136,8 +136,8 @@ func GetJoinParams(asgName, tableName, role string) (string, error) {
 
 	bashScript := fmt.Sprintf(
 		dedent.Dedent(bashScriptTemplate),
-		username,
-		password,
+		creds.Username,
+		creds.Password,
 		strings.Join(ips, "\" \""),
 		cores,
 		frontend,
