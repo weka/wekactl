@@ -29,7 +29,7 @@ var createLambdaCmd = &cobra.Command{
 				},
 			}
 
-			stackInstances, err := cluster.GetInstancesInfo(StackName)
+			stackInstances, err := cluster.GetStackInstancesInfo(StackName)
 			var lambdaVpcConfig lambda.VpcConfig
 			var policy string
 			switch Lambda {

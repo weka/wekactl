@@ -39,7 +39,7 @@ var createLambdaEndPointCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-			_, err = cluster.CreateLambdaEndPoint(hostGroup, Lambda, "Backends", assumeRolePolicy, policy, lambda.VpcConfig{})
+			_, err = cluster.CreateJoinApi(hostGroup, Lambda, "Backends", assumeRolePolicy, policy, lambda.VpcConfig{})
 			if err != nil {
 				return err
 			}
