@@ -43,10 +43,12 @@ func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupI
 
 func getHostGroupInfoInstances(instances []*ec2.Instance) (ret []protocol.HgInstance) {
 	for _, i := range instances {
-		ret = append(ret, protocol.HgInstance{
+		if i.InstanceId != nil && i.PrivateIpAddress != nil {
+			ret = append(ret, protocol.HgInstance{
 			Id:        *i.InstanceId,
 			PrivateIp: *i.PrivateIpAddress,
 		})
+		}
 	}
 	return
 }
