@@ -277,7 +277,10 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 	launchTemplateName := generateResourceName(stackId, stackName, name)
 	userDataTemplate := `
 	#!/usr/bin/env bash
-	curl --location --request GET '%s' --header 'x-api-key: %s' | sudo sh
+	
+	if ! curl --location --request GET '%s' --header 'x-api-key: %s' | sudo sh; then
+		shutdown now
+	fi
 	`
 	userData := fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.url, restApiGateway.apiKey)
 	input := &ec2.CreateLaunchTemplateInput{
