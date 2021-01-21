@@ -202,6 +202,13 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		case "INACTIVE":
 			if host.belongsToHgIpBased(info.Instances) {
 				inactiveHosts = append(inactiveHosts, host)
+			}else{
+				if info.Role == "backend" {
+					// Since terminate logic is mostly delta based, and remove might be transient errors
+					// We might have leftovers, that we are unable to recognize
+					// So decision is, to kick out whatever is inactive.
+					inactiveHosts = append(inactiveHosts, host)
+				}
 			}
 		default:
 			if !host.belongsToHg(info.Instances) {
