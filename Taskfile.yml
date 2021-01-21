@@ -21,3 +21,13 @@ tasks:
       WEKACTL_FORCE_DEV: 1
     cmds:
       - ./scripts/upload_lambdas.sh
+  deploy-dev:
+    desc: Build and upload lambdas and wekactl to official buckets
+    env:
+      WEKACTL_AWS_LAMBDAS_BUCKETS: "eu-central-1=weka-wekactl-images-eu-central-1"
+      WEKACTL_IGNORE_DIRTY: 1
+      WEKACTL_FORCE_DEV: 1
+      DEPLOY: 1
+    cmds:
+      - chmod +x  ./deploy.sh
+      - ./deploy.sh
