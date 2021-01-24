@@ -36,6 +36,7 @@ func getInstancesStatus(instanceId string) string {
 		return *result.InstanceStatuses[0].InstanceState.Name
 	}
 }
+
 func getStackInstances(stackName string) ([]Instance, error) {
 	svc := connectors.GetAWSSession().CF
 	input := &cloudformation.DescribeStackResourcesInput{StackName: &stackName}
@@ -77,4 +78,32 @@ func RenderInstancesTable(stackName string) {
 		}
 		common.RenderTable(fields, data)
 	}
+}
+
+
+func RenderASGInstancesTable(asgName string) error {
+	fields := []string{
+		"instanceId",
+		"status",
+		"ip",
+	}
+	instances_ids, err := common.GetAutoScalingGroupInstanceIds(asgName)
+	if err != nil {
+		return err
+	}
+	instances, err := common.GetInstances(instances_ids)
+	if err != nil {
+		return err
+	}
+
+	var data [][]string
+	for _, instance := range instances {
+		data = append(data, []string{
+			*instance.InstanceId,
+			*instance.State.Name,
+			*instance.PublicIpAddress,
+		})
+	}
+	common.RenderTable(fields, data)
+	return nil
 }

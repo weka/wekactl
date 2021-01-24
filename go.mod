@@ -18,5 +18,6 @@ require (
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 	golang.org/x/text v0.3.4 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
+	gopkg.in/errgo.v2 v2.1.0
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
