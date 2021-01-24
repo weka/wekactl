@@ -942,7 +942,7 @@ func addLambdaInvokePermissions(lambdaName, restApiId, apiGatewayName string) er
 	if err != nil {
 		return err
 	}
-	sourceArn := fmt.Sprintf("arn:aws:execute-api:eu-central-1:%s:%s/*/GET/%s", account, restApiId, apiGatewayName)
+	sourceArn := fmt.Sprintf("arn:aws:execute-api:%s:%s:%s/*/GET/%s", env.Config.Region, account, restApiId, apiGatewayName)
 	_, err = svc.AddPermission(&lambda.AddPermissionInput{
 		FunctionName: aws.String(lambdaName),
 		StatementId:  aws.String(lambdaName + "-" + uuid.New().String()),
