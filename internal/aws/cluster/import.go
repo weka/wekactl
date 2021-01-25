@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -22,6 +23,7 @@ import (
 	"github.com/lithammer/dedent"
 	"github.com/rs/zerolog/log"
 	"math"
+	"math/rand"
 	"strings"
 	"time"
 	"wekactl/internal/aws/common"
@@ -249,13 +251,9 @@ func getHostGroupTags(hostGroup HostGroup) []Tag {
 	return tags
 }
 
-func getEc2Tags(name, role, stackId string) []*ec2.Tag {
+func getEc2Tags(hostGroup HostGroup) []*ec2.Tag {
 	var ec2Tags []*ec2.Tag
-	for _, tag := range getHostGroupTags(HostGroup{
-		Name:  name,
-		Role:  role,
-		Stack: Stack{StackId: stackId},
-	}) {
+	for _, tag := range getHostGroupTags(hostGroup) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{
 			Key:   tag.Key,
 			Value: tag.Value,
@@ -272,9 +270,9 @@ func generateResourceName(stackId, stackName, resourceName string) string {
 	return name + getUuidFromStackId(stackId)
 }
 
-func createLaunchTemplate(stackId, stackName, name string, role string, instance *ec2.Instance, restApiGateway RestApiGateway) string {
+func createLaunchTemplate(hostGroup HostGroup, instance *ec2.Instance, restApiGateway RestApiGateway) string {
 	svc := connectors.GetAWSSession().EC2
-	launchTemplateName := generateResourceName(stackId, stackName, name)
+	launchTemplateName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
 	userDataTemplate := `
 	#!/usr/bin/env bash
 	
@@ -296,7 +294,7 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
-					Tags:         getEc2Tags(name, role, stackId),
+					Tags:         getEc2Tags(hostGroup),
 				},
 			},
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
@@ -321,13 +319,9 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 	return launchTemplateName
 }
 
-func getAutoScalingTags(name, role, stackId, stackName string) []*autoscaling.Tag {
+func getAutoScalingTags(hostGroup HostGroup) []*autoscaling.Tag {
 	var autoscalingTags []*autoscaling.Tag
-	for _, tag := range getHostGroupTags(HostGroup{
-		Name:  name,
-		Role:  role,
-		Stack: Stack{StackId: stackId},
-	}) {
+	for _, tag := range getHostGroupTags(hostGroup) {
 		autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
 			Key:   tag.Key,
 			Value: tag.Value,
@@ -335,7 +329,7 @@ func getAutoScalingTags(name, role, stackId, stackName string) []*autoscaling.Ta
 	}
 	autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
 		Key:   aws.String("Name"),
-		Value: aws.String(fmt.Sprintf("%s-%s", stackName, name)),
+		Value: aws.String(fmt.Sprintf("%s-%s", hostGroup.Stack.StackName, hostGroup.Name)),
 	})
 	return autoscalingTags
 }
@@ -446,15 +440,139 @@ func GetLambdaAssumeRolePolicy() (string, error) {
 	return string(policy), nil
 }
 
-func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, instance *ec2.Instance, vpcConfig lambda.VpcConfig) (string, error) {
-	hostGroup := HostGroup{
-		Name: name,
-		Role: role,
-		Stack: Stack{
-			StackId:   stackId,
-			StackName: stackName,
-		},
+func getElbTags(hostGroup HostGroup) []*elbv2.Tag {
+	var elbv2Tags []*elbv2.Tag
+	for _, tag := range getHostGroupTags(hostGroup) {
+		elbv2Tags = append(elbv2Tags, &elbv2.Tag{
+			Key:   tag.Key,
+			Value: tag.Value,
+		})
 	}
+	return elbv2Tags
+}
+
+func randomString(n int) string {
+	var letter = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letter[rand.Intn(len(letter))]
+	}
+	return string(b)
+}
+
+func getVpcSubnetIds(vpcId *string) (subnetIds []*string, err error) {
+	svc := connectors.GetAWSSession().EC2
+	subnetsOutput, err := svc.DescribeSubnets(&ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name:   aws.String("vpc-id"),
+				Values: []*string{vpcId},
+			},
+		},
+	})
+
+	if err != nil {
+		return
+	}
+
+	for _, subnet := range subnetsOutput.Subnets {
+		subnetIds = append(subnetIds, subnet.SubnetId)
+	}
+	return
+
+}
+func createTargetsGroup(hostGroup HostGroup, instance *ec2.Instance) (targetGroupArn *string, err error) {
+	resourceName := fmt.Sprintf("%s-%s-%s", hostGroup.Name, randomString(6), hostGroup.Stack.StackName)
+	resourceName = resourceName[:common.Min(32, len(resourceName))]
+
+	svc := connectors.GetAWSSession().ELBV2
+	targetGroupOutput, err := svc.CreateTargetGroup(&elbv2.CreateTargetGroupInput{
+		Name:       &resourceName,
+		VpcId:      instance.VpcId,
+		TargetType: aws.String(elbv2.TargetTypeEnumInstance),
+		Protocol:   aws.String(elbv2.ProtocolEnumHttp),
+		Port:       aws.Int64(14000),
+		Tags:       getElbTags(hostGroup),
+	})
+	if err != nil {
+		return
+	}
+	targetGroupArn = targetGroupOutput.TargetGroups[0].TargetGroupArn
+	log.Debug().Msgf("target group %s was created successfully!", resourceName)
+	return
+}
+
+func createLoadBalancer(hostGroup HostGroup, instance *ec2.Instance) (loadBalancerArn *string, err error) {
+	resourceName := fmt.Sprintf("%s-%s-%s", hostGroup.Name, randomString(6), hostGroup.Stack.StackName)
+	resourceName = resourceName[:common.Min(32, len(resourceName))]
+
+	svc := connectors.GetAWSSession().ELBV2
+	subnetIds, err := getVpcSubnetIds(instance.VpcId)
+	if err != nil {
+		return
+	}
+
+	loadBalancerOutput, err := svc.CreateLoadBalancer(&elbv2.CreateLoadBalancerInput{
+		Name:    &resourceName, // 32 characters max
+		Subnets: subnetIds,
+		Tags:    getElbTags(hostGroup),
+		Type:    aws.String(elbv2.LoadBalancerTypeEnumApplication),
+		SecurityGroups: getInstanceSecurityGroupsId(instance),
+	})
+	if err != nil {
+		return
+	}
+
+	loadBalancerArn = loadBalancerOutput.LoadBalancers[0].LoadBalancerArn
+	logging.UserProgress("Waiting for load balancer %s to be created...", resourceName)
+	svcElbv2 := connectors.GetAWSSession().ELBV2
+	err = svcElbv2.WaitUntilLoadBalancerAvailable(&elbv2.DescribeLoadBalancersInput{
+		LoadBalancerArns: []*string{loadBalancerArn},
+	})
+	if err != nil {
+		return
+	}
+	logging.UserProgress("Load balancer was created successfully!")
+	log.Debug().Msgf("load balancer %s was created successfully!", resourceName)
+	return
+}
+
+func createListener(hostGroup HostGroup, loadBalancerArn, targetGroupArn *string) (err error) {
+	resourceName := fmt.Sprintf("%s-%s-%s", hostGroup.Name, randomString(6), hostGroup.Stack.StackName)
+	resourceName = resourceName[:common.Min(32, len(resourceName))]
+
+	svc := connectors.GetAWSSession().ELBV2
+	_, err = svc.CreateListener(&elbv2.CreateListenerInput{
+		LoadBalancerArn: loadBalancerArn,
+		Protocol:        aws.String(elbv2.ProtocolEnumHttp),
+		Port:            aws.Int64(80),
+		Tags:            getElbTags(hostGroup),
+		DefaultActions: []*elbv2.Action{
+			{
+				Type:           aws.String(elbv2.ActionTypeEnumForward),
+				TargetGroupArn: targetGroupArn,
+			},
+		},
+	})
+	log.Debug().Msgf("load balancer listener was created successfully!")
+	return
+}
+
+func createAutoScalingGroup(hostGroup HostGroup, maxSize int, instance *ec2.Instance, vpcConfig lambda.VpcConfig) (string, error) {
+	loadBalancerArn, err := createLoadBalancer(hostGroup, instance)
+	if err != nil {
+		return "", err
+	}
+	targetGroupArn, err := createTargetsGroup(hostGroup, instance)
+	if err != nil {
+		return "", err
+	}
+	err = createListener(hostGroup, loadBalancerArn, targetGroupArn)
+	if err != nil {
+		return "", err
+	}
+
 	fetchAndJoinPolicy, err := GetJoinAndFetchLambdaPolicy()
 	if err != nil {
 		return "", err
@@ -475,7 +593,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
-	launchTemplateName := createLaunchTemplate(stackId, stackName, name, role, instance, restApiGateway)
+	launchTemplateName := createLaunchTemplate(hostGroup, instance, restApiGateway)
 
 	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
 	if err != nil {
@@ -509,7 +627,7 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	}
 
 	svc := connectors.GetAWSSession().ASG
-	resourceName := generateResourceName(stackId, stackName, name)
+	resourceName := generateResourceName(hostGroup.Stack.StackId, hostGroup.Stack.StackName, hostGroup.Name)
 	input := &autoscaling.CreateAutoScalingGroupInput{
 		AutoScalingGroupName:             aws.String(resourceName),
 		NewInstancesProtectedFromScaleIn: aws.Bool(true),
@@ -517,9 +635,10 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 			LaunchTemplateName: aws.String(launchTemplateName),
 			Version:            aws.String("1"),
 		},
-		MinSize: aws.Int64(0),
-		MaxSize: aws.Int64(int64(maxSize)),
-		Tags:    getAutoScalingTags(name, role, stackId, stackName),
+		MinSize:         aws.Int64(0),
+		MaxSize:         aws.Int64(int64(maxSize)),
+		Tags:            getAutoScalingTags(hostGroup),
+		TargetGroupARNs: []*string{targetGroupArn},
 	}
 	_, err = svc.CreateAutoScalingGroup(input)
 	if err != nil {
@@ -1249,11 +1368,21 @@ func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Ins
 		return errors.New(fmt.Sprintf("import of role %s is unsupported", role))
 	}
 
+	hostGroup := HostGroup{
+		Name: name,
+		Role: role,
+		Stack: Stack{
+			StackId:   stackId,
+			StackName: stackName,
+		},
+	}
+
 	lambdaVpcConfig := GetLambdaVpcConfig(roleInstances[0])
-	autoScalingGroupName, err := createAutoScalingGroup(stackId, stackName, name, role, maxSize, roleInstances[0], lambdaVpcConfig)
+	autoScalingGroupName, err := createAutoScalingGroup(hostGroup, maxSize, roleInstances[0], lambdaVpcConfig)
 	if err != nil {
 		return err
 	}
+
 	return attachInstancesToAutoScalingGroups(roleInstances, autoScalingGroupName)
 }
 
