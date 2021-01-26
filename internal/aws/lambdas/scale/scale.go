@@ -373,6 +373,7 @@ func removeInactive(hosts []hostInfo, jpool *jrpc.Pool, instances []protocol.HgI
 		jpool.Drop(host.HostIp)
 		err := jpool.Call(weka.JrpcRemoveHost, types.JsonDict{
 			"host_id": host.id.Int(),
+			"no_wait": true,
 		}, nil)
 		if err != nil {
 			log.Error().Err(err)
