@@ -16,7 +16,7 @@ distribute () {
   IFS="=" read -r region bucket <<< "$awspair"
   if [[ "$first_target" == "" ]]; then
     first_target="s3://$bucket/$LAMBDAS_ID"
-    aws s3 cp --region "$region" "$ZIP_PATH" "$first_target" --acl public-read $recursive
+    aws s3 cp --region "$region" "$ZIP_PATH" "$first_target/" --acl public-read $recursive
     first_region=$region
   else
     aws s3 cp --region "$region" --source-region "$first_region" "$first_target/wekactl-aws-lambdas.zip" s3://"$bucket"/"$LAMBDAS_ID"/wekactl-aws-lambdas.zip --acl public-read
