@@ -5,11 +5,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 cd ../
 
-if [[ ($(git status --porcelain) != "" || "$WEKACTL_FORCE_DEV" == "1") && "$WEKACTL_IGNORE_DIRTY" != "1" ]]; then
-  echo "Refusing to build lambdas on dirty repository, use WEKACTL_IGNORE_DIRTY=1 to ignore"
-  exit 1
-fi
+. ./scripts/get_lambda_id.sh
+
+AWS_DIST="internal/aws/dist/dist_generated.go"
+rm -f $AWS_DIST
+go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" "$LAMBDAS_ID" "$AWS_DIST"
 
 ./scripts/build_lambdas.sh
 
-./scripts/distribute.sh
+./scripts/distribute.sh "$LAMBDAS_ID"

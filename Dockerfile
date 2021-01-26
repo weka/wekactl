@@ -6,6 +6,10 @@ COPY go.sum /src/go.sum
 WORKDIR /src
 RUN go mod download
 ADD . /src
+ARG WEKACTL_AWS_LAMBDAS_BUCKETS
+ARG LAMBDAS_ID
+ARG AWS_DIST
+RUN go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" "$LAMBDAS_ID" "$AWS_DIST"
 RUN chmod +x ./scripts/build_lambdas.sh
 RUN ./scripts/build_lambdas.sh
 RUN chmod +x ./scripts/build_wekactl.sh
