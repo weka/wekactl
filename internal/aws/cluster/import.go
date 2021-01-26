@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -1272,6 +1273,57 @@ func GetLambdaVpcConfig(instance *ec2.Instance) lambda.VpcConfig {
 	}
 }
 
+func getStackLoadBalancer(stackName string) (loadBalancerName *string, err error) {
+	svc := connectors.GetAWSSession().CF
+	result, err := svc.DescribeStackResources(&cloudformation.DescribeStackResourcesInput{
+		StackName: &stackName,
+	})
+	if err != nil {
+		return
+	}
+
+	for _, resource := range result.StackResources {
+		if *resource.ResourceType == "AWS::ElasticLoadBalancing::LoadBalancer" {
+			return resource.PhysicalResourceId, nil
+		}
+	}
+	return
+}
+
+func attachLoadBalancer(stackName, AutoScalingGroupName string) (err error) {
+	loadBalancerName, err := getStackLoadBalancer(stackName)
+	if loadBalancerName == nil || err != nil {
+		return
+	}
+	svc := connectors.GetAWSSession().ASG
+	_, err = svc.AttachLoadBalancers(&autoscaling.AttachLoadBalancersInput{
+		LoadBalancerNames:    []*string{loadBalancerName},
+		AutoScalingGroupName: aws.String(AutoScalingGroupName),
+	})
+	if err != nil {
+		return
+	}
+	log.Debug().Msgf("load balancer %s was attached to %s successfully!", *loadBalancerName, AutoScalingGroupName)
+
+	svcElb := connectors.GetAWSSession().ELB
+	_, err = svcElb.ConfigureHealthCheck(&elb.ConfigureHealthCheckInput{
+		HealthCheck: &elb.HealthCheck{
+			HealthyThreshold:   aws.Int64(3),
+			Interval:           aws.Int64(30),
+			Target:             aws.String("HTTP:14000/ui"),
+			Timeout:            aws.Int64(5),
+			UnhealthyThreshold: aws.Int64(5),
+		},
+		LoadBalancerName: loadBalancerName,
+	})
+	if err != nil {
+		return
+	}
+	log.Debug().Msgf("load balancer health check configured successfully!", *loadBalancerName)
+
+	return
+}
+
 func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Instance) error {
 	if len(roleInstances) == 0 {
 		logging.UserProgress("instances with role '%s' not found", role)
@@ -1296,6 +1348,14 @@ func importClusterRole(stackId, stackName, role string, roleInstances []*ec2.Ins
 	if err != nil {
 		return err
 	}
+
+	if role == "backend" {
+		err = attachLoadBalancer(stackName, autoScalingGroupName)
+		if err != nil {
+			return err
+		}
+	}
+
 	return attachInstancesToAutoScalingGroups(roleInstances, autoScalingGroupName)
 }
 
