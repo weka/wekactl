@@ -44,7 +44,7 @@ func (c *Pool) Call(method weka.JrpcMethod, params, result interface{}) (err err
 	}
 	err = c.Clients[c.Active].Call(c.Ctx, string(method), params, result)
 	if err != nil {
-		if strings2.AnyOfSubstr(err.Error(), "connection refused", "context deadline exceeded") {
+		if strings2.AnyOfSubstr(err.Error(), "connection refused", "context deadline exceeded", "Method not found") {
 			c.Drop(c.Active)
 			return c.Call(method, params, result)
 		} else {
