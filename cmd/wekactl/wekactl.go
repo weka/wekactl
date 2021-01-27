@@ -12,6 +12,7 @@ import (
 	"wekactl/internal/cli/cluster"
 	"wekactl/internal/cli/debug"
 	"wekactl/internal/cli/hostgroup"
+	"wekactl/internal/cli/version"
 	"wekactl/internal/env"
 )
 
@@ -95,11 +96,11 @@ func init() {
 	rootCmd.AddCommand(hostgroup.HostGroup)
 	rootCmd.AddCommand(aws.AWS)
 	rootCmd.AddCommand(debug.Debug)
+	rootCmd.AddCommand(version.Version)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "help for this command")
 	rootCmd.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "c", "aws", "Cloud provider")
 	rootCmd.PersistentFlags().StringVarP(&env.Config.Region, "region", "r", "", "Region")
-	_ = rootCmd.MarkPersistentFlagRequired("region")
 	rootCmd.SetUsageFunc(Usage)
 }
 

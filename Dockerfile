@@ -9,8 +9,9 @@ ADD . /src
 ARG WEKACTL_AWS_LAMBDAS_BUCKETS
 ARG LAMBDAS_ID
 ARG AWS_DIST
+ARG BUILD_VERSION
 RUN go run scripts/codegen/lambdas/gen_lambdas.go "$WEKACTL_AWS_LAMBDAS_BUCKETS" "$LAMBDAS_ID" "$AWS_DIST"
 RUN chmod +x ./scripts/build_lambdas.sh
 RUN ./scripts/build_lambdas.sh
 RUN chmod +x ./scripts/build_wekactl.sh
-RUN ./scripts/build_wekactl.sh
+RUN ./scripts/build_wekactl.sh "$BUILD_VERSION"
