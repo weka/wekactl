@@ -3,6 +3,7 @@
 set -e
 
 LAMBDAS_ID=$1
+BUILD_VERSION=$2 # only for GA
 
 distribute () {
   ZIP_PATH=$1
@@ -35,7 +36,7 @@ if [[ -n $WEKACTL_AWS_LAMBDAS_BUCKETS ]]; then
       echo "wekactl linux url: $wekactl_linux"
       echo "wekactl darwin url: $wekactl_darwin"
       if [[ "$GA" == "1" ]]; then
-        ./scripts/create_release.sh "$wekactl_linux" "$wekactl_darwin"
+        ./scripts/create_release.sh "$wekactl_linux" "$wekactl_darwin" "$BUILD_VERSION"
       fi
     else
       distribute tmp/upload/wekactl-aws-lambdas.zip
