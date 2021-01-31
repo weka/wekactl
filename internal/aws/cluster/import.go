@@ -272,9 +272,43 @@ func generateResourceName(stackId, stackName, resourceName string) string {
 	return name + getUuidFromStackId(stackId)
 }
 
-func createLaunchTemplate(stackId, stackName, name string, role string, instance *ec2.Instance, restApiGateway RestApiGateway) string {
+func generateBlockDeviceMappingRequest(instance *ec2.Instance) (blockDeviceMappingRequest []*ec2.LaunchTemplateBlockDeviceMappingRequest, err error) {
+	var volumeIds []*string
+	for _,blockDeviceMapping :=  range instance.BlockDeviceMappings{
+		volumeIds = append(volumeIds, blockDeviceMapping.Ebs.VolumeId)
+	}
+
 	svc := connectors.GetAWSSession().EC2
-	launchTemplateName := generateResourceName(stackId, stackName, name)
+	volumesOutput, err := svc.DescribeVolumes(&ec2.DescribeVolumesInput{
+		VolumeIds: volumeIds,
+	})
+	if err != nil {
+		return
+	}
+	if len(volumesOutput.Volumes) == 0 {
+		err = errors.New(fmt.Sprintf("Instance has %s no volumes", *instance.InstanceId))
+		return
+	}
+
+	totalSize := int64(0)
+	for _, volume := range volumesOutput.Volumes {
+		totalSize += *volume.Size
+	}
+	blockDeviceMappingRequest = append(blockDeviceMappingRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
+		DeviceName: instance.RootDeviceName,
+		Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+			VolumeType:          volumesOutput.Volumes[0].VolumeType,
+			VolumeSize:          &totalSize,
+			DeleteOnTermination: aws.Bool(true),
+		},
+	})
+	log.Debug().Msgf("launch template total root device volume size: %d", totalSize)
+	return
+}
+
+func createLaunchTemplate(stackId, stackName, name string, role string, instance *ec2.Instance, restApiGateway RestApiGateway) (launchTemplateName string, err error) {
+	svc := connectors.GetAWSSession().EC2
+	launchTemplateName = generateResourceName(stackId, stackName, name)
 	userDataTemplate := `
 	#!/usr/bin/env bash
 	
@@ -282,6 +316,10 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 		shutdown now
 	fi
 	`
+	blockDeviceMappingRequest, err := generateBlockDeviceMappingRequest(instance)
+	if err != nil {
+		return
+	}
 	userData := fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.url, restApiGateway.apiKey)
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -293,6 +331,7 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Arn: instance.IamInstanceProfile.Arn,
 			},
+			BlockDeviceMappings: blockDeviceMappingRequest,
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
@@ -313,12 +352,12 @@ func createLaunchTemplate(stackId, stackName, name string, role string, instance
 		LaunchTemplateName: aws.String(launchTemplateName),
 	}
 
-	_, err := svc.CreateLaunchTemplate(input)
+	_, err = svc.CreateLaunchTemplate(input)
 	if err != nil {
-		log.Fatal().Err(err)
+		return
 	}
 	log.Debug().Msgf("LaunchTemplate: \"%s\" was created successfully!", launchTemplateName)
-	return launchTemplateName
+	return
 }
 
 func getAutoScalingTags(name, role, stackId, stackName string) []*autoscaling.Tag {
@@ -475,7 +514,10 @@ func createAutoScalingGroup(stackId, stackName, name, role string, maxSize int, 
 	if err != nil {
 		return "", err
 	}
-	launchTemplateName := createLaunchTemplate(stackId, stackName, name, role, instance, restApiGateway)
+	launchTemplateName, err := createLaunchTemplate(stackId, stackName, name, role, instance, restApiGateway)
+	if err != nil {
+		return "", err
+	}
 
 	fetchLambda, err := CreateLambda(hostGroup, "fetch", "Backends", assumeRolePolicy, fetchAndJoinPolicy, lambda.VpcConfig{})
 	if err != nil {
