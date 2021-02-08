@@ -2,8 +2,13 @@ package debug
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"wekactl/internal/aws/cluster"
+	"wekactl/internal/aws/cloudwatch"
+	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/aws/iam"
+	"wekactl/internal/cluster"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
 )
@@ -15,19 +20,24 @@ var createCloudWatchEventCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			stackId, err := cluster.GetStackId(StackName)
+			hostGroup := hostgroups.HostGroupInfo{
+				Name:        "Backends",
+				Role:        "backend",
+				ClusterName: cluster.ClusterName(StackName),
+			}
+
+			roleName := fmt.Sprintf("wekactl-%s-cw-%s", hostGroup.Name, uuid.New().String())
+			policyName := fmt.Sprintf("wekactl-%s-cw-%s", string(hostGroup.ClusterName), string(hostGroup.Name))
+			assumeRolePolicy := iam.GetCloudWatchEventAssumeRolePolicy()
+			policy := iam.GetCloudWatchEventRolePolicy()
+
+			roleArn, err := iam.CreateIamRole(hostGroup, roleName, policyName, assumeRolePolicy, policy)
 			if err != nil {
 				return err
 			}
-			hostGroup := cluster.HostGroup{
-				Name: "Backends",
-				Role: "backend",
-				Stack: cluster.Stack{
-					StackId:   stackId,
-					StackName: StackName,
-				},
-			}
-			err = cluster.CreateCloudWatchEventRule(hostGroup, &StateMachineArn)
+
+			ruleName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
+			err = cloudwatch.CreateCloudWatchEventRule(hostGroup, &StateMachineArn, *roleArn, ruleName)
 			if err != nil {
 				return err
 			}
@@ -40,7 +50,7 @@ var createCloudWatchEventCmd = &cobra.Command{
 }
 
 func init() {
-	createCloudWatchEventCmd.Flags().StringVarP(&StackName, "name", "n", "", "StateMachineArn")
+	createCloudWatchEventCmd.Flags().StringVarP(&StackName, "name", "n", "", "StackName")
 	createCloudWatchEventCmd.Flags().StringVarP(&StateMachineArn, "arn", "m", "", "StateMachineArn")
 
 	_ = createCloudWatchEventCmd.MarkFlagRequired("name")

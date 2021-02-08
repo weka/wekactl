@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/rs/zerolog/log"
+	"strings"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
@@ -78,7 +79,7 @@ func CreateDb(tableName, kmsKey string, tags common.Tags) error {
 		return err
 	}
 
-	logging.UserProgress("Waiting for table \"%s\" to be created...", tableName)
+	logging.UserProgress("Waiting for table \"%s\" to be created ...", tableName)
 	err = svc.WaitUntilTableExists(&dynamodb.DescribeTableInput{
 		TableName: aws.String(tableName),
 	})
@@ -91,3 +92,28 @@ func CreateDb(tableName, kmsKey string, tags common.Tags) error {
 	return nil
 }
 
+func SaveCredentials(tableName string, username, password string) error {
+	err := PutItem(tableName, ClusterCreds{
+		Key:      ModelClusterCreds,
+		Username: username,
+		Password: password,
+	})
+	if err != nil {
+		log.Debug().Msgf("error saving credentials to DB %v", err)
+		return err
+	}
+	log.Debug().Msgf("Username:%s and Password:%s were added to DB successfully!", username, strings.Repeat("*", len(password)))
+	return nil
+}
+
+func saveClusterParams(tableName string, params DefaultClusterParams) error {
+	if params.Key == "" {
+		params.Key = ModelDefaultClusterParams
+	}
+	err := PutItem(tableName, params)
+	if err != nil {
+		log.Debug().Msgf("error saving cluster params to DB %v", err)
+		return err
+	}
+	return nil
+}

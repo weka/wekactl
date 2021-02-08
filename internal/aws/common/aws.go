@@ -11,8 +11,10 @@ import (
 	"golang.org/x/sync/semaphore"
 	"os"
 	"sync"
+	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
-	"wekactl/internal/lib/strings"
+	strings2 "wekactl/internal/lib/strings"
 )
 
 func RenderTable(fields []string, data [][]string) {
@@ -44,6 +46,7 @@ func SetDisableInstancesApiTermination(instanceIds []string, value bool) (update
 	var wg sync.WaitGroup
 	var responseLock sync.Mutex
 
+	log.Debug().Msgf("Setting instances DisableApiTermination to: %t ...", value)
 	wg.Add(len(instanceIds))
 	for i := range instanceIds {
 		go func(i int) {
@@ -118,7 +121,7 @@ func GetInstancesIds(instances []*ec2.Instance) []string {
 }
 
 func GetInstancesIdsRefs(instances []*ec2.Instance) []*string {
-	return strings.ListToRefList(GetInstancesIds(instances))
+	return strings2.ListToRefList(GetInstancesIds(instances))
 }
 
 func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) {
@@ -140,4 +143,13 @@ func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) 
 		}
 	}
 	return
+}
+
+func GenerateResourceName(clusterName cluster.ClusterName, hostGroupName hostgroups.HostGroupName) string {
+	resourceName := "wekactl-" + string(clusterName)
+	name := string(hostGroupName)
+	if name != "" {
+		resourceName += "-" + name
+	}
+	return resourceName
 }

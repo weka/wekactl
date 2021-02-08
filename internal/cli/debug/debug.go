@@ -25,4 +25,5 @@ var Debug = &cobra.Command{
 func init() {
 	Debug.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "c", "aws", "Cloud provider")
 	Debug.PersistentFlags().StringVarP(&env.Config.Region, "region", "r", "", "Region")
+	_ = Debug.MarkPersistentFlagRequired("region")
 }

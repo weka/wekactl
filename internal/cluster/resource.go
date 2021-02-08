@@ -9,6 +9,7 @@ package cluster
 */
 
 type Resource interface {
+	ResourceName() string
 	Fetch() error
 	DeployedVersion() string
 	TargetVersion() string
@@ -19,7 +20,10 @@ type Resource interface {
 }
 
 func EnsureResource(r Resource) error {
-	r.Fetch()
+	err := r.Fetch()
+	if err != nil {
+		return err
+	}
 	if r.DeployedVersion() == "" {
 		return r.Create()
 	}
@@ -29,46 +33,3 @@ func EnsureResource(r Resource) error {
 	}
 	return nil
 }
-
-/*
-struct AWSStack{
-	AWSHostGroup: []HostGroup<Resource>
-	DynamoDB: DynamoDb<Resource>
-}
-
-struct DynamoDb{
-	KMSKey: KmsKey<Resource>
-}
-
-struct AWSHostGroup{
-	PeriodicScale<Resource>
-	Autoscaling<Resource>
-}
-
-struct Autoscaling<Resource>{
-	LaunchTemplate<Resource>
-}
-
-struct LaunchTemplate {
-	SecurityGroup
-	IAMRole
-	JoinAPI<Resource>
-}
-
-struct PeriodicScale<Resource>{
-	StateMachine<Resource>
-}
-
-struct StateMachine<Resource>{
-	Lambdas: []Lambda<Resource>
-}
-
-struct Lambda<Resource>{
-	Role<Resource>
-}
-
-struct JoinAPI<Resource>==ApiGateway{
-	Lambda<Resource>
-}
-
-*/
