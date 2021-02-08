@@ -26,8 +26,8 @@ func AnyOfSubstr(testString string, variants ...string) bool {
 }
 
 func ListToRefList(ss []string) (ret []*string) {
-	for _, s := range ss {
-		ret = append(ret, &s)
+	for i := range ss {
+		ret = append(ret, &ss[i])
 	}
 	return
 }
@@ -55,10 +55,10 @@ func ElfHash(name string) string {
 	return strconv.Itoa(int(h))
 }
 
-func ElfHashSuffixed(s string, maxLength int) string{
+func ElfHashSuffixed(s string, maxLength int) string {
 	if len(s) < maxLength {
 		return s
 	}
 	hash := ElfHash(s)
-	return strings.Join([]string{s[:(maxLength-len(hash)-1)], hash}, "-")
+	return strings.Join([]string{s[:(maxLength - len(hash) - 1)], hash}, "-")
 }

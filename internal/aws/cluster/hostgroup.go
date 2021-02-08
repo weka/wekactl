@@ -1,38 +1,30 @@
 package cluster
 
-import "wekactl/internal/cluster"
-
-type HostGroupName string
-
-type HGParams struct {
-	SecurityGroupsIds []string
-	ImageID           string
-	KeyName           string
-	IamArn            string
-	InstanceType      string
-	Subnet            string
-}
-
-
-type HostGroupInfo struct {
-	ClusterName cluster.ClusterName
-	Role  InstanceRole
-	Name  HostGroupName
-}
+import (
+	"github.com/rs/zerolog/log"
+	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/cluster"
+)
 
 type HostGroup struct {
-	HostGroupInfo
-	JoinApi ApiGateway
-	//ScaleMachine ScaleMachine
-	//AutoscalingGroup AutoscalingGroup
+	HostGroupInfo          hostgroups.HostGroupInfo
+	HostGroupParams        hostgroups.HostGroupParams
+	JoinApi                ApiGateway
+	AutoscalingGroup       AutoscalingGroup
+	ScaleMachineCloudWatch CloudWatch
+}
+
+func (h *HostGroup) ResourceName() string {
+	return common.GenerateResourceName(h.HostGroupInfo.ClusterName, h.HostGroupInfo.Name)
 }
 
 func (h *HostGroup) Fetch() error {
-	panic("implement me")
+	return nil
 }
 
 func (h *HostGroup) DeployedVersion() string {
-	panic("implement me")
+	return ""
 }
 
 func (h *HostGroup) TargetVersion() string {
@@ -43,8 +35,23 @@ func (h *HostGroup) Delete() error {
 	panic("implement me")
 }
 
-func (h *HostGroup) Create() error {
-	panic("implement me")
+func (h *HostGroup) Create() (err error) {
+	err = cluster.EnsureResource(&h.JoinApi)
+	if err != nil {
+		return
+	}
+
+	h.AutoscalingGroup.RestApiGateway = h.JoinApi.RestApiGateway
+	err = cluster.EnsureResource(&h.AutoscalingGroup)
+	if err != nil {
+		return
+	}
+
+	err = cluster.EnsureResource(&h.ScaleMachineCloudWatch)
+	if err != nil {
+		return
+	}
+	return
 }
 
 func (h *HostGroup) Update() error {
@@ -52,9 +59,13 @@ func (h *HostGroup) Update() error {
 }
 
 func (h *HostGroup) Init() {
-	h.JoinApi.HgInfo = h.HostGroupInfo
+	log.Debug().Msgf("Initializing hostgroup %s ...", string(h.HostGroupInfo.Name))
+	h.JoinApi.HostGroupInfo = h.HostGroupInfo
 	h.JoinApi.Init()
+	h.AutoscalingGroup.HostGroupInfo = h.HostGroupInfo
+	h.AutoscalingGroup.HostGroupParams = h.HostGroupParams
+	h.AutoscalingGroup.Init()
+	h.ScaleMachineCloudWatch.HostGroupInfo = h.HostGroupInfo
+	h.ScaleMachineCloudWatch.HostGroupParams = h.HostGroupParams
+	h.ScaleMachineCloudWatch.Init()
 }
-
-
-

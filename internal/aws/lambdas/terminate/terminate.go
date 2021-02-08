@@ -68,10 +68,10 @@ func setForExplicitRemoval(instance *ec2.Instance, toRemove []protocol.HgInstanc
 	return false
 }
 
-func terminateInstances(instanceIds []*string) (terminatingInstances []*string, err error) {
+func terminateInstances(instanceIds []string) (terminatingInstances []*string, err error) {
 	svc := connectors.GetAWSSession().EC2
 	res, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
-		InstanceIds: instanceIds,
+		InstanceIds: strings.ListToRefList(instanceIds),
 	})
 	if err != nil {
 		return
@@ -162,6 +162,6 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 			Creation:   *instance.LaunchTime,
 		})
 	}
-	// TODO: Add another step that handles transient errors
+
 	return
 }

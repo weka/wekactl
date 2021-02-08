@@ -1,79 +1,70 @@
 package cluster
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/rs/zerolog/log"
-	"strings"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
-	"wekactl/internal/connectors"
 )
 
-func createDb(clusterName cluster.ClusterName, stackId string) (tableName string, err error){
-	kmsKey, err := createKMSKey(stackId, clusterName)
-	if err != nil {
-		return
-	}
+/*
+type DynamoDb struct{
+	KMSKey KmsKey
+}
+*/
 
-	tableName = generateResourceName(stackId, clusterName, "")
-	err = db.CreateDb(tableName, kmsKey, getCommonTags(clusterName).Update(common.Tags{
-		"wekactl.io/stack_id": stackId,
-	}))
-	return
+type DynamoDb struct {
+	ClusterName cluster.ClusterName
+	Username    string
+	Password    string
+	StackId     string
+	KmsKey      KmsKey
 }
 
+func (d *DynamoDb) ResourceName() string {
+	return common.GenerateResourceName(d.ClusterName, "")
+}
 
-func saveCredentials(tableName string, username, password string) error {
-	err := db.PutItem(tableName, db.ClusterCreds{
-		Key:      db.ModelClusterCreds,
-		Username: username,
-		Password: password,
-	})
-	if err != nil {
-		log.Debug().Msgf("error saving creds to DB %v", err)
-		return err
-	}
-	log.Debug().Msgf("Username:%s and Password:%s were added to DB successfully!", username, strings.Repeat("*", len(password)))
+func (d *DynamoDb) Fetch() error {
 	return nil
 }
 
+func (d *DynamoDb) Init() {
+	log.Debug().Msgf("Initializing db ...")
+	d.KmsKey.ClusterName = d.ClusterName
+}
 
-func saveClusterParams(tableName string, params db.DefaultClusterParams) error {
-	if params.Key == ""{
-		params.Key = db.ModelDefaultClusterParams
-	}
-	err := db.PutItem(tableName, params)
+func (d *DynamoDb) DeployedVersion() string {
+	return ""
+}
+
+func (d *DynamoDb) TargetVersion() string {
+	return ""
+}
+
+func (d *DynamoDb) Delete() error {
+	panic("implement me")
+}
+
+func (d *DynamoDb) Create() error {
+	err := cluster.EnsureResource(&d.KmsKey)
 	if err != nil {
-		log.Debug().Msgf("error saving cluster params to DB %v", err)
+		return err
+	}
+
+	err = db.CreateDb(d.ResourceName(), d.KmsKey.Key, common.GetCommonTags(d.ClusterName).Update(common.Tags{
+		"wekactl.io/stack_id": d.StackId}))
+	if err != nil {
+		return err
+	}
+
+	err = db.SaveCredentials(d.ResourceName(), d.Username, d.Password)
+	if err != nil {
 		return err
 	}
 	return nil
 }
 
-
-func createKMSKey(stackId string, clusterName cluster.ClusterName) (string, error) {
-	svc := connectors.GetAWSSession().KMS
-
-	input := &kms.CreateKeyInput{
-		Tags: getKMSTags(clusterName),
-	}
-	result, err := svc.CreateKey(input)
-	if err != nil {
-		log.Debug().Msgf(err.Error())
-		return "", err
-	} else {
-		log.Debug().Msgf("KMS key %s was created successfully!", *result.KeyMetadata.KeyId)
-		alias := generateResourceName(stackId, clusterName, "")
-		input := &kms.CreateAliasInput{
-			AliasName:   aws.String("alias/" + alias),
-			TargetKeyId: result.KeyMetadata.KeyId,
-		}
-		_, err := svc.CreateAlias(input)
-		if err != nil {
-			log.Debug().Msgf(err.Error())
-		}
-		return *result.KeyMetadata.KeyId, nil
-	}
+func (d *DynamoDb) Update() error {
+	panic("implement me")
 }

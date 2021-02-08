@@ -1,46 +1,52 @@
 package cluster
 
 import (
-	"math/rand"
+	"fmt"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/dist"
-	"wekactl/internal/lib/math"
+	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/aws/iam"
+	"wekactl/internal/aws/lambdas"
+	"wekactl/internal/cluster"
 	strings2 "wekactl/internal/lib/strings"
 )
 
-type LambdaType string
-
-const LambdaFetchInfo LambdaType = "Fetch"
-const LambdaScale LambdaType = "Scale"
-const LambdaTerminate LambdaType = "terminate"
-const LambdaJoin LambdaType = "Join"
-
-
 type Lambda struct {
-	Name string
-	Type         LambdaType
-	Profile      IamProfile
-	HgInfo       HostGroupInfo
-	Permissions   []StatementEntry
+	Arn           string
+	Type          lambdas.LambdaType
+	Profile       IamProfile
+	VPCConfig     lambda.VpcConfig
+	HostGroupInfo hostgroups.HostGroupInfo
+	Permissions   iam.PolicyDocument
 }
 
-func (l *Lambda) resourceName() string {
-	n := strings.Join([]string{"wekactl", string(l.HgInfo.ClusterName), l.Name, string(l.HgInfo.Name)}, "-")
+func (l *Lambda) ResourceName() string {
+	n := strings.Join([]string{"wekactl", string(l.HostGroupInfo.ClusterName), string(l.Type), string(l.HostGroupInfo.Name)}, "-")
 	return strings2.ElfHashSuffixed(n, 64)
 }
 
 func (l *Lambda) Fetch() error {
-	//searchTags := getHostGroupTags(l.HgInfo).Update()
+	//searchTags := GetHostGroupTags(l.HgInfo).Update()
 	//panic("implement me")
+	return nil
 }
 
 func (l *Lambda) Init() {
-	l.Profile.Policy.Statement = l.Permissions
+	log.Debug().Msgf("Initializing hostgroup %s %s lambda ...", string(l.HostGroupInfo.Name), string(l.Type))
+	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
+	l.Profile.Name = fmt.Sprintf("wekactl-%s-%s-%s", l.HostGroupInfo.Name, string(l.Type), uuid.New().String())
+	l.Profile.PolicyName = l.ResourceName()
+	l.Profile.AssumeRolePolicy = iam.GetLambdaAssumeRolePolicy()
+	l.Profile.HostGroupInfo = l.HostGroupInfo
+	l.Profile.Policy = l.Permissions
 	l.Profile.Init()
 }
 
 func (l *Lambda) DeployedVersion() string {
-	panic("implement me")
+	return ""
 }
 
 func (l *Lambda) TargetVersion() string {
@@ -51,8 +57,18 @@ func (l *Lambda) Delete() error {
 	panic("implement me")
 }
 
-func (l *Lambda) Create() error {
-	panic("implement me")
+func (l *Lambda) Create() (err error) {
+	err = cluster.EnsureResource(&l.Profile)
+	if err != nil {
+		return
+	}
+
+	functionConfiguration, err := lambdas.CreateLambda(l.HostGroupInfo, l.Type, l.ResourceName(), l.Profile.Arn, l.VPCConfig)
+	if err != nil {
+		return
+	}
+	l.Arn = *functionConfiguration.FunctionArn
+	return
 }
 
 func (l *Lambda) Update() error {

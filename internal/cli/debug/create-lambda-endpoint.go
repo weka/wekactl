@@ -4,7 +4,12 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/spf13/cobra"
-	"wekactl/internal/aws/cluster"
+	"wekactl/internal/aws/apigateway"
+	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/aws/iam"
+	"wekactl/internal/aws/lambdas"
+	"wekactl/internal/cluster"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
 )
@@ -15,31 +20,20 @@ var createLambdaEndPointCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			stackId, err := cluster.GetStackId(StackName)
+
+			hostGroup := hostgroups.HostGroupInfo{
+				Name:        "Backends",
+				Role:        "backend",
+				ClusterName: cluster.ClusterName(StackName),
+			}
+
+			functionConfiguration, err := createLambda(hostGroup, lambdas.LambdaJoin, iam.GetJoinAndFetchLambdaPolicy(), lambda.VpcConfig{})
 			if err != nil {
 				return err
 			}
-			hostGroup := cluster.HostGroup{
-				Name: "Backends",
-				Role: "backend",
-				Stack: cluster.Stack{
-					StackId:   stackId,
-					StackName: StackName,
-				},
-			}
-			if Lambda != "join" {
-				logging.UserFailure("Supported only with join lambda")
-				return nil
-			}
-			policy, err := cluster.GetJoinAndFetchLambdaPolicy()
-			if err != nil {
-				return err
-			}
-			assumeRolePolicy, err := cluster.GetLambdaAssumeRolePolicy()
-			if err != nil {
-				return err
-			}
-			_, err = cluster.CreateJoinApi(hostGroup, Lambda, "Backends", assumeRolePolicy, policy, lambda.VpcConfig{})
+
+			apiGatewayName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
+			_, err = apigateway.CreateJoinApi(hostGroup, lambdas.LambdaJoin, *functionConfiguration.FunctionArn, *functionConfiguration.FunctionName, apiGatewayName)
 			if err != nil {
 				return err
 			}
@@ -53,7 +47,6 @@ var createLambdaEndPointCmd = &cobra.Command{
 
 func init() {
 	createLambdaEndPointCmd.Flags().StringVarP(&StackName, "name", "n", "", "Cloudformation Stack name")
-	createLambdaEndPointCmd.Flags().StringVarP(&Lambda, "lambda", "t", "", "Lambda type to create")
 
 	_ = createLambdaEndPointCmd.MarkFlagRequired("name")
 	_ = createLambdaEndPointCmd.MarkFlagRequired("lambda")

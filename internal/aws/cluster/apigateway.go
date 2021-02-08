@@ -1,43 +1,45 @@
 package cluster
 
-const joinApiVersion ="v1"
+import (
+	"github.com/rs/zerolog/log"
+	"wekactl/internal/aws/apigateway"
+	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/aws/iam"
+	"wekactl/internal/aws/lambdas"
+	"wekactl/internal/cluster"
+)
+
+const joinApiVersion = "v1"
+
 type ApiGateway struct {
-	HgInfo HostGroupInfo
-	backend         Lambda
-	deployedVersion string
+	RestApiGateway apigateway.RestApiGateway
+	HostGroupInfo  hostgroups.HostGroupInfo
+	Backend        Lambda
 }
 
 func (a *ApiGateway) Init() {
-	a.backend.HgInfo = a.HgInfo
-	a.backend.Permissions = []StatementEntry{
-		{
-			Effect: "Allow",
-			Action: []string{
-				"logs:CreateLogStream",
-				"logs:PutLogEvents",
-				"logs:CreateLogGroup",
-				"dynamodb:GetItem",
-				"autoscaling:Describe*",
-				"ec2:Describe*",
-				"kms:Decrypt",
-			},
-			Resource: "*",
-		},
-	}
-	a.backend.Init()
+	log.Debug().Msgf("Initializing hostgroup %s api gateway ...", string(a.HostGroupInfo.Name))
+	a.Backend.HostGroupInfo = a.HostGroupInfo
+	a.Backend.Permissions = iam.GetJoinAndFetchLambdaPolicy()
+	a.Backend.Type = lambdas.LambdaJoin
+	a.Backend.Init()
 }
 
+func (a *ApiGateway) ResourceName() string {
+	return common.GenerateResourceName(a.HostGroupInfo.ClusterName, a.HostGroupInfo.Name)
+}
 
 func (a *ApiGateway) Fetch() error {
-	panic("implement me")
+	return nil
 }
 
 func (a *ApiGateway) DeployedVersion() string {
-	return a.deployedVersion
+	return ""
 }
 
 func (a *ApiGateway) TargetVersion() string {
-	return joinApiVersion + a.backend.TargetVersion()
+	return joinApiVersion + a.Backend.TargetVersion()
 }
 
 func (a *ApiGateway) Delete() error {
@@ -45,17 +47,25 @@ func (a *ApiGateway) Delete() error {
 }
 
 func (a *ApiGateway) Create() error {
-	panic("implement me")
+	err := cluster.EnsureResource(&a.Backend)
+	if err != nil {
+		return err
+	}
+	restApiGateway, err := apigateway.CreateJoinApi(a.HostGroupInfo, a.Backend.Type, a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
+	if err != nil {
+		return err
+	}
+	a.RestApiGateway = restApiGateway
+	return nil
 }
 
 func (a *ApiGateway) Update() error {
-	if a.DeployedVersion() == a.TargetVersion(){
+	if a.DeployedVersion() == a.TargetVersion() {
 		return nil
 	}
-	err := a.backend.Update()
+	err := a.Backend.Update()
 	if err != nil {
 		return err
 	}
 	return nil
 }
-

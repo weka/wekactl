@@ -1,13 +1,4 @@
-package cluster
-
-
-type ScaleMachine struct {
-	ResourceName string
-	HGInfo Lambda
-	Scale Lambda
-	Terminate Lambda
-	StateMachine StateMachine
-}
+package scalemachine
 
 
 type NextState struct {
@@ -32,13 +23,12 @@ type StateMachine struct {
 	States  map[string]interface{}
 }
 
-type StateMachineLambdas struct {
+type StateMachineLambdasArn struct {
 	Fetch     string
 	Scale     string
 	Terminate string
 	Transient string
 }
-
 
 type IsNullChoice struct {
 	Variable string
@@ -51,4 +41,3 @@ type IsNullChoiceState struct {
 	Choices []IsNullChoice
 	Default string
 }
-
