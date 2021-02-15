@@ -30,7 +30,7 @@ func (l *LaunchTemplate) TargetVersion() string {
 }
 
 func (l *LaunchTemplate) Delete() error {
-	panic("implement me")
+	return launchtemplate.DeleteLaunchTemplate(l.ResourceName())
 }
 
 func (l *LaunchTemplate) Create() error {

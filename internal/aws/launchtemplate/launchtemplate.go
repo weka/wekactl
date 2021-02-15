@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/lithammer/dedent"
 	"github.com/rs/zerolog/log"
@@ -92,4 +93,22 @@ func CreateLaunchTemplate(hostGroupInfo hostgroups.HostGroupInfo, hostGroupParam
 	}
 	log.Debug().Msgf("LaunchTemplate: \"%s\" was created successfully!", launchTemplateName)
 	return
+}
+
+func DeleteLaunchTemplate(launchTemplateName string) error {
+	svc := connectors.GetAWSSession().EC2
+	_, err := svc.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{
+		LaunchTemplateName: &launchTemplateName,
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == "InvalidLaunchTemplateName.NotFoundException"{
+				return nil
+			}
+		}
+		return err
+	} else {
+		log.Debug().Msgf("launch template %s was deleted successfully", launchTemplateName)
+	}
+	return nil
 }

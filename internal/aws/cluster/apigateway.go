@@ -43,7 +43,11 @@ func (a *ApiGateway) TargetVersion() string {
 }
 
 func (a *ApiGateway) Delete() error {
-	panic("implement me")
+	err := a.Backend.Delete()
+	if err != nil {
+		return err
+	}
+	return apigateway.DeleteRestApiGateway(a.ResourceName())
 }
 
 func (a *ApiGateway) Create() error {

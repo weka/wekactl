@@ -32,7 +32,17 @@ func (h *HostGroup) TargetVersion() string {
 }
 
 func (h *HostGroup) Delete() error {
-	panic("implement me")
+	err := h.JoinApi.Delete()
+	if err != nil {
+		return err
+	}
+
+	err = h.AutoscalingGroup.Delete()
+	if err != nil {
+		return err
+	}
+
+	return h.ScaleMachineCloudWatch.Delete()
 }
 
 func (h *HostGroup) Create() (err error) {

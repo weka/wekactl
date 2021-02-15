@@ -43,7 +43,11 @@ func (d *DynamoDb) TargetVersion() string {
 }
 
 func (d *DynamoDb) Delete() error {
-	panic("implement me")
+	err := d.KmsKey.Delete()
+	if err != nil {
+		return err
+	}
+	return db.DeleteDB(d.ResourceName())
 }
 
 func (d *DynamoDb) Create() error {

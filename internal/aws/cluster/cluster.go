@@ -53,7 +53,19 @@ func (c *AWSCluster) TargetVersion() string {
 }
 
 func (c *AWSCluster) Delete() error {
-	panic("implement me")
+	err := c.DynamoDb.Delete()
+	if err != nil {
+		return err
+	}
+
+	for _, hostGroup := range c.HostGroups {
+		err = hostGroup.Delete()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *AWSCluster) Create() (err error) {
