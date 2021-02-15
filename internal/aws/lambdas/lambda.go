@@ -80,7 +80,7 @@ func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType,
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				if aerr.Code() == lambda.ErrCodeInvalidParameterValueException {
-					logging.UserProgress("%s \"%s\" lambda creation failed, waiting for 10 sec for IAM role trust entity to finish update", string(hostGroupInfo.Name), string(lambdaType))
+					logging.UserProgress("%s \"%s\" lambda creation failed, waiting 10 sec for IAM role trust entity to finish update", string(hostGroupInfo.Name), string(lambdaType))
 					time.Sleep(10 * time.Second)
 					retry = true
 				}
@@ -94,4 +94,19 @@ func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType,
 	log.Debug().Msgf("lambda %s was created successfully!", lambdaName)
 
 	return lambdaCreateOutput, nil
+}
+
+func DeleteLambda(lambdaName string) error {
+	svc := connectors.GetAWSSession().Lambda
+	_, err := svc.DeleteFunction(&lambda.DeleteFunctionInput{
+		FunctionName: &lambdaName,
+	})
+	if err != nil {
+		if _, ok := err.(*lambda.ResourceNotFoundException); !ok {
+			return err
+		}
+	} else {
+		log.Debug().Msgf("lambda %s was deleted successfully", lambdaName)
+	}
+	return nil
 }

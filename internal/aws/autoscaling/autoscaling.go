@@ -8,10 +8,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/rs/zerolog/log"
 	"math"
+	"time"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	"wekactl/internal/logging"
 )
 
 func getAutoScalingTags(hostGroupInfo hostgroups.HostGroupInfo) []*autoscaling.Tag {
@@ -42,7 +44,7 @@ func getMaxSize(role hostgroups.InstanceRole, initialSize int) int {
 	return maxSize
 }
 
-func CreateAutoScalingGroup(hostGroupInfo hostgroups.HostGroupInfo, launchTemplateName string, hostGroupParams hostgroups.HostGroupParams, autoScalingGroupName string) (err error){
+func CreateAutoScalingGroup(hostGroupInfo hostgroups.HostGroupInfo, launchTemplateName string, hostGroupParams hostgroups.HostGroupParams, autoScalingGroupName string) (err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.CreateAutoScalingGroupInput{
 		AutoScalingGroupName:             &autoScalingGroupName,
@@ -53,7 +55,7 @@ func CreateAutoScalingGroup(hostGroupInfo hostgroups.HostGroupInfo, launchTempla
 		},
 		MinSize: aws.Int64(0),
 		MaxSize: aws.Int64(int64(getMaxSize(hostGroupInfo.Role, len(hostGroupParams.InstanceIds)))),
-		Tags: getAutoScalingTags(hostGroupInfo),
+		Tags:    getAutoScalingTags(hostGroupInfo),
 	}
 	_, err = svc.CreateAutoScalingGroup(input)
 	if err != nil {
@@ -97,7 +99,6 @@ func getStackLoadBalancer(stackName string) (loadBalancerName *string, err error
 	return
 }
 
-
 func AttachLoadBalancer(clusterName cluster.ClusterName, AutoScalingGroupName string) (err error) {
 	loadBalancerName, err := getStackLoadBalancer(string(clusterName))
 	if loadBalancerName == nil || err != nil {
@@ -130,4 +131,75 @@ func AttachLoadBalancer(clusterName cluster.ClusterName, AutoScalingGroupName st
 	log.Debug().Msgf("load balancer %s health check configured successfully!", *loadBalancerName)
 
 	return
+}
+
+func DeleteAutoScalingGroup(autoScalingGroupName string) error {
+	svc := connectors.GetAWSSession().ASG
+
+	asgOutput, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{&autoScalingGroupName},
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(asgOutput.AutoScalingGroups) == 0 {
+		return nil
+	}
+
+	_, err = svc.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: &autoScalingGroupName,
+		MinSize:              aws.Int64(0),
+	})
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("auto scaling group %s min updated value to 0", autoScalingGroupName)
+
+	var instanceIds []*string
+	for _, asg := range asgOutput.AutoScalingGroups {
+		for _, instance := range asg.Instances {
+			instanceIds = append(instanceIds, instance.InstanceId)
+		}
+	}
+
+	if len(instanceIds) > 0 {
+		_, err = svc.DetachInstances(&autoscaling.DetachInstancesInput{
+			AutoScalingGroupName:           &autoScalingGroupName,
+			ShouldDecrementDesiredCapacity: aws.Bool(true),
+			InstanceIds:                    instanceIds,
+		})
+		if err != nil {
+			return err
+		}
+		log.Debug().Msgf("auto scaling group %s instances detached", autoScalingGroupName)
+	}
+
+	retry := true
+	for i := 0; i < 6 && retry; i++ {
+		activitiesOutput, err := svc.DescribeScalingActivities(&autoscaling.DescribeScalingActivitiesInput{
+			AutoScalingGroupName: &autoScalingGroupName})
+		if err != nil {
+			return err
+		}
+		retry = false
+		for _, activity := range activitiesOutput.Activities {
+			if *activity.StatusCode != autoscaling.ScalingActivityStatusCodeSuccessful {
+				logging.UserProgress("waiting 10 sec for auto scaling group %s instances detaching to finish", autoScalingGroupName)
+				time.Sleep(10 * time.Second)
+				retry = true
+				break
+			}
+		}
+	}
+
+	_, err = svc.DeleteAutoScalingGroup(&autoscaling.DeleteAutoScalingGroupInput{
+		AutoScalingGroupName: &autoScalingGroupName,
+	})
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("scaling group %s deleted", autoScalingGroupName)
+
+	return nil
 }

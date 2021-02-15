@@ -1,9 +1,7 @@
 package cluster
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/dist"
@@ -36,8 +34,7 @@ func (l *Lambda) Fetch() error {
 
 func (l *Lambda) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s %s lambda ...", string(l.HostGroupInfo.Name), string(l.Type))
-	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
-	l.Profile.Name = fmt.Sprintf("wekactl-%s-%s-%s", l.HostGroupInfo.Name, string(l.Type), uuid.New().String())
+	l.Profile.Name = string(l.Type)
 	l.Profile.PolicyName = l.ResourceName()
 	l.Profile.AssumeRolePolicy = iam.GetLambdaAssumeRolePolicy()
 	l.Profile.HostGroupInfo = l.HostGroupInfo
@@ -54,7 +51,11 @@ func (l *Lambda) TargetVersion() string {
 }
 
 func (l *Lambda) Delete() error {
-	panic("implement me")
+	err := l.Profile.Delete()
+	if err != nil {
+		return err
+	}
+	return lambdas.DeleteLambda(l.ResourceName())
 }
 
 func (l *Lambda) Create() (err error) {

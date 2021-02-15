@@ -174,3 +174,58 @@ func CreateJoinApi(hostGroupInfo hostgroups.HostGroupInfo, lambdaType lambdas.La
 
 	return
 }
+
+func DeleteRestApiGateway(resourceName string) error {
+	svc := connectors.GetAWSSession().ApiGateway
+
+	restApisOutput, err := svc.GetRestApis(&apigateway.GetRestApisInput{})
+	if err != nil {
+		return err
+	}
+	for _, restApi := range restApisOutput.Items {
+		if *restApi.Name != resourceName {
+			continue
+		}
+		_, err = svc.DeleteRestApi(&apigateway.DeleteRestApiInput{
+			RestApiId: restApi.Id,
+		})
+		log.Debug().Msgf("rest api gateway %s %s was deleted successfully", resourceName, *restApi.Id)
+	}
+
+	usagePlansOutput, err := svc.GetUsagePlans(&apigateway.GetUsagePlansInput{})
+	if err != nil {
+		return err
+	}
+	for _, usagePlan := range usagePlansOutput.Items {
+		if *usagePlan.Name != resourceName {
+			continue
+		}
+		_, err := svc.DeleteUsagePlan(&apigateway.DeleteUsagePlanInput{
+			UsagePlanId: usagePlan.Id,
+		})
+		if err != nil {
+			return err
+		}
+		log.Debug().Msgf("rest api gateway %s %s usage plan was deleted successfully", resourceName, *usagePlan.Id)
+	}
+
+	apiKeysOutput, err := svc.GetApiKeys(&apigateway.GetApiKeysInput{})
+	if err != nil {
+		return err
+	}
+	for _, apiKey := range apiKeysOutput.Items {
+		if *apiKey.Name != resourceName {
+			continue
+		}
+
+		_, err = svc.DeleteApiKey(&apigateway.DeleteApiKeyInput{
+			ApiKey: apiKey.Id,
+		})
+		if err != nil {
+			return err
+		}
+		log.Debug().Msgf("rest api gateway %s %s api key was deleted successfully", resourceName, *apiKey.Id)
+	}
+
+	return nil
+}

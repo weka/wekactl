@@ -22,3 +22,12 @@ func createIamPolicy(policyName string, policy PolicyDocument) (*iam.Policy, err
 	log.Debug().Msgf("policy %s was create successfully!", policyName)
 	return result.Policy, nil
 }
+
+func deleteIamPolicy(policyArn *string) error {
+	svc := connectors.GetAWSSession().IAM
+	_, err := svc.DeletePolicy(&iam.DeletePolicyInput{
+		PolicyArn: policyArn,
+	})
+
+	return err
+}

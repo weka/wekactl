@@ -117,3 +117,19 @@ func saveClusterParams(tableName string, params DefaultClusterParams) error {
 	}
 	return nil
 }
+
+func DeleteDB(tableName string) error {
+	svc := connectors.GetAWSSession().DynamoDB
+	_, err := svc.DeleteTable(&dynamodb.DeleteTableInput{
+		TableName: &tableName,
+	})
+	if err != nil {
+		if _, ok := err.(*dynamodb.ResourceNotFoundException); !ok {
+			return err
+		}
+	} else {
+		log.Debug().Msgf("DB %s was deleted successfully", tableName)
+	}
+
+	return nil
+}

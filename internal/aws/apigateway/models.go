@@ -1,8 +1,8 @@
 package apigateway
 
 type RestApiGateway struct {
-	Id     string
-	Name   string
-	Url    string
-	ApiKey string
+	Id          string
+	Name        string
+	Url         string
+	ApiKey      string
 }

@@ -32,7 +32,7 @@ func (k *KmsKey) TargetVersion() string {
 }
 
 func (k *KmsKey) Delete() error {
-	panic("implement me")
+	return kms.DeleteKMSKey(k.ResourceName(), k.ClusterName)
 }
 
 func (k *KmsKey) Create() error {

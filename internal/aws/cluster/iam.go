@@ -1,8 +1,12 @@
 package cluster
 
 import (
+	"fmt"
+	"github.com/google/uuid"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
+	strings2 "wekactl/internal/lib/strings"
 )
 
 type IamProfile struct {
@@ -14,8 +18,14 @@ type IamProfile struct {
 	Policy           iam.PolicyDocument
 }
 
+func (i *IamProfile) resourceNameBase() string {
+	name := common.GenerateResourceName(i.HostGroupInfo.ClusterName, i.HostGroupInfo.Name)
+	return fmt.Sprintf("%s-%s", name, i.Name)
+}
+
 func (i *IamProfile) ResourceName() string {
-	return i.Name
+	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
+	return strings2.ElfHashSuffixed(fmt.Sprintf("%s-%s", i.resourceNameBase(),uuid.New().String()), 64)
 }
 
 func (i *IamProfile) Fetch() error {
@@ -35,11 +45,11 @@ func (i *IamProfile) TargetVersion() string {
 }
 
 func (i *IamProfile) Delete() error {
-	panic("implement me")
+	return iam.DeleteIamRole(i.resourceNameBase(), i.PolicyName)
 }
 
 func (i *IamProfile) Create() error {
-	arn, err := iam.CreateIamRole(i.HostGroupInfo, i.Name, i.PolicyName, i.AssumeRolePolicy, i.Policy)
+	arn, err := iam.CreateIamRole(i.HostGroupInfo, i.ResourceName(), i.PolicyName, i.AssumeRolePolicy, i.Policy)
 	if err != nil {
 		return err
 	}

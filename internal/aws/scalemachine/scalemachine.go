@@ -88,3 +88,26 @@ func CreateStateMachine(hostGroupInfo hostgroups.HostGroupInfo, lambda StateMach
 	log.Debug().Msgf("State machine %s was created successfully!", stateMachineName)
 	return result.StateMachineArn, nil
 }
+
+func DeleteStateMachine(stateMachineName string) error {
+	svc := connectors.GetAWSSession().SFN
+
+	stateMachinesOutput, err := svc.ListStateMachines(&sfn.ListStateMachinesInput{})
+	if err != nil {
+		return err
+	}
+	for _, stateMachine := range stateMachinesOutput.StateMachines {
+		if *stateMachine.Name != stateMachineName {
+			continue
+		}
+		_, err = svc.DeleteStateMachine(&sfn.DeleteStateMachineInput{
+			StateMachineArn: stateMachine.StateMachineArn,
+		})
+		if err != nil {
+			return err
+		}
+		log.Debug().Msgf("state machine %s was deleted successfully", stateMachineName)
+	}
+
+	return nil
+}

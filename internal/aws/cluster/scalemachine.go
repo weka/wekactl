@@ -3,7 +3,6 @@ package cluster
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
@@ -22,7 +21,7 @@ type ScaleMachine struct {
 	terminate       Lambda
 	transient       Lambda
 	StateMachine    scalemachine.StateMachine
-	Profile IamProfile
+	Profile         IamProfile
 }
 
 func (s *ScaleMachine) ResourceName() string {
@@ -42,7 +41,32 @@ func (s *ScaleMachine) TargetVersion() string {
 }
 
 func (s *ScaleMachine) Delete() error {
-	panic("implement me")
+	err := s.Profile.Delete()
+	if err != nil {
+		return err
+	}
+
+	err = s.fetch.Delete()
+	if err != nil {
+		return err
+	}
+
+	err = s.scale.Delete()
+	if err != nil {
+		return err
+	}
+
+	err = s.terminate.Delete()
+	if err != nil {
+		return err
+	}
+
+	err = s.transient.Delete()
+	if err != nil {
+		return err
+	}
+
+	return scalemachine.DeleteStateMachine(s.ResourceName())
 }
 
 func (s *ScaleMachine) Create() (err error) {
@@ -92,9 +116,7 @@ func (s *ScaleMachine) Update() error {
 
 func (s *ScaleMachine) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s state machine ...", string(s.HostGroupInfo.Name))
-
-	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
-	s.Profile.Name = fmt.Sprintf("wekactl-%s-sm-%s", s.HostGroupInfo.Name, uuid.New().String())
+	s.Profile.Name = "sm"
 	s.Profile.PolicyName = fmt.Sprintf("wekactl-%s-sm-%s", string(s.HostGroupInfo.ClusterName), string(s.HostGroupInfo.Name))
 	s.Profile.AssumeRolePolicy = iam.GetStateMachineAssumeRolePolicy()
 	s.Profile.HostGroupInfo = s.HostGroupInfo

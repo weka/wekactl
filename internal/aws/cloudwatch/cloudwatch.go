@@ -50,3 +50,34 @@ func CreateCloudWatchEventRule(hostGroupInfo hostgroups.HostGroupInfo, arn *stri
 
 	return nil
 }
+
+func DeleteCloudWatchEventRule(ruleName string) error {
+	svc := connectors.GetAWSSession().CloudWatchEvents
+
+	targetsOutput, err := svc.ListTargetsByRule(&cloudwatchevents.ListTargetsByRuleInput{Rule: &ruleName})
+	if err != nil {
+		if _, ok := err.(*cloudwatchevents.ResourceNotFoundException); ok {
+			return nil
+		}
+		return err
+	}
+
+	var targetIds []*string
+	for _, target := range targetsOutput.Targets {
+		targetIds = append(targetIds, target.Id)
+	}
+	_, err = svc.RemoveTargets(&cloudwatchevents.RemoveTargetsInput{Rule: &ruleName, Ids: targetIds})
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.DeleteRule(&cloudwatchevents.DeleteRuleInput{
+		Name: &ruleName,
+	})
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("cloud watch event rule %s deleted", ruleName)
+
+	return nil
+}

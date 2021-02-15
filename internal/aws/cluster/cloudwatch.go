@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/cloudwatch"
 	"wekactl/internal/aws/common"
@@ -35,7 +34,17 @@ func (c *CloudWatch) TargetVersion() string {
 }
 
 func (c *CloudWatch) Delete() error {
-	panic("implement me")
+	err := c.Profile.Delete()
+	if err != nil {
+		return err
+	}
+
+	err = c.ScaleMachine.Delete()
+	if err != nil {
+		return err
+	}
+
+	return cloudwatch.DeleteCloudWatchEventRule(c.ResourceName())
 }
 
 func (c *CloudWatch) Create() (err error) {
@@ -57,9 +66,7 @@ func (c *CloudWatch) Update() error {
 
 func (c *CloudWatch) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s cloudwatch ...", string(c.HostGroupInfo.Name))
-
-	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
-	c.Profile.Name = fmt.Sprintf("wekactl-%s-cw-%s", c.HostGroupInfo.Name, uuid.New().String())
+	c.Profile.Name = "cw"
 	c.Profile.PolicyName = fmt.Sprintf("wekactl-%s-cw-%s", string(c.HostGroupInfo.ClusterName), string(c.HostGroupInfo.Name))
 	c.Profile.AssumeRolePolicy = iam.GetCloudWatchEventAssumeRolePolicy()
 	c.Profile.HostGroupInfo = c.HostGroupInfo

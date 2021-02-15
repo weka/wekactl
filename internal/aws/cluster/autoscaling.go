@@ -33,7 +33,11 @@ func (a *AutoscalingGroup) TargetVersion() string {
 }
 
 func (a *AutoscalingGroup) Delete() error {
-	panic("implement me")
+	err := a.LaunchTemplate.Delete()
+	if err != nil {
+		return err
+	}
+	return autoscaling.DeleteAutoScalingGroup(a.ResourceName())
 }
 
 func (a *AutoscalingGroup) Create() error {
