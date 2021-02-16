@@ -6,6 +6,8 @@ import (
 	"wekactl/internal/cluster"
 )
 
+const kmsVersion = "v1"
+
 type KmsKey struct {
 	Key         string
 	ClusterName cluster.ClusterName
@@ -28,7 +30,7 @@ func (k *KmsKey) DeployedVersion() string {
 }
 
 func (k *KmsKey) TargetVersion() string {
-	return ""
+	return kmsVersion
 }
 
 func (k *KmsKey) Delete() error {

@@ -21,3 +21,8 @@ type DefaultClusterParams struct {
 	VPC      string
 	Subnet   string
 }
+
+type ResourceVersion struct {
+	Key     string
+	Version string
+}

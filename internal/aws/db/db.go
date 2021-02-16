@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
 )
@@ -131,5 +132,26 @@ func DeleteDB(tableName string) error {
 		log.Debug().Msgf("DB %s was deleted successfully", tableName)
 	}
 
+	return nil
+}
+
+func SaveResourceVersion(tableName, resourceType, name string, hostGroupName hostgroups.HostGroupName, version string) error {
+	key := resourceType
+	if name != "" {
+		key += "-" + name
+	}
+	if string(hostGroupName) != "" {
+		key += "-" + string(hostGroupName)
+	}
+
+	err := PutItem(tableName, ResourceVersion{
+		Key:     key,
+		Version: version,
+	})
+	if err != nil {
+		log.Debug().Msgf("error saving %s version to DB %v", key, err)
+		return err
+	}
+	log.Debug().Msgf("%s version was saved to DB successfully", key)
 	return nil
 }

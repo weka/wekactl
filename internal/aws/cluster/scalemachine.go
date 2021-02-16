@@ -5,6 +5,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
+	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
@@ -14,6 +16,7 @@ import (
 
 type ScaleMachine struct {
 	Arn             string
+	TableName       string
 	HostGroupInfo   hostgroups.HostGroupInfo
 	HostGroupParams hostgroups.HostGroupParams
 	fetch           Lambda
@@ -37,7 +40,7 @@ func (s *ScaleMachine) DeployedVersion() string {
 }
 
 func (s *ScaleMachine) TargetVersion() string {
-	return ""
+	return dist.LambdasID + s.Profile.TargetVersion()
 }
 
 func (s *ScaleMachine) Delete() error {
@@ -107,7 +110,7 @@ func (s *ScaleMachine) Create() (err error) {
 		return
 	}
 	s.Arn = *arn
-	return
+	return db.SaveResourceVersion(s.TableName, "lambda", "", s.HostGroupInfo.Name, s.TargetVersion())
 }
 
 func (s *ScaleMachine) Update() error {
@@ -118,6 +121,7 @@ func (s *ScaleMachine) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s state machine ...", string(s.HostGroupInfo.Name))
 	s.Profile.Name = "sm"
 	s.Profile.PolicyName = fmt.Sprintf("wekactl-%s-sm-%s", string(s.HostGroupInfo.ClusterName), string(s.HostGroupInfo.Name))
+	s.Profile.TableName = s.TableName
 	s.Profile.AssumeRolePolicy = iam.GetStateMachineAssumeRolePolicy()
 	s.Profile.HostGroupInfo = s.HostGroupInfo
 	s.Profile.Policy = iam.GetStateMachineRolePolicy()
@@ -125,24 +129,28 @@ func (s *ScaleMachine) Init() {
 
 	vpcConfig := lambdas.GetLambdaVpcConfig(s.HostGroupParams.Subnet, s.HostGroupParams.SecurityGroupsIds)
 
+	s.fetch.TableName = s.TableName
 	s.fetch.HostGroupInfo = s.HostGroupInfo
 	s.fetch.Type = lambdas.LambdaFetchInfo
 	s.fetch.VPCConfig = lambda.VpcConfig{}
 	s.fetch.Permissions = iam.GetJoinAndFetchLambdaPolicy()
 	s.fetch.Init()
 
+	s.scale.TableName = s.TableName
 	s.scale.HostGroupInfo = s.HostGroupInfo
 	s.scale.Type = lambdas.LambdaScale
 	s.scale.VPCConfig = vpcConfig
 	s.scale.Permissions = iam.GetScaleLambdaPolicy()
 	s.scale.Init()
 
+	s.terminate.TableName = s.TableName
 	s.terminate.HostGroupInfo = s.HostGroupInfo
 	s.terminate.Type = lambdas.LambdaTerminate
 	s.terminate.VPCConfig = lambda.VpcConfig{}
 	s.terminate.Permissions = iam.GetTerminateLambdaPolicy()
 	s.terminate.Init()
 
+	s.transient.TableName = s.TableName
 	s.transient.HostGroupInfo = s.HostGroupInfo
 	s.transient.Type = lambdas.LambdaTransient
 	s.transient.VPCConfig = lambda.VpcConfig{}

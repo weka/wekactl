@@ -13,6 +13,7 @@ type HostGroup struct {
 	JoinApi                ApiGateway
 	AutoscalingGroup       AutoscalingGroup
 	ScaleMachineCloudWatch CloudWatch
+	TableName              string
 }
 
 func (h *HostGroup) ResourceName() string {
@@ -71,11 +72,14 @@ func (h *HostGroup) Update() error {
 func (h *HostGroup) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s ...", string(h.HostGroupInfo.Name))
 	h.JoinApi.HostGroupInfo = h.HostGroupInfo
+	h.JoinApi.TableName = h.TableName
 	h.JoinApi.Init()
 	h.AutoscalingGroup.HostGroupInfo = h.HostGroupInfo
 	h.AutoscalingGroup.HostGroupParams = h.HostGroupParams
+	h.AutoscalingGroup.TableName = h.TableName
 	h.AutoscalingGroup.Init()
 	h.ScaleMachineCloudWatch.HostGroupInfo = h.HostGroupInfo
 	h.ScaleMachineCloudWatch.HostGroupParams = h.HostGroupParams
+	h.ScaleMachineCloudWatch.TableName = h.TableName
 	h.ScaleMachineCloudWatch.Init()
 }

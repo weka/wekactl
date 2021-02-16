@@ -3,14 +3,18 @@ package cluster
 import (
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/launchtemplate"
 )
+
+const launchtemplateVersion = "v1"
 
 type LaunchTemplate struct {
 	HostGroupInfo   hostgroups.HostGroupInfo
 	HostGroupParams hostgroups.HostGroupParams
 	RestApiGateway  apigateway.RestApiGateway
+	TableName       string
 }
 
 func (l *LaunchTemplate) ResourceName() string {
@@ -26,7 +30,7 @@ func (l *LaunchTemplate) DeployedVersion() string {
 }
 
 func (l *LaunchTemplate) TargetVersion() string {
-	return ""
+	return launchtemplateVersion
 }
 
 func (l *LaunchTemplate) Delete() error {
@@ -38,7 +42,7 @@ func (l *LaunchTemplate) Create() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return db.SaveResourceVersion(l.TableName, "launchtemplate", "", l.HostGroupInfo.Name, l.TargetVersion())
 }
 
 func (l *LaunchTemplate) Update() error {

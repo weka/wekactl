@@ -39,6 +39,7 @@ func (c *AWSCluster) Init() {
 	log.Debug().Msgf("Initializing cluster %s ...", string(c.Name))
 	c.DynamoDb.Init()
 	for i := range c.HostGroups {
+		c.HostGroups[i].TableName = c.DynamoDb.ResourceName()
 		c.HostGroups[i].Init()
 	}
 	return

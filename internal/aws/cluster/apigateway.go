@@ -4,6 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
@@ -16,10 +17,12 @@ type ApiGateway struct {
 	RestApiGateway apigateway.RestApiGateway
 	HostGroupInfo  hostgroups.HostGroupInfo
 	Backend        Lambda
+	TableName      string
 }
 
 func (a *ApiGateway) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s api gateway ...", string(a.HostGroupInfo.Name))
+	a.Backend.TableName = a.TableName
 	a.Backend.HostGroupInfo = a.HostGroupInfo
 	a.Backend.Permissions = iam.GetJoinAndFetchLambdaPolicy()
 	a.Backend.Type = lambdas.LambdaJoin
@@ -60,7 +63,7 @@ func (a *ApiGateway) Create() error {
 		return err
 	}
 	a.RestApiGateway = restApiGateway
-	return nil
+	return db.SaveResourceVersion(a.TableName, "apigateway", "", a.HostGroupInfo.Name, a.TargetVersion())
 }
 
 func (a *ApiGateway) Update() error {
