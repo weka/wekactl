@@ -135,7 +135,19 @@ func DeleteDB(tableName string) error {
 	return nil
 }
 
-func SaveResourceVersion(tableName, resourceType, name string, hostGroupName hostgroups.HostGroupName, version string) error {
+func Exists(tableName string) (bool, error) {
+	svc := connectors.GetAWSSession().DynamoDB
+	_, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: &tableName})
+	if err != nil {
+		if _, ok := err.(*dynamodb.ResourceNotFoundException); ok {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func generateKey(resourceType, name string, hostGroupName hostgroups.HostGroupName) string {
 	key := resourceType
 	if name != "" {
 		key += "-" + name
@@ -143,7 +155,11 @@ func SaveResourceVersion(tableName, resourceType, name string, hostGroupName hos
 	if string(hostGroupName) != "" {
 		key += "-" + string(hostGroupName)
 	}
+	return key
+}
 
+func SaveResourceVersion(tableName, resourceType, name string, hostGroupName hostgroups.HostGroupName, version string) error {
+	key := generateKey(resourceType, name, hostGroupName)
 	err := PutItem(tableName, ResourceVersion{
 		Key:     key,
 		Version: version,
@@ -154,4 +170,14 @@ func SaveResourceVersion(tableName, resourceType, name string, hostGroupName hos
 	}
 	log.Debug().Msgf("%s version was saved to DB successfully", key)
 	return nil
+}
+
+func GetResourceVersion(tableName, resourceType, name string, hostGroupName hostgroups.HostGroupName) (string, error) {
+	resourceVersion := ResourceVersion{}
+	err := GetItem(tableName, generateKey(resourceType, name, hostGroupName), &resourceVersion)
+	if err != nil {
+		return "", err
+	}
+
+	return resourceVersion.Version, nil
 }

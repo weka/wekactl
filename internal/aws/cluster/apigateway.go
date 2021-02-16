@@ -18,6 +18,7 @@ type ApiGateway struct {
 	HostGroupInfo  hostgroups.HostGroupInfo
 	Backend        Lambda
 	TableName      string
+	Version        string
 }
 
 func (a *ApiGateway) Init() {
@@ -34,11 +35,16 @@ func (a *ApiGateway) ResourceName() string {
 }
 
 func (a *ApiGateway) Fetch() error {
+	version, err := db.GetResourceVersion(a.TableName, "apigateway", "", a.HostGroupInfo.Name)
+	if err != nil {
+		return err
+	}
+	a.Version = version
 	return nil
 }
 
 func (a *ApiGateway) DeployedVersion() string {
-	return ""
+	return a.Version
 }
 
 func (a *ApiGateway) TargetVersion() string {

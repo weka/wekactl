@@ -38,5 +38,7 @@ func EnsureResource(r Resource) error {
 		return r.Update()
 	}
 
+	log.Debug().Msgf("%s resource exists and updated", strings.Trim(reflect.TypeOf(r).String(), "*cluster."))
+
 	return nil
 }

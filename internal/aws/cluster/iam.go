@@ -15,6 +15,7 @@ type IamProfile struct {
 	Name             string
 	PolicyName       string
 	TableName        string
+	Version          string
 	AssumeRolePolicy iam.AssumeRolePolicyDocument
 	HostGroupInfo    hostgroups.HostGroupInfo
 	Policy           iam.PolicyDocument
@@ -31,6 +32,12 @@ func (i *IamProfile) ResourceName() string {
 }
 
 func (i *IamProfile) Fetch() error {
+	version, err := db.GetResourceVersion(i.TableName, "iam", i.Name, i.HostGroupInfo.Name)
+	if err != nil {
+		return err
+	}
+
+	i.Version = version
 	return nil
 }
 
@@ -39,7 +46,7 @@ func (i *IamProfile) Init() {
 }
 
 func (i *IamProfile) DeployedVersion() string {
-	return ""
+	return i.Version
 }
 
 func (i *IamProfile) TargetVersion() string {

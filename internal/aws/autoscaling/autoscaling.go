@@ -66,6 +66,11 @@ func CreateAutoScalingGroup(hostGroupInfo hostgroups.HostGroupInfo, launchTempla
 }
 
 func AttachInstancesToAutoScalingGroups(instancesIds []*string, autoScalingGroupsName string) error {
+	asgInstanceIds, err := common.GetAutoScalingGroupInstanceIds(autoScalingGroupsName)
+	if err != nil {
+		return err
+	}
+	instancesIds = common.GetDeltaInstancesIds(asgInstanceIds, instancesIds)
 	svc := connectors.GetAWSSession().ASG
 	limit := 20
 	for i := 0; i < len(instancesIds); i += limit {
@@ -105,6 +110,23 @@ func AttachLoadBalancer(clusterName cluster.ClusterName, AutoScalingGroupName st
 		return
 	}
 	svc := connectors.GetAWSSession().ASG
+	asgOutput, err := svc.DescribeAutoScalingGroups(
+		&autoscaling.DescribeAutoScalingGroupsInput{
+			AutoScalingGroupNames: []*string{&AutoScalingGroupName},
+		},
+	)
+	if err != nil {
+		return
+	}
+	for _,asgGroup := range asgOutput.AutoScalingGroups{
+		for _, asgLoadBalancerName := range asgGroup.LoadBalancerNames{
+			if *asgLoadBalancerName == *loadBalancerName{
+				log.Debug().Msgf("load balancer %s is already attached to %s", *loadBalancerName, AutoScalingGroupName)
+				return
+			}
+		}
+	}
+
 	_, err = svc.AttachLoadBalancers(&autoscaling.AttachLoadBalancersInput{
 		LoadBalancerNames:    []*string{loadBalancerName},
 		AutoScalingGroupName: aws.String(AutoScalingGroupName),
