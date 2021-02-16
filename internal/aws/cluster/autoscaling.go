@@ -5,15 +5,19 @@ import (
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 )
+
+const autoscalingVersion = "v1"
 
 type AutoscalingGroup struct {
 	HostGroupInfo   hostgroups.HostGroupInfo
 	HostGroupParams hostgroups.HostGroupParams
 	RestApiGateway  apigateway.RestApiGateway
 	LaunchTemplate  LaunchTemplate
+	TableName       string
 }
 
 func (a *AutoscalingGroup) ResourceName() string {
@@ -29,7 +33,7 @@ func (a *AutoscalingGroup) DeployedVersion() string {
 }
 
 func (a *AutoscalingGroup) TargetVersion() string {
-	return ""
+	return autoscalingVersion
 }
 
 func (a *AutoscalingGroup) Delete() error {
@@ -50,7 +54,7 @@ func (a *AutoscalingGroup) Create() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return db.SaveResourceVersion(a.TableName, "autoscaling", "", a.HostGroupInfo.Name, a.TargetVersion())
 }
 
 func (a *AutoscalingGroup) Update() error {
@@ -61,4 +65,5 @@ func (a *AutoscalingGroup) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s autoscaling group ...", string(a.HostGroupInfo.Name))
 	a.LaunchTemplate.HostGroupInfo = a.HostGroupInfo
 	a.LaunchTemplate.HostGroupParams = a.HostGroupParams
+	a.LaunchTemplate.TableName = a.TableName
 }

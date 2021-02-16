@@ -1,5 +1,11 @@
 package cluster
 
+import (
+	"github.com/rs/zerolog/log"
+	"reflect"
+	"strings"
+)
+
 /*
 
 - consider import/create recovery
@@ -31,5 +37,6 @@ func EnsureResource(r Resource) error {
 	if r.DeployedVersion() != r.TargetVersion() {
 		return r.Update()
 	}
+
 	return nil
 }

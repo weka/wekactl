@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	strings2 "wekactl/internal/lib/strings"
@@ -13,6 +14,7 @@ type IamProfile struct {
 	Arn              string
 	Name             string
 	PolicyName       string
+	TableName        string
 	AssumeRolePolicy iam.AssumeRolePolicyDocument
 	HostGroupInfo    hostgroups.HostGroupInfo
 	Policy           iam.PolicyDocument
@@ -25,7 +27,7 @@ func (i *IamProfile) resourceNameBase() string {
 
 func (i *IamProfile) ResourceName() string {
 	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
-	return strings2.ElfHashSuffixed(fmt.Sprintf("%s-%s", i.resourceNameBase(),uuid.New().String()), 64)
+	return strings2.ElfHashSuffixed(fmt.Sprintf("%s-%s", i.resourceNameBase(), uuid.New().String()), 64)
 }
 
 func (i *IamProfile) Fetch() error {
@@ -55,7 +57,8 @@ func (i *IamProfile) Create() error {
 	}
 
 	i.Arn = *arn
-	return nil
+
+	return db.SaveResourceVersion(i.TableName, "iam", i.Name, i.HostGroupInfo.Name, i.TargetVersion())
 }
 
 func (i *IamProfile) Update() error {

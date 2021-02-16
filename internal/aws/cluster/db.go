@@ -66,7 +66,7 @@ func (d *DynamoDb) Create() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	return db.SaveResourceVersion(d.ResourceName(), "kms", "", "", d.KmsKey.TargetVersion())
 }
 
 func (d *DynamoDb) Update() error {

@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"strings"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
@@ -14,6 +15,7 @@ import (
 
 type Lambda struct {
 	Arn           string
+	TableName     string
 	Type          lambdas.LambdaType
 	Profile       IamProfile
 	VPCConfig     lambda.VpcConfig
@@ -36,6 +38,7 @@ func (l *Lambda) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s %s lambda ...", string(l.HostGroupInfo.Name), string(l.Type))
 	l.Profile.Name = string(l.Type)
 	l.Profile.PolicyName = l.ResourceName()
+	l.Profile.TableName = l.TableName
 	l.Profile.AssumeRolePolicy = iam.GetLambdaAssumeRolePolicy()
 	l.Profile.HostGroupInfo = l.HostGroupInfo
 	l.Profile.Policy = l.Permissions
@@ -69,7 +72,8 @@ func (l *Lambda) Create() (err error) {
 		return
 	}
 	l.Arn = *functionConfiguration.FunctionArn
-	return
+
+	return db.SaveResourceVersion(l.TableName, "lambda", string(l.Type), l.HostGroupInfo.Name, l.TargetVersion())
 }
 
 func (l *Lambda) Update() error {
