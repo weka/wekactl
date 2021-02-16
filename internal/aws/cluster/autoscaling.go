@@ -18,6 +18,7 @@ type AutoscalingGroup struct {
 	RestApiGateway  apigateway.RestApiGateway
 	LaunchTemplate  LaunchTemplate
 	TableName       string
+	Version         string
 }
 
 func (a *AutoscalingGroup) ResourceName() string {
@@ -25,11 +26,16 @@ func (a *AutoscalingGroup) ResourceName() string {
 }
 
 func (a *AutoscalingGroup) Fetch() error {
+	version, err := db.GetResourceVersion(a.TableName, "autoscaling", "", a.HostGroupInfo.Name)
+	if err != nil {
+		return err
+	}
+	a.Version = version
 	return nil
 }
 
 func (a *AutoscalingGroup) DeployedVersion() string {
-	return ""
+	return a.Version
 }
 
 func (a *AutoscalingGroup) TargetVersion() string {

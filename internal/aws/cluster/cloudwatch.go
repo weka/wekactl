@@ -19,6 +19,7 @@ type CloudWatch struct {
 	ScaleMachine    ScaleMachine
 	Profile         IamProfile
 	TableName       string
+	Version         string
 }
 
 func (c *CloudWatch) ResourceName() string {
@@ -26,11 +27,16 @@ func (c *CloudWatch) ResourceName() string {
 }
 
 func (c *CloudWatch) Fetch() error {
+	version, err := db.GetResourceVersion(c.TableName, "cloudwatch", "", c.HostGroupInfo.Name)
+	if err != nil {
+		return err
+	}
+	c.Version = version
 	return nil
 }
 
 func (c *CloudWatch) DeployedVersion() string {
-	return ""
+	return c.Version
 }
 
 func (c *CloudWatch) TargetVersion() string {

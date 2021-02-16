@@ -15,7 +15,10 @@ import (
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	strings2 "wekactl/internal/lib/strings"
+	"wekactl/internal/lib/types"
 )
+
+type InstanceIdsSet map[string]types.Nilt
 
 func RenderTable(fields []string, data [][]string) {
 	table := tablewriter.NewWriter(os.Stdout)
@@ -152,4 +155,23 @@ func GenerateResourceName(clusterName cluster.ClusterName, hostGroupName hostgro
 		resourceName += "-" + name
 	}
 	return resourceName
+}
+
+func getInstanceIdsSet(instanceIds []*string) InstanceIdsSet {
+	instanceIdsSet := make(InstanceIdsSet)
+	for _, instanceId := range instanceIds {
+		instanceIdsSet[*instanceId] = types.Nilv
+	}
+	return instanceIdsSet
+}
+
+func GetDeltaInstancesIds(instanceIds1 []*string, instanceIds2 []*string) (deltaInstanceIds []*string) {
+	instanceIdsSet := getInstanceIdsSet(instanceIds1)
+
+	for _, instanceId := range instanceIds2 {
+		if _, ok := instanceIdsSet[*instanceId]; !ok {
+			deltaInstanceIds = append(deltaInstanceIds, instanceId)
+		}
+	}
+	return
 }

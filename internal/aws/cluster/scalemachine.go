@@ -17,6 +17,7 @@ import (
 type ScaleMachine struct {
 	Arn             string
 	TableName       string
+	Version         string
 	HostGroupInfo   hostgroups.HostGroupInfo
 	HostGroupParams hostgroups.HostGroupParams
 	fetch           Lambda
@@ -32,11 +33,16 @@ func (s *ScaleMachine) ResourceName() string {
 }
 
 func (s *ScaleMachine) Fetch() error {
+	version, err := db.GetResourceVersion(s.TableName, "scalemachine", "", s.HostGroupInfo.Name)
+	if err != nil {
+		return err
+	}
+	s.Version = version
 	return nil
 }
 
 func (s *ScaleMachine) DeployedVersion() string {
-	return ""
+	return s.Version
 }
 
 func (s *ScaleMachine) TargetVersion() string {
@@ -110,7 +116,7 @@ func (s *ScaleMachine) Create() (err error) {
 		return
 	}
 	s.Arn = *arn
-	return db.SaveResourceVersion(s.TableName, "lambda", "", s.HostGroupInfo.Name, s.TargetVersion())
+	return db.SaveResourceVersion(s.TableName, "scalemachine", "", s.HostGroupInfo.Name, s.TargetVersion())
 }
 
 func (s *ScaleMachine) Update() error {

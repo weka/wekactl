@@ -16,6 +16,7 @@ import (
 type Lambda struct {
 	Arn           string
 	TableName     string
+	Version       string
 	Type          lambdas.LambdaType
 	Profile       IamProfile
 	VPCConfig     lambda.VpcConfig
@@ -29,8 +30,11 @@ func (l *Lambda) ResourceName() string {
 }
 
 func (l *Lambda) Fetch() error {
-	//searchTags := GetHostGroupTags(l.HgInfo).Update()
-	//panic("implement me")
+	version, err := db.GetResourceVersion(l.TableName, "lambda", string(l.Type), l.HostGroupInfo.Name)
+	if err != nil {
+		return err
+	}
+	l.Version = version
 	return nil
 }
 
@@ -46,7 +50,7 @@ func (l *Lambda) Init() {
 }
 
 func (l *Lambda) DeployedVersion() string {
-	return ""
+	return l.Version
 }
 
 func (l *Lambda) TargetVersion() string {

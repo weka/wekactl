@@ -13,11 +13,14 @@ type DynamoDb struct{
 }
 */
 
+const dbVersion = "v1"
+
 type DynamoDb struct {
 	ClusterName cluster.ClusterName
 	Username    string
 	Password    string
 	StackId     string
+	Version     string
 	KmsKey      KmsKey
 }
 
@@ -26,6 +29,13 @@ func (d *DynamoDb) ResourceName() string {
 }
 
 func (d *DynamoDb) Fetch() error {
+	exists, err := db.Exists(d.ResourceName())
+	if err != nil {
+		return err
+	}
+	if exists {
+		d.Version = dbVersion
+	}
 	return nil
 }
 
@@ -35,11 +45,11 @@ func (d *DynamoDb) Init() {
 }
 
 func (d *DynamoDb) DeployedVersion() string {
-	return ""
+	return d.Version
 }
 
 func (d *DynamoDb) TargetVersion() string {
-	return ""
+	return dbVersion
 }
 
 func (d *DynamoDb) Delete() error {

@@ -10,6 +10,7 @@ const kmsVersion = "v1"
 
 type KmsKey struct {
 	Key         string
+	Version     string
 	ClusterName cluster.ClusterName
 }
 
@@ -18,6 +19,13 @@ func (k *KmsKey) ResourceName() string {
 }
 
 func (k *KmsKey) Fetch() error {
+	kmsKey, err := kms.GetKmsKey(k.ClusterName)
+	if err != nil {
+		return err
+	}
+	if kmsKey != nil {
+		k.Version = kmsVersion
+	}
 	return nil
 }
 
@@ -26,7 +34,7 @@ func (k *KmsKey) Init() {
 }
 
 func (k *KmsKey) DeployedVersion() string {
-	return ""
+	return k.Version
 }
 
 func (k *KmsKey) TargetVersion() string {

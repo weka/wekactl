@@ -15,11 +15,10 @@ import (
 	"wekactl/internal/lib/types"
 )
 
-type instanceIdsSet map[string]types.Nilt
 type instancesMap map[string]*ec2.Instance
 
-func getInstanceIdsSet(scaleResponse protocol.ScaleResponse) instanceIdsSet {
-	instanceIdsSet := make(instanceIdsSet)
+func getInstanceIdsSet(scaleResponse protocol.ScaleResponse) common.InstanceIdsSet {
+	instanceIdsSet := make(common.InstanceIdsSet)
 	for _, instance := range scaleResponse.Hosts {
 		instanceIdsSet[instance.InstanceId] = types.Nilv
 	}

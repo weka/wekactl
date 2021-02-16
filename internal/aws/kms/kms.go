@@ -44,6 +44,44 @@ func CreateKMSKey(clusterName cluster.ClusterName, resourceName string) (string,
 	}
 }
 
+func GetKmsKey(clusterName cluster.ClusterName) (*kms.KeyListEntry, error) {
+	svc := connectors.GetAWSSession().KMS
+	var keyListEntry *kms.KeyListEntry
+
+	kmsKeysOutput, err := svc.ListKeys(&kms.ListKeysInput{})
+	if err != nil {
+		return keyListEntry, err
+	}
+
+	for _, kmsKey := range kmsKeysOutput.Keys {
+		keyKeyInfo, err := svc.DescribeKey(&kms.DescribeKeyInput{KeyId: kmsKey.KeyId})
+		if err != nil {
+			return keyListEntry, err
+		}
+		if *keyKeyInfo.KeyMetadata.KeyState == kms.KeyStatePendingDeletion || *keyKeyInfo.KeyMetadata.KeyManager == kms.KeyManagerTypeAws {
+			continue
+		}
+
+		tags, err := svc.ListResourceTags(&kms.ListResourceTagsInput{KeyId: kmsKey.KeyId})
+		if err != nil {
+			return keyListEntry, err
+		}
+		isClusterKey := false
+		for _, tag := range tags.Tags {
+			if *tag.TagValue == string(clusterName) {
+				isClusterKey = true
+				break
+			}
+		}
+
+		if isClusterKey {
+			keyListEntry = kmsKey
+			break
+		}
+	}
+	return keyListEntry, nil
+}
+
 func DeleteKMSKey(aliasName string, clusterName cluster.ClusterName) error {
 	svc := connectors.GetAWSSession().KMS
 
@@ -58,45 +96,22 @@ func DeleteKMSKey(aliasName string, clusterName cluster.ClusterName) error {
 		log.Debug().Msgf("kms alias alias/%s was deleted successfully", aliasName)
 	}
 
-	kmsKeysOutput, err := svc.ListKeys(&kms.ListKeysInput{})
+	kmsKey, err := GetKmsKey(clusterName)
 	if err != nil {
 		return err
 	}
-
-	for _, kmsKey := range kmsKeysOutput.Keys {
-		keyKeyInfo, err := svc.DescribeKey(&kms.DescribeKeyInput{KeyId: kmsKey.KeyId})
-		if err != nil {
-			return err
-		}
-		if *keyKeyInfo.KeyMetadata.KeyState == kms.KeyStatePendingDeletion || *keyKeyInfo.KeyMetadata.KeyManager == kms.KeyManagerTypeAws {
-			continue
-		}
-
-		tags, err := svc.ListResourceTags(&kms.ListResourceTagsInput{KeyId: kmsKey.KeyId})
-		if err != nil {
-			return err
-		}
-		isClusterKey := false
-		for _, tag := range tags.Tags {
-			if *tag.TagValue == string(clusterName) {
-				isClusterKey = true
-				break
-			}
-		}
-
-		if !isClusterKey {
-			continue
-		}
-
-		_, err = svc.ScheduleKeyDeletion(&kms.ScheduleKeyDeletionInput{
-			KeyId:               kmsKey.KeyId,
-			PendingWindowInDays: aws.Int64(7),
-		})
-		if err != nil {
-			return err
-		}
-		log.Debug().Msgf("kms key %s was deleted successfully", *kmsKey.KeyArn)
+	if kmsKey == nil {
+		return nil
 	}
+
+	_, err = svc.ScheduleKeyDeletion(&kms.ScheduleKeyDeletionInput{
+		KeyId:               kmsKey.KeyId,
+		PendingWindowInDays: aws.Int64(7),
+	})
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("kms key %s was deleted successfully", *kmsKey.KeyArn)
 
 	return nil
 }

@@ -15,6 +15,7 @@ type LaunchTemplate struct {
 	HostGroupParams hostgroups.HostGroupParams
 	RestApiGateway  apigateway.RestApiGateway
 	TableName       string
+	Version         string
 }
 
 func (l *LaunchTemplate) ResourceName() string {
@@ -22,11 +23,16 @@ func (l *LaunchTemplate) ResourceName() string {
 }
 
 func (l *LaunchTemplate) Fetch() error {
+	version, err := db.GetResourceVersion(l.TableName, "launchtemplate", "", l.HostGroupInfo.Name)
+	if err != nil {
+		return err
+	}
+	l.Version = version
 	return nil
 }
 
 func (l *LaunchTemplate) DeployedVersion() string {
-	return ""
+	return l.Version
 }
 
 func (l *LaunchTemplate) TargetVersion() string {
