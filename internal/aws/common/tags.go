@@ -34,6 +34,10 @@ func (t Tags) Clone() Tags {
 	return newTags
 }
 
+func (t Tags) AsStringRefs() map[string]*string {
+
+}
+
 func GetCommonTags(clusterName cluster.ClusterName) Tags {
 	tags := Tags{
 		"wekactl.io/managed":      "true",

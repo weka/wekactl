@@ -24,6 +24,10 @@ type Lambda struct {
 	Permissions   iam.PolicyDocument
 }
 
+func (l *Lambda) SubResources() []cluster.Resource {
+	return nil
+}
+
 func (l *Lambda) ResourceName() string {
 	n := strings.Join([]string{"wekactl", string(l.HostGroupInfo.ClusterName), string(l.Type), string(l.HostGroupInfo.Name)}, "-")
 	return strings2.ElfHashSuffixed(n, 64)

@@ -10,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
-	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
 )
@@ -23,13 +22,14 @@ func getAccountId() (string, error) {
 	}
 	return *result.Account, nil
 }
-func createRestApiGateway(hostGroup hostgroups.HostGroupInfo, lambdaUri string, lambdaType lambdas.LambdaType, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
+
+func createRestApiGateway(hostGroup hostgroups.HostGroupInfo, lambdaUri string, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 
 	createApiOutput, err := svc.CreateRestApi(&apigateway.CreateRestApiInput{
 		Name:         aws.String(apiGatewayName),
-		Tags:         common.GetMapCommonTags(hostGroup),
-		Description:  aws.String("Wekactl " + string(lambdaType) + " lambda"),
+		Tags:         common.GetHostGroupTags(hostGroup).AsStringRefs(),
+		Description:  aws.String("Wekactl host join info API"),
 		ApiKeySource: aws.String("HEADER"),
 	})
 	if err != nil {
@@ -155,13 +155,13 @@ func addLambdaInvokePermissions(lambdaName, restApiId, apiGatewayName string) er
 	return nil
 }
 
-func CreateJoinApi(hostGroupInfo hostgroups.HostGroupInfo, lambdaType lambdas.LambdaType, lambdaArn, lambdaName, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
+func CreateJoinApi(hostGroupInfo hostgroups.HostGroupInfo, lambdaArn, lambdaName, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
 
 	lambdaUri := fmt.Sprintf(
 		"arn:aws:apigateway:%s:lambda:path/2015-03-31/functions/%s/invocations",
 		env.Config.Region, lambdaArn)
 
-	restApiGateway, err = createRestApiGateway(hostGroupInfo, lambdaUri, lambdaType, apiGatewayName)
+	restApiGateway, err = createRestApiGateway(hostGroupInfo, lambdaUri, apiGatewayName)
 
 	if err != nil {
 		return
