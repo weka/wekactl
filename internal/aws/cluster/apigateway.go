@@ -21,6 +21,10 @@ type ApiGateway struct {
 	Version        string
 }
 
+func (a *ApiGateway) SubResources() []cluster.Resource {
+	return []cluster.Resource{&a.Backend}
+}
+
 func (a *ApiGateway) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s api gateway ...", string(a.HostGroupInfo.Name))
 	a.Backend.TableName = a.TableName
@@ -60,11 +64,7 @@ func (a *ApiGateway) Delete() error {
 }
 
 func (a *ApiGateway) Create() error {
-	err := cluster.EnsureResource(&a.Backend)
-	if err != nil {
-		return err
-	}
-	restApiGateway, err := apigateway.CreateJoinApi(a.HostGroupInfo, a.Backend.Type, a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
+	restApiGateway, err := apigateway.CreateJoinApi(a.HostGroupInfo, a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -73,12 +73,6 @@ func (a *ApiGateway) Create() error {
 }
 
 func (a *ApiGateway) Update() error {
-	if a.DeployedVersion() == a.TargetVersion() {
-		return nil
-	}
-	err := a.Backend.Update()
-	if err != nil {
-		return err
-	}
+	// DO actual update of this resource
 	return nil
 }
