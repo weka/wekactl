@@ -7,13 +7,18 @@ import (
 	"wekactl/internal/cluster"
 )
 
+const hostGroupVersion = "v1"
+
 type HostGroup struct {
 	HostGroupInfo          hostgroups.HostGroupInfo
 	HostGroupParams        hostgroups.HostGroupParams
-	JoinApi                ApiGateway
 	AutoscalingGroup       AutoscalingGroup
 	ScaleMachineCloudWatch CloudWatch
 	TableName              string
+}
+
+func (h *HostGroup) SubResources() []cluster.Resource {
+	return []cluster.Resource{&h.AutoscalingGroup, &h.ScaleMachineCloudWatch}
 }
 
 func (h *HostGroup) ResourceName() string {
@@ -29,16 +34,11 @@ func (h *HostGroup) DeployedVersion() string {
 }
 
 func (h *HostGroup) TargetVersion() string {
-	return h.JoinApi.TargetVersion()
+	return hostGroupVersion
 }
 
 func (h *HostGroup) Delete() error {
-	err := h.JoinApi.Delete()
-	if err != nil {
-		return err
-	}
-
-	err = h.AutoscalingGroup.Delete()
+	err := h.AutoscalingGroup.Delete()
 	if err != nil {
 		return err
 	}
@@ -46,23 +46,8 @@ func (h *HostGroup) Delete() error {
 	return h.ScaleMachineCloudWatch.Delete()
 }
 
-func (h *HostGroup) Create() (err error) {
-	err = cluster.EnsureResource(&h.JoinApi)
-	if err != nil {
-		return
-	}
-
-	h.AutoscalingGroup.RestApiGateway = h.JoinApi.RestApiGateway
-	err = cluster.EnsureResource(&h.AutoscalingGroup)
-	if err != nil {
-		return
-	}
-
-	err = cluster.EnsureResource(&h.ScaleMachineCloudWatch)
-	if err != nil {
-		return
-	}
-	return
+func (h *HostGroup) Create() error {
+	return nil
 }
 
 func (h *HostGroup) Update() error {
@@ -71,9 +56,6 @@ func (h *HostGroup) Update() error {
 
 func (h *HostGroup) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s ...", string(h.HostGroupInfo.Name))
-	h.JoinApi.HostGroupInfo = h.HostGroupInfo
-	h.JoinApi.TableName = h.TableName
-	h.JoinApi.Init()
 	h.AutoscalingGroup.HostGroupInfo = h.HostGroupInfo
 	h.AutoscalingGroup.HostGroupParams = h.HostGroupParams
 	h.AutoscalingGroup.TableName = h.TableName

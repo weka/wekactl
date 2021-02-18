@@ -1,11 +1,12 @@
 package cluster
 
 import (
-	"wekactl/internal/aws/apigateway"
+	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/launchtemplate"
+	"wekactl/internal/cluster"
 )
 
 const launchtemplateVersion = "v1"
@@ -13,9 +14,13 @@ const launchtemplateVersion = "v1"
 type LaunchTemplate struct {
 	HostGroupInfo   hostgroups.HostGroupInfo
 	HostGroupParams hostgroups.HostGroupParams
-	RestApiGateway  apigateway.RestApiGateway
+	JoinApi         ApiGateway
 	TableName       string
 	Version         string
+}
+
+func (l *LaunchTemplate) SubResources() []cluster.Resource {
+	return []cluster.Resource{&l.JoinApi}
 }
 
 func (l *LaunchTemplate) ResourceName() string {
@@ -40,11 +45,15 @@ func (l *LaunchTemplate) TargetVersion() string {
 }
 
 func (l *LaunchTemplate) Delete() error {
+	err := l.JoinApi.Delete()
+	if err != nil {
+		return err
+	}
 	return launchtemplate.DeleteLaunchTemplate(l.ResourceName())
 }
 
 func (l *LaunchTemplate) Create() error {
-	err := launchtemplate.CreateLaunchTemplate(l.HostGroupInfo, l.HostGroupParams, l.RestApiGateway, l.ResourceName())
+	err := launchtemplate.CreateLaunchTemplate(l.HostGroupInfo, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -56,4 +65,8 @@ func (l *LaunchTemplate) Update() error {
 }
 
 func (l *LaunchTemplate) Init() {
+	log.Debug().Msgf("Initializing hostgroup %s autoscaling group ...", string(l.HostGroupInfo.Name))
+	l.JoinApi.HostGroupInfo = l.HostGroupInfo
+	l.JoinApi.TableName = l.TableName
+	l.JoinApi.Init()
 }

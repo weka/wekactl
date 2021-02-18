@@ -18,6 +18,14 @@ type AWSCluster struct {
 	HostGroups    []HostGroup
 }
 
+func (c *AWSCluster) SubResources() []cluster.Resource {
+	resources := []cluster.Resource{&c.DynamoDb}
+	for i := range c.HostGroups {
+		resources = append(resources, &c.HostGroups[i])
+	}
+	return resources
+}
+
 func (c *AWSCluster) ResourceName() string {
 	return common.GenerateResourceName(c.Name, "")
 }
@@ -70,18 +78,6 @@ func (c *AWSCluster) Delete() error {
 }
 
 func (c *AWSCluster) Create() (err error) {
-	err = cluster.EnsureResource(&c.DynamoDb)
-	if err != nil {
-		return
-	}
-
-	for _, hostGroup := range c.HostGroups {
-		err = cluster.EnsureResource(&hostGroup)
-		if err != nil {
-			return
-		}
-	}
-
 	return nil
 }
 
