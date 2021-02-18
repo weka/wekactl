@@ -35,7 +35,12 @@ func (t Tags) Clone() Tags {
 }
 
 func (t Tags) AsStringRefs() map[string]*string {
-
+	tagsRefs := make(map[string]*string)
+	for key, value := range t {
+		v := value
+		tagsRefs[key] = &v
+	}
+	return tagsRefs
 }
 
 func GetCommonTags(clusterName cluster.ClusterName) Tags {
@@ -45,16 +50,6 @@ func GetCommonTags(clusterName cluster.ClusterName) Tags {
 		"wekactl.io/cluster_name": string(clusterName),
 	}
 	return tags
-}
-
-func GetMapCommonTags(hostGroup hostgroups.HostGroupInfo) map[string]*string {
-	return map[string]*string{
-		"wekactl.io/managed":        aws.String("true"),
-		"wekactl.io/api_version":    aws.String("v1"),
-		"wekactl.io/cluster_name":   aws.String(string(hostGroup.ClusterName)),
-		"wekactl.io/hostgroup_name": aws.String(string(hostGroup.Name)),
-		"wekactl.io/hostgroup_type": aws.String(string(hostGroup.Role)),
-	}
 }
 
 func GetHostGroupTags(hostGroup hostgroups.HostGroupInfo) Tags {

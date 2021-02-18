@@ -109,7 +109,7 @@ func createRestApiGateway(hostGroup hostgroups.HostGroupInfo, lambdaUri string, 
 	apiKeyOutput, err := svc.CreateApiKey(&apigateway.CreateApiKeyInput{
 		Enabled: aws.Bool(true),
 		Name:    aws.String(resourceName),
-		Tags:    common.GetMapCommonTags(hostGroup),
+		Tags:    common.GetHostGroupTags(hostGroup).AsStringRefs(),
 	})
 	if err != nil {
 		return

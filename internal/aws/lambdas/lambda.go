@@ -61,7 +61,7 @@ func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType,
 		Publish:      aws.Bool(true),
 		Role:         &roleArn,
 		Runtime:      aws.String(runtime),
-		Tags:         common.GetMapCommonTags(hostGroupInfo),
+		Tags:         common.GetHostGroupTags(hostGroupInfo).AsStringRefs(),
 		Timeout:      aws.Int64(15),
 		TracingConfig: &lambda.TracingConfig{
 			Mode: aws.String("Active"),
