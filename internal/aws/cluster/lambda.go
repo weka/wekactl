@@ -25,7 +25,7 @@ type Lambda struct {
 }
 
 func (l *Lambda) SubResources() []cluster.Resource {
-	return nil
+	return []cluster.Resource{&l.Profile}
 }
 
 func (l *Lambda) ResourceName() string {
@@ -70,11 +70,6 @@ func (l *Lambda) Delete() error {
 }
 
 func (l *Lambda) Create() (err error) {
-	err = cluster.EnsureResource(&l.Profile)
-	if err != nil {
-		return
-	}
-
 	functionConfiguration, err := lambdas.CreateLambda(l.HostGroupInfo, l.Type, l.ResourceName(), l.Profile.Arn, l.VPCConfig)
 	if err != nil {
 		return

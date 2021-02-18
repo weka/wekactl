@@ -14,6 +14,10 @@ type KmsKey struct {
 	ClusterName cluster.ClusterName
 }
 
+func (k *KmsKey) SubResources() []cluster.Resource {
+	return []cluster.Resource{}
+}
+
 func (k *KmsKey) ResourceName() string {
 	return common.GenerateResourceName(k.ClusterName, "")
 }

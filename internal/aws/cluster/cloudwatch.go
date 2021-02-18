@@ -22,6 +22,10 @@ type CloudWatch struct {
 	Version         string
 }
 
+func (c *CloudWatch) SubResources() []cluster.Resource {
+	return []cluster.Resource{&c.ScaleMachine, &c.Profile}
+}
+
 func (c *CloudWatch) ResourceName() string {
 	return common.GenerateResourceName(c.HostGroupInfo.ClusterName, c.HostGroupInfo.Name)
 }
@@ -58,16 +62,6 @@ func (c *CloudWatch) Delete() error {
 }
 
 func (c *CloudWatch) Create() (err error) {
-	err = cluster.EnsureResource(&c.Profile)
-	if err != nil {
-		return
-	}
-
-	err = cluster.EnsureResource(&c.ScaleMachine)
-	if err != nil {
-		return
-	}
-
 	err = cloudwatch.CreateCloudWatchEventRule(c.HostGroupInfo, &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 	if err != nil {
 		return err

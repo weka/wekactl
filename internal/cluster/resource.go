@@ -27,25 +27,6 @@ type Resource interface {
 	//TODO: Probably Add Tags, finish with APIGateway to pass HostGroup -> Tags
 }
 
-//func EnsureResource(r Resource) error {
-//	err := r.Fetch()
-//	if err != nil {
-//		return err
-//	}
-//	if r.DeployedVersion() == "" {
-//		return r.Create()
-//	}
-//
-//	return r.Update()
-//	//if r.DeployedVersion() != r.TargetVersion() {
-//	//}
-//	//
-//	//log.Debug().Msgf("%s resource exists and updated", strings.Trim(reflect.TypeOf(r).String(), "*cluster."))
-//
-//	//return nil
-//}
-//
-
 func EnsureResource(r Resource) error {
 	for _, subresource := range r.SubResources() {
 		if err := EnsureResource(subresource); err != nil {

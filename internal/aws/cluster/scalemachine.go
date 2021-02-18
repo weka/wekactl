@@ -28,6 +28,10 @@ type ScaleMachine struct {
 	Profile         IamProfile
 }
 
+func (s *ScaleMachine) SubResources() []cluster.Resource {
+	return []cluster.Resource{&s.fetch, &s.scale, &s.terminate, &s.transient, &s.Profile}
+}
+
 func (s *ScaleMachine) ResourceName() string {
 	return common.GenerateResourceName(s.HostGroupInfo.ClusterName, s.HostGroupInfo.Name)
 }
@@ -79,31 +83,6 @@ func (s *ScaleMachine) Delete() error {
 }
 
 func (s *ScaleMachine) Create() (err error) {
-	err = cluster.EnsureResource(&s.Profile)
-	if err != nil {
-		return
-	}
-
-	err = cluster.EnsureResource(&s.fetch)
-	if err != nil {
-		return
-	}
-
-	err = cluster.EnsureResource(&s.scale)
-	if err != nil {
-		return
-	}
-
-	err = cluster.EnsureResource(&s.terminate)
-	if err != nil {
-		return
-	}
-
-	err = cluster.EnsureResource(&s.transient)
-	if err != nil {
-		return
-	}
-
 	stateMachineLambdasArn := scalemachine.StateMachineLambdasArn{
 		Fetch:     s.fetch.Arn,
 		Scale:     s.scale.Arn,

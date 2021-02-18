@@ -21,6 +21,10 @@ type AutoscalingGroup struct {
 	Version         string
 }
 
+func (a *AutoscalingGroup) SubResources() []cluster.Resource {
+	return []cluster.Resource{&a.LaunchTemplate}
+}
+
 func (a *AutoscalingGroup) ResourceName() string {
 	return common.GenerateResourceName(a.HostGroupInfo.ClusterName, a.HostGroupInfo.Name)
 }
@@ -51,12 +55,7 @@ func (a *AutoscalingGroup) Delete() error {
 }
 
 func (a *AutoscalingGroup) Create() error {
-	a.LaunchTemplate.RestApiGateway = a.RestApiGateway
-	err := cluster.EnsureResource(&a.LaunchTemplate)
-	if err != nil {
-		return err
-	}
-	err = autoscaling.CreateAutoScalingGroup(a.HostGroupInfo, a.LaunchTemplate.ResourceName(), a.HostGroupParams, a.ResourceName())
+	err := autoscaling.CreateAutoScalingGroup(a.HostGroupInfo, a.LaunchTemplate.ResourceName(), a.HostGroupParams, a.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -72,4 +71,5 @@ func (a *AutoscalingGroup) Init() {
 	a.LaunchTemplate.HostGroupInfo = a.HostGroupInfo
 	a.LaunchTemplate.HostGroupParams = a.HostGroupParams
 	a.LaunchTemplate.TableName = a.TableName
+	a.LaunchTemplate.Init()
 }
