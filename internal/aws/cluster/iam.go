@@ -7,6 +7,7 @@ import (
 	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
+	"wekactl/internal/cluster"
 	strings2 "wekactl/internal/lib/strings"
 )
 
@@ -19,6 +20,10 @@ type IamProfile struct {
 	AssumeRolePolicy iam.AssumeRolePolicyDocument
 	HostGroupInfo    hostgroups.HostGroupInfo
 	Policy           iam.PolicyDocument
+}
+
+func (i *IamProfile) SubResources() []cluster.Resource {
+	return []cluster.Resource{}
 }
 
 func (i *IamProfile) resourceNameBase() string {
