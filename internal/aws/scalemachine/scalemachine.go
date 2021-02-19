@@ -10,9 +10,9 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func getStateMachineTags(hostGroupInfo hostgroups.HostGroupInfo) []*sfn.Tag {
+func GetStateMachineTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*sfn.Tag {
 	var sfnTags []*sfn.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo) {
+	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
 		sfnTags = append(sfnTags, &sfn.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),
@@ -21,7 +21,7 @@ func getStateMachineTags(hostGroupInfo hostgroups.HostGroupInfo) []*sfn.Tag {
 	return sfnTags
 }
 
-func CreateStateMachine(hostGroupInfo hostgroups.HostGroupInfo, lambda StateMachineLambdasArn, roleArn, stateMachineName string) (*string, error) {
+func CreateStateMachine(tags []*sfn.Tag, lambda StateMachineLambdasArn, roleArn, stateMachineName string) (*string, error) {
 	svc := connectors.GetAWSSession().SFN
 
 	states := make(map[string]interface{})
@@ -79,7 +79,7 @@ func CreateStateMachine(hostGroupInfo hostgroups.HostGroupInfo, lambda StateMach
 	result, err := svc.CreateStateMachine(&sfn.CreateStateMachineInput{
 		Name:       aws.String(stateMachineName),
 		RoleArn:    &roleArn,
-		Tags:       getStateMachineTags(hostGroupInfo),
+		Tags:       tags,
 		Definition: aws.String(definition),
 	})
 	if err != nil {

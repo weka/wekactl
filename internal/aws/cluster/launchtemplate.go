@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
@@ -17,6 +18,11 @@ type LaunchTemplate struct {
 	JoinApi         ApiGateway
 	TableName       string
 	Version         string
+	ASGName         string
+}
+
+func (l *LaunchTemplate) Tags() interface{} {
+	return launchtemplate.GetEc2Tags(l.HostGroupInfo, l.TargetVersion())
 }
 
 func (l *LaunchTemplate) SubResources() []cluster.Resource {
@@ -53,7 +59,7 @@ func (l *LaunchTemplate) Delete() error {
 }
 
 func (l *LaunchTemplate) Create() error {
-	err := launchtemplate.CreateLaunchTemplate(l.HostGroupInfo, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
+	err := launchtemplate.CreateLaunchTemplate(l.Tags().([]*ec2.Tag), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -68,5 +74,6 @@ func (l *LaunchTemplate) Init() {
 	log.Debug().Msgf("Initializing hostgroup %s autoscaling group ...", string(l.HostGroupInfo.Name))
 	l.JoinApi.HostGroupInfo = l.HostGroupInfo
 	l.JoinApi.TableName = l.TableName
+	l.JoinApi.ASGName = l.ASGName
 	l.JoinApi.Init()
 }

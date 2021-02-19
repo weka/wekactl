@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"strings"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
@@ -17,11 +18,16 @@ type Lambda struct {
 	Arn           string
 	TableName     string
 	Version       string
+	ASGName       string
 	Type          lambdas.LambdaType
 	Profile       IamProfile
 	VPCConfig     lambda.VpcConfig
 	HostGroupInfo hostgroups.HostGroupInfo
 	Permissions   iam.PolicyDocument
+}
+
+func (l *Lambda) Tags() interface{} {
+	return common.GetHostGroupTags(l.HostGroupInfo, l.TargetVersion()).AsStringRefs()
 }
 
 func (l *Lambda) SubResources() []cluster.Resource {
@@ -58,7 +64,7 @@ func (l *Lambda) DeployedVersion() string {
 }
 
 func (l *Lambda) TargetVersion() string {
-	return dist.LambdasID + l.Profile.TargetVersion()
+	return dist.LambdasID
 }
 
 func (l *Lambda) Delete() error {
@@ -70,7 +76,8 @@ func (l *Lambda) Delete() error {
 }
 
 func (l *Lambda) Create() (err error) {
-	functionConfiguration, err := lambdas.CreateLambda(l.HostGroupInfo, l.Type, l.ResourceName(), l.Profile.Arn, l.VPCConfig)
+	functionConfiguration, err := lambdas.CreateLambda(
+		l.Tags().(common.TagsRefsValues), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo.Role, l.VPCConfig)
 	if err != nil {
 		return
 	}

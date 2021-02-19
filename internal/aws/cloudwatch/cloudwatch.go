@@ -10,9 +10,9 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func getCloudWatchEventTags(hostGroupInfo hostgroups.HostGroupInfo) []*cloudwatchevents.Tag {
+func GetCloudWatchEventTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*cloudwatchevents.Tag {
 	var cloudWatchEventTags []*cloudwatchevents.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo) {
+	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
 		cloudWatchEventTags = append(cloudWatchEventTags, &cloudwatchevents.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),
@@ -20,13 +20,13 @@ func getCloudWatchEventTags(hostGroupInfo hostgroups.HostGroupInfo) []*cloudwatc
 	}
 	return cloudWatchEventTags
 }
-func CreateCloudWatchEventRule(hostGroupInfo hostgroups.HostGroupInfo, arn *string, roleArn, ruleName string) error {
+func CreateCloudWatchEventRule(tags []*cloudwatchevents.Tag, arn *string, roleArn, ruleName string) error {
 	svc := connectors.GetAWSSession().CloudWatchEvents
 	_, err := svc.PutRule(&cloudwatchevents.PutRuleInput{
 		Name:               &ruleName,
 		ScheduleExpression: aws.String("rate(1 minute)"),
 		State:              aws.String("ENABLED"),
-		Tags:               getCloudWatchEventTags(hostGroupInfo),
+		Tags:               tags,
 	})
 	if err != nil {
 		return err

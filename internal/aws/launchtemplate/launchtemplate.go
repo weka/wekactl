@@ -14,9 +14,9 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func getEc2Tags(hostGroupInfo hostgroups.HostGroupInfo) []*ec2.Tag {
+func GetEc2Tags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*ec2.Tag {
 	var ec2Tags []*ec2.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo) {
+	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),
@@ -41,7 +41,7 @@ func generateBlockDeviceMappingRequest(name hostgroups.HostGroupName, volumeInfo
 	}
 }
 
-func CreateLaunchTemplate(hostGroupInfo hostgroups.HostGroupInfo, hostGroupParams hostgroups.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string) (err error) {
+func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName hostgroups.HostGroupName, hostGroupParams hostgroups.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string) (err error) {
 	svc := connectors.GetAWSSession().EC2
 	userDataTemplate := `
 	#!/usr/bin/env bash
@@ -62,7 +62,7 @@ func CreateLaunchTemplate(hostGroupInfo hostgroups.HostGroupInfo, hostGroupParam
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Arn: &hostGroupParams.IamArn,
 			},
-			BlockDeviceMappings: generateBlockDeviceMappingRequest(hostGroupInfo.Name, VolumeInfo{
+			BlockDeviceMappings: generateBlockDeviceMappingRequest(hostGroupName, VolumeInfo{
 				Name: hostGroupParams.VolumeName,
 				Type: hostGroupParams.VolumeType,
 				Size: hostGroupParams.VolumeSize,
@@ -70,7 +70,7 @@ func CreateLaunchTemplate(hostGroupInfo hostgroups.HostGroupInfo, hostGroupParam
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
-					Tags:         getEc2Tags(hostGroupInfo),
+					Tags:         tags,
 				},
 			},
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{

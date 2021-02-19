@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"strings"
 	cluster2 "wekactl/internal/aws/cluster"
+	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
@@ -27,11 +29,17 @@ func createLambda(hostGroup hostgroups.HostGroupInfo, lambdaType lambdas.LambdaT
 	roleName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, string(lambdaType), uuid.New().String())
 	lambdaName := generateLambdaName(lambdaType)
 	policyName := lambdaName
-	roleArn, err := iam.CreateIamRole(hostGroup, roleName, policyName, assumeRolePolicy, policy)
+	iamTargetVersion := policy.VersionHash()
+	iamTags := iam.GetIAMTags(hostGroup, iamTargetVersion)
+	roleArn, err := iam.CreateIamRole(iamTags, roleName, policyName, assumeRolePolicy, policy)
 	if err != nil {
 		return
 	}
-	functionConfiguration, err = lambdas.CreateLambda(hostGroup, lambdaType, lambdaName, *roleArn, vpcConfig)
+	asgName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
+	tableName := common.GenerateResourceName(hostGroup.ClusterName, "")
+	lambdaTargetVersion := dist.LambdasID + iamTargetVersion
+	lambdaTags := common.GetHostGroupTags(hostGroup, lambdaTargetVersion).AsStringRefs()
+	functionConfiguration, err = lambdas.CreateLambda(lambdaTags, lambdaType, lambdaName, *roleArn, asgName, tableName, hostGroup.Role, vpcConfig)
 	if err != nil {
 		return
 	}

@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	asg "github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/autoscaling"
@@ -13,16 +14,21 @@ import (
 const autoscalingVersion = "v1"
 
 type AutoscalingGroup struct {
-	HostGroupInfo   hostgroups.HostGroupInfo
-	HostGroupParams hostgroups.HostGroupParams
-	RestApiGateway  apigateway.RestApiGateway
-	LaunchTemplate  LaunchTemplate
-	TableName       string
-	Version         string
+	HostGroupInfo          hostgroups.HostGroupInfo
+	HostGroupParams        hostgroups.HostGroupParams
+	RestApiGateway         apigateway.RestApiGateway
+	LaunchTemplate         LaunchTemplate
+	ScaleMachineCloudWatch CloudWatch
+	TableName              string
+	Version                string
+}
+
+func (a *AutoscalingGroup) Tags() interface{} {
+	return autoscaling.GetAutoScalingTags(a.HostGroupInfo, a.TargetVersion())
 }
 
 func (a *AutoscalingGroup) SubResources() []cluster.Resource {
-	return []cluster.Resource{&a.LaunchTemplate}
+	return []cluster.Resource{&a.LaunchTemplate, &a.ScaleMachineCloudWatch}
 }
 
 func (a *AutoscalingGroup) ResourceName() string {
@@ -51,11 +57,18 @@ func (a *AutoscalingGroup) Delete() error {
 	if err != nil {
 		return err
 	}
+
+	err = a.ScaleMachineCloudWatch.Delete()
+	if err != nil {
+		return err
+	}
+
 	return autoscaling.DeleteAutoScalingGroup(a.ResourceName())
 }
 
 func (a *AutoscalingGroup) Create() error {
-	err := autoscaling.CreateAutoScalingGroup(a.HostGroupInfo, a.LaunchTemplate.ResourceName(), a.HostGroupParams, a.ResourceName())
+	maxSize := int64(autoscaling.GetMaxSize(a.HostGroupInfo.Role, len(a.HostGroupParams.InstanceIds)))
+	err := autoscaling.CreateAutoScalingGroup(a.Tags().([]*asg.Tag), a.LaunchTemplate.ResourceName(), maxSize, a.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -71,5 +84,11 @@ func (a *AutoscalingGroup) Init() {
 	a.LaunchTemplate.HostGroupInfo = a.HostGroupInfo
 	a.LaunchTemplate.HostGroupParams = a.HostGroupParams
 	a.LaunchTemplate.TableName = a.TableName
+	a.LaunchTemplate.ASGName = a.ResourceName()
 	a.LaunchTemplate.Init()
+	a.ScaleMachineCloudWatch.HostGroupInfo = a.HostGroupInfo
+	a.ScaleMachineCloudWatch.HostGroupParams = a.HostGroupParams
+	a.ScaleMachineCloudWatch.TableName = a.TableName
+	a.ScaleMachineCloudWatch.ASGName = a.ResourceName()
+	a.ScaleMachineCloudWatch.Init()
 }

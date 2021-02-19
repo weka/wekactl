@@ -10,9 +10,9 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func getIAMTags(hostGroupInfo hostgroups.HostGroupInfo) []*iam.Tag {
+func GetIAMTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*iam.Tag {
 	var iamTags []*iam.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo) {
+	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
 		iamTags = append(iamTags, &iam.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),
@@ -20,7 +20,7 @@ func getIAMTags(hostGroupInfo hostgroups.HostGroupInfo) []*iam.Tag {
 	}
 	return iamTags
 }
-func CreateIamRole(hostGroupInfo hostgroups.HostGroupInfo, roleName, policyName string, assumeRolePolicy AssumeRolePolicyDocument, policy PolicyDocument) (*string, error) {
+func CreateIamRole(tags []*iam.Tag, roleName, policyName string, assumeRolePolicy AssumeRolePolicyDocument, policy PolicyDocument) (*string, error) {
 	log.Debug().Msgf("creating role %s", roleName)
 	svc := connectors.GetAWSSession().IAM
 	input := &iam.CreateRoleInput{
@@ -28,7 +28,7 @@ func CreateIamRole(hostGroupInfo hostgroups.HostGroupInfo, roleName, policyName 
 		Path:                     aws.String("/"),
 		//max roleName length must be 64 characters
 		RoleName: aws.String(roleName),
-		Tags:     getIAMTags(hostGroupInfo),
+		Tags:     tags,
 	}
 
 	result, err := svc.CreateRole(input)

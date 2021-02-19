@@ -18,6 +18,10 @@ type AWSCluster struct {
 	HostGroups    []HostGroup
 }
 
+func (c *AWSCluster) Tags() interface{} {
+	return nil
+}
+
 func (c *AWSCluster) SubResources() []cluster.Resource {
 	resources := []cluster.Resource{&c.DynamoDb}
 	for i := range c.HostGroups {

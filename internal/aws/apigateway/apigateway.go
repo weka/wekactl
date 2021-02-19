@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
 )
@@ -23,12 +22,12 @@ func getAccountId() (string, error) {
 	return *result.Account, nil
 }
 
-func createRestApiGateway(hostGroup hostgroups.HostGroupInfo, lambdaUri string, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
+func createRestApiGateway(tags common.TagsRefsValues, lambdaUri string, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 
 	createApiOutput, err := svc.CreateRestApi(&apigateway.CreateRestApiInput{
 		Name:         aws.String(apiGatewayName),
-		Tags:         common.GetHostGroupTags(hostGroup).AsStringRefs(),
+		Tags:         tags,
 		Description:  aws.String("Wekactl host join info API"),
 		ApiKeySource: aws.String("HEADER"),
 	})
@@ -109,7 +108,7 @@ func createRestApiGateway(hostGroup hostgroups.HostGroupInfo, lambdaUri string, 
 	apiKeyOutput, err := svc.CreateApiKey(&apigateway.CreateApiKeyInput{
 		Enabled: aws.Bool(true),
 		Name:    aws.String(resourceName),
-		Tags:    common.GetHostGroupTags(hostGroup).AsStringRefs(),
+		Tags:    tags,
 	})
 	if err != nil {
 		return
@@ -155,13 +154,13 @@ func addLambdaInvokePermissions(lambdaName, restApiId, apiGatewayName string) er
 	return nil
 }
 
-func CreateJoinApi(hostGroupInfo hostgroups.HostGroupInfo, lambdaArn, lambdaName, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
+func CreateJoinApi(tags common.TagsRefsValues, lambdaArn, lambdaName, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
 
 	lambdaUri := fmt.Sprintf(
 		"arn:aws:apigateway:%s:lambda:path/2015-03-31/functions/%s/invocations",
 		env.Config.Region, lambdaArn)
 
-	restApiGateway, err = createRestApiGateway(hostGroupInfo, lambdaUri, apiGatewayName)
+	restApiGateway, err = createRestApiGateway(tags, lambdaUri, apiGatewayName)
 
 	if err != nil {
 		return
