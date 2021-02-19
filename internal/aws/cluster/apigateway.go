@@ -19,6 +19,11 @@ type ApiGateway struct {
 	Backend        Lambda
 	TableName      string
 	Version        string
+	ASGName        string
+}
+
+func (a *ApiGateway) Tags() interface{} {
+	return common.GetHostGroupTags(a.HostGroupInfo, a.TargetVersion()).AsStringRefs()
 }
 
 func (a *ApiGateway) SubResources() []cluster.Resource {
@@ -52,7 +57,7 @@ func (a *ApiGateway) DeployedVersion() string {
 }
 
 func (a *ApiGateway) TargetVersion() string {
-	return joinApiVersion + a.Backend.TargetVersion()
+	return joinApiVersion
 }
 
 func (a *ApiGateway) Delete() error {
@@ -64,7 +69,7 @@ func (a *ApiGateway) Delete() error {
 }
 
 func (a *ApiGateway) Create() error {
-	restApiGateway, err := apigateway.CreateJoinApi(a.HostGroupInfo, a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
+	restApiGateway, err := apigateway.CreateJoinApi(a.Tags().(common.TagsRefsValues), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
 	if err != nil {
 		return err
 	}

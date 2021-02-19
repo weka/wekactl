@@ -24,6 +24,11 @@ type DynamoDb struct {
 	KmsKey      KmsKey
 }
 
+func (d *DynamoDb) Tags() interface{} {
+	return common.GetCommonTags(d.ClusterName, d.TargetVersion()).Update(
+		common.Tags{"wekactl.io/stack_id": d.StackId})
+}
+
 func (d *DynamoDb) SubResources() []cluster.Resource {
 	return []cluster.Resource{&d.KmsKey}
 }
@@ -65,8 +70,7 @@ func (d *DynamoDb) Delete() error {
 }
 
 func (d *DynamoDb) Create() error {
-	err := db.CreateDb(d.ResourceName(), d.KmsKey.Key, common.GetCommonTags(d.ClusterName).Update(common.Tags{
-		"wekactl.io/stack_id": d.StackId}))
+	err := db.CreateDb(d.ResourceName(), d.KmsKey.Key, d.Tags().(common.Tags))
 	if err != nil {
 		return err
 	}

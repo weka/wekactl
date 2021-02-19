@@ -31,13 +31,16 @@ var createCloudWatchEventCmd = &cobra.Command{
 			assumeRolePolicy := iam.GetCloudWatchEventAssumeRolePolicy()
 			policy := iam.GetCloudWatchEventRolePolicy()
 
-			roleArn, err := iam.CreateIamRole(hostGroup, roleName, policyName, assumeRolePolicy, policy)
+			iamTargetVersion := policy.VersionHash()
+			iamTags := iam.GetIAMTags(hostGroup, iamTargetVersion)
+			roleArn, err := iam.CreateIamRole(iamTags, roleName, policyName, assumeRolePolicy, policy)
 			if err != nil {
 				return err
 			}
 
 			ruleName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
-			err = cloudwatch.CreateCloudWatchEventRule(hostGroup, &StateMachineArn, *roleArn, ruleName)
+			cloudwatchTags := cloudwatch.GetCloudWatchEventTags(hostGroup, "v1")
+			err = cloudwatch.CreateCloudWatchEventRule(cloudwatchTags, &StateMachineArn, *roleArn, ruleName)
 			if err != nil {
 				return err
 			}

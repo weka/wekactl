@@ -33,7 +33,8 @@ var createLambdaEndPointCmd = &cobra.Command{
 			}
 
 			apiGatewayName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
-			_, err = apigateway.CreateJoinApi(hostGroup, *functionConfiguration.FunctionArn, *functionConfiguration.FunctionName, apiGatewayName)
+			tags := common.GetHostGroupTags(hostGroup, "v1").AsStringRefs()
+			_, err = apigateway.CreateJoinApi(tags, *functionConfiguration.FunctionArn, *functionConfiguration.FunctionName, apiGatewayName)
 			if err != nil {
 				return err
 			}

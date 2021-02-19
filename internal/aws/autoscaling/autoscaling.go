@@ -16,9 +16,9 @@ import (
 	"wekactl/internal/logging"
 )
 
-func getAutoScalingTags(hostGroupInfo hostgroups.HostGroupInfo) []*autoscaling.Tag {
+func GetAutoScalingTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*autoscaling.Tag {
 	var autoscalingTags []*autoscaling.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo) {
+	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
 		autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),
@@ -31,7 +31,7 @@ func getAutoScalingTags(hostGroupInfo hostgroups.HostGroupInfo) []*autoscaling.T
 	return autoscalingTags
 }
 
-func getMaxSize(role hostgroups.InstanceRole, initialSize int) int {
+func GetMaxSize(role hostgroups.InstanceRole, initialSize int) int {
 	var maxSize int
 	switch role {
 	case "backend":
@@ -44,7 +44,7 @@ func getMaxSize(role hostgroups.InstanceRole, initialSize int) int {
 	return maxSize
 }
 
-func CreateAutoScalingGroup(hostGroupInfo hostgroups.HostGroupInfo, launchTemplateName string, hostGroupParams hostgroups.HostGroupParams, autoScalingGroupName string) (err error) {
+func CreateAutoScalingGroup(tags []*autoscaling.Tag, launchTemplateName string, maxSize int64, autoScalingGroupName string) (err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.CreateAutoScalingGroupInput{
 		AutoScalingGroupName:             &autoScalingGroupName,
@@ -54,8 +54,8 @@ func CreateAutoScalingGroup(hostGroupInfo hostgroups.HostGroupInfo, launchTempla
 			Version:            aws.String("1"),
 		},
 		MinSize: aws.Int64(0),
-		MaxSize: aws.Int64(int64(getMaxSize(hostGroupInfo.Role, len(hostGroupParams.InstanceIds)))),
-		Tags:    getAutoScalingTags(hostGroupInfo),
+		MaxSize: aws.Int64(maxSize),
+		Tags:    tags,
 	}
 	_, err = svc.CreateAutoScalingGroup(input)
 	if err != nil {

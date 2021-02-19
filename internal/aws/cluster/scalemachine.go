@@ -3,10 +3,10 @@ package cluster
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
-	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
@@ -14,10 +14,13 @@ import (
 	"wekactl/internal/cluster"
 )
 
+const scaleMachineVersion = "v1"
+
 type ScaleMachine struct {
 	Arn             string
 	TableName       string
 	Version         string
+	ASGName         string
 	HostGroupInfo   hostgroups.HostGroupInfo
 	HostGroupParams hostgroups.HostGroupParams
 	fetch           Lambda
@@ -26,6 +29,10 @@ type ScaleMachine struct {
 	transient       Lambda
 	StateMachine    scalemachine.StateMachine
 	Profile         IamProfile
+}
+
+func (s *ScaleMachine) Tags() interface{} {
+	return scalemachine.GetStateMachineTags(s.HostGroupInfo, s.TargetVersion())
 }
 
 func (s *ScaleMachine) SubResources() []cluster.Resource {
@@ -50,7 +57,7 @@ func (s *ScaleMachine) DeployedVersion() string {
 }
 
 func (s *ScaleMachine) TargetVersion() string {
-	return dist.LambdasID + s.Profile.TargetVersion()
+	return scaleMachineVersion
 }
 
 func (s *ScaleMachine) Delete() error {
@@ -90,7 +97,7 @@ func (s *ScaleMachine) Create() (err error) {
 		Transient: s.transient.Arn,
 	}
 
-	arn, err := scalemachine.CreateStateMachine(s.HostGroupInfo, stateMachineLambdasArn, s.Profile.Arn, s.ResourceName())
+	arn, err := scalemachine.CreateStateMachine(s.Tags().([]*sfn.Tag), stateMachineLambdasArn, s.Profile.Arn, s.ResourceName())
 	if err != nil {
 		return
 	}
@@ -115,6 +122,7 @@ func (s *ScaleMachine) Init() {
 	vpcConfig := lambdas.GetLambdaVpcConfig(s.HostGroupParams.Subnet, s.HostGroupParams.SecurityGroupsIds)
 
 	s.fetch.TableName = s.TableName
+	s.fetch.ASGName = s.ASGName
 	s.fetch.HostGroupInfo = s.HostGroupInfo
 	s.fetch.Type = lambdas.LambdaFetchInfo
 	s.fetch.VPCConfig = lambda.VpcConfig{}
@@ -122,6 +130,7 @@ func (s *ScaleMachine) Init() {
 	s.fetch.Init()
 
 	s.scale.TableName = s.TableName
+	s.scale.ASGName = s.ASGName
 	s.scale.HostGroupInfo = s.HostGroupInfo
 	s.scale.Type = lambdas.LambdaScale
 	s.scale.VPCConfig = vpcConfig
@@ -129,6 +138,7 @@ func (s *ScaleMachine) Init() {
 	s.scale.Init()
 
 	s.terminate.TableName = s.TableName
+	s.terminate.ASGName = s.ASGName
 	s.terminate.HostGroupInfo = s.HostGroupInfo
 	s.terminate.Type = lambdas.LambdaTerminate
 	s.terminate.VPCConfig = lambda.VpcConfig{}
@@ -136,6 +146,7 @@ func (s *ScaleMachine) Init() {
 	s.terminate.Init()
 
 	s.transient.TableName = s.TableName
+	s.transient.ASGName = s.ASGName
 	s.transient.HostGroupInfo = s.HostGroupInfo
 	s.transient.Type = lambdas.LambdaTransient
 	s.transient.VPCConfig = lambda.VpcConfig{}

@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/cloudwatch"
 	"wekactl/internal/aws/common"
@@ -20,6 +21,11 @@ type CloudWatch struct {
 	Profile         IamProfile
 	TableName       string
 	Version         string
+	ASGName         string
+}
+
+func (c *CloudWatch) Tags() interface{} {
+	return cloudwatch.GetCloudWatchEventTags(c.HostGroupInfo, c.TargetVersion())
 }
 
 func (c *CloudWatch) SubResources() []cluster.Resource {
@@ -62,7 +68,7 @@ func (c *CloudWatch) Delete() error {
 }
 
 func (c *CloudWatch) Create() (err error) {
-	err = cloudwatch.CreateCloudWatchEventRule(c.HostGroupInfo, &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
+	err = cloudwatch.CreateCloudWatchEventRule(c.Tags().([]*cloudwatchevents.Tag), &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -87,5 +93,6 @@ func (c *CloudWatch) Init() {
 	c.ScaleMachine.TableName = c.TableName
 	c.ScaleMachine.HostGroupInfo = c.HostGroupInfo
 	c.ScaleMachine.HostGroupParams = c.HostGroupParams
+	c.ScaleMachine.ASGName = c.ASGName
 	c.ScaleMachine.Init()
 }

@@ -22,7 +22,7 @@ func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcC
 	}
 }
 
-func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType, resourceName, roleArn string, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
+func CreateLambda(tags common.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, role hostgroups.InstanceRole, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
 	bucket, err := dist.GetLambdaBucket()
@@ -36,8 +36,6 @@ func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType,
 
 	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
 
-	asgName := common.GenerateResourceName(hostGroupInfo.ClusterName, hostGroupInfo.Name)
-	tableName := common.GenerateResourceName(hostGroupInfo.ClusterName, "")
 	lambdaName := resourceName
 
 	input := &lambda.CreateFunctionInput{
@@ -52,7 +50,7 @@ func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType,
 				"REGION":     aws.String(env.Config.Region),
 				"ASG_NAME":   aws.String(asgName),
 				"TABLE_NAME": aws.String(tableName),
-				"ROLE":       aws.String(string(hostGroupInfo.Role)),
+				"ROLE":       aws.String(string(role)),
 			},
 		},
 		Handler:      aws.String(lambdaHandler),
@@ -61,7 +59,7 @@ func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType,
 		Publish:      aws.Bool(true),
 		Role:         &roleArn,
 		Runtime:      aws.String(runtime),
-		Tags:         common.GetHostGroupTags(hostGroupInfo).AsStringRefs(),
+		Tags:         tags,
 		Timeout:      aws.Int64(15),
 		TracingConfig: &lambda.TracingConfig{
 			Mode: aws.String("Active"),
@@ -80,7 +78,7 @@ func CreateLambda(hostGroupInfo hostgroups.HostGroupInfo, lambdaType LambdaType,
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				if aerr.Code() == lambda.ErrCodeInvalidParameterValueException {
-					logging.UserProgress("%s \"%s\" lambda creation failed, waiting 10 sec for IAM role trust entity to finish update", string(hostGroupInfo.Name), string(lambdaType))
+					logging.UserProgress("waiting 10 sec for IAM role trust entity to finish update on \"%s\" lambda ...", lambdaName)
 					time.Sleep(10 * time.Second)
 					retry = true
 				}

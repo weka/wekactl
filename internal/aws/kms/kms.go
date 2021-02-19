@@ -9,9 +9,9 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func getKMSTags(clusterName cluster.ClusterName) []*kms.Tag {
+func GetKMSTags(clusterName cluster.ClusterName, version string) []*kms.Tag {
 	var kmsTags []*kms.Tag
-	for key, value := range common.GetCommonTags(clusterName) {
+	for key, value := range common.GetCommonTags(clusterName, version) {
 		kmsTags = append(kmsTags, &kms.Tag{
 			TagKey:   aws.String(key),
 			TagValue: aws.String(value),
@@ -20,11 +20,11 @@ func getKMSTags(clusterName cluster.ClusterName) []*kms.Tag {
 	return kmsTags
 }
 
-func CreateKMSKey(clusterName cluster.ClusterName, resourceName string) (string, error) {
+func CreateKMSKey(tags []*kms.Tag, resourceName string) (string, error) {
 	svc := connectors.GetAWSSession().KMS
 
 	input := &kms.CreateKeyInput{
-		Tags: getKMSTags(clusterName),
+		Tags: tags,
 	}
 	result, err := svc.CreateKey(input)
 	if err != nil {
