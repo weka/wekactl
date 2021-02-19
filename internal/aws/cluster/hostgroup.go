@@ -13,12 +13,15 @@ type HostGroup struct {
 	HostGroupInfo          hostgroups.HostGroupInfo
 	HostGroupParams        hostgroups.HostGroupParams
 	AutoscalingGroup       AutoscalingGroup
-	ScaleMachineCloudWatch CloudWatch
 	TableName              string
 }
 
+func (h *HostGroup) Tags() interface{} {
+	return nil
+}
+
 func (h *HostGroup) SubResources() []cluster.Resource {
-	return []cluster.Resource{&h.AutoscalingGroup, &h.ScaleMachineCloudWatch}
+	return []cluster.Resource{&h.AutoscalingGroup}
 }
 
 func (h *HostGroup) ResourceName() string {
@@ -38,12 +41,7 @@ func (h *HostGroup) TargetVersion() string {
 }
 
 func (h *HostGroup) Delete() error {
-	err := h.AutoscalingGroup.Delete()
-	if err != nil {
-		return err
-	}
-
-	return h.ScaleMachineCloudWatch.Delete()
+	return h.AutoscalingGroup.Delete()
 }
 
 func (h *HostGroup) Create() error {
@@ -60,8 +58,4 @@ func (h *HostGroup) Init() {
 	h.AutoscalingGroup.HostGroupParams = h.HostGroupParams
 	h.AutoscalingGroup.TableName = h.TableName
 	h.AutoscalingGroup.Init()
-	h.ScaleMachineCloudWatch.HostGroupInfo = h.HostGroupInfo
-	h.ScaleMachineCloudWatch.HostGroupParams = h.HostGroupParams
-	h.ScaleMachineCloudWatch.TableName = h.TableName
-	h.ScaleMachineCloudWatch.Init()
 }

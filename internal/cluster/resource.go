@@ -17,6 +17,7 @@ import (
 type Resource interface {
 	ResourceName() string
 	SubResources() []Resource
+	Tags() interface{}
 	Fetch() error
 	DeployedVersion() string
 	TargetVersion() string
@@ -24,7 +25,6 @@ type Resource interface {
 	Create() error
 	Update() error
 	Init()
-	//TODO: Probably Add Tags, finish with APIGateway to pass HostGroup -> Tags
 }
 
 func EnsureResource(r Resource) error {

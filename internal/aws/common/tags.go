@@ -8,6 +8,8 @@ import (
 )
 
 type Tags map[string]string
+type TagsRefsValues map[string]*string
+
 
 func (t Tags) ToDynamoDb() (ret []*dynamodb.Tag) {
 	for k, v := range t {
@@ -34,8 +36,8 @@ func (t Tags) Clone() Tags {
 	return newTags
 }
 
-func (t Tags) AsStringRefs() map[string]*string {
-	tagsRefs := make(map[string]*string)
+func (t Tags) AsStringRefs() TagsRefsValues {
+	tagsRefs := TagsRefsValues{}
 	for key, value := range t {
 		v := value
 		tagsRefs[key] = &v
@@ -43,17 +45,18 @@ func (t Tags) AsStringRefs() map[string]*string {
 	return tagsRefs
 }
 
-func GetCommonTags(clusterName cluster.ClusterName) Tags {
+func GetCommonTags(clusterName cluster.ClusterName, version string) Tags {
 	tags := Tags{
 		"wekactl.io/managed":      "true",
 		"wekactl.io/api_version":  "v1",
+		"wekactl.io/version":        version,
 		"wekactl.io/cluster_name": string(clusterName),
 	}
 	return tags
 }
 
-func GetHostGroupTags(hostGroup hostgroups.HostGroupInfo) Tags {
-	tags := GetCommonTags(hostGroup.ClusterName)
+func GetHostGroupTags(hostGroup hostgroups.HostGroupInfo, version string) Tags {
+	tags := GetCommonTags(hostGroup.ClusterName, version)
 	return tags.Update(Tags{
 		"wekactl.io/hostgroup_name": string(hostGroup.Name),
 		"wekactl.io/hostgroup_type": string(hostGroup.Role),
