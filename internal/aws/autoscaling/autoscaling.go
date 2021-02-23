@@ -118,9 +118,9 @@ func AttachLoadBalancer(clusterName cluster.ClusterName, AutoScalingGroupName st
 	if err != nil {
 		return
 	}
-	for _,asgGroup := range asgOutput.AutoScalingGroups{
-		for _, asgLoadBalancerName := range asgGroup.LoadBalancerNames{
-			if *asgLoadBalancerName == *loadBalancerName{
+	for _, asgGroup := range asgOutput.AutoScalingGroups {
+		for _, asgLoadBalancerName := range asgGroup.LoadBalancerNames {
+			if *asgLoadBalancerName == *loadBalancerName {
 				log.Debug().Msgf("load balancer %s is already attached to %s", *loadBalancerName, AutoScalingGroupName)
 				return
 			}
@@ -224,4 +224,25 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 	log.Debug().Msgf("scaling group %s deleted", autoScalingGroupName)
 
 	return nil
+}
+
+func GetAutoScalingGroupVersion(autoScalingGroupName string) (version string, err error) {
+	svc := connectors.GetAWSSession().ASG
+
+	asgOutput, err := svc.DescribeAutoScalingGroups(&autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{&autoScalingGroupName},
+	})
+	if err != nil {
+		return
+	}
+
+	for _, asg := range asgOutput.AutoScalingGroups {
+		for _, tag := range asg.Tags {
+			if *tag.Key == common.VersionTagKey {
+				version = *tag.Value
+				return
+			}
+		}
+	}
+	return
 }

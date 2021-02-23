@@ -6,7 +6,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/cloudwatch"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/cluster"
@@ -37,7 +36,7 @@ func (c *CloudWatch) ResourceName() string {
 }
 
 func (c *CloudWatch) Fetch() error {
-	version, err := db.GetResourceVersion(c.TableName, "cloudwatch", "", c.HostGroupInfo.Name)
+	version, err := cloudwatch.GetCloudWatchEventRuleVersion(c.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -68,12 +67,7 @@ func (c *CloudWatch) Delete() error {
 }
 
 func (c *CloudWatch) Create() (err error) {
-	err = cloudwatch.CreateCloudWatchEventRule(c.Tags().([]*cloudwatchevents.Tag), &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
-	if err != nil {
-		return err
-	}
-
-	return db.SaveResourceVersion(c.TableName, "cloudwatch", "", c.HostGroupInfo.Name, c.TargetVersion())
+	return cloudwatch.CreateCloudWatchEventRule(c.Tags().([]*cloudwatchevents.Tag), &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 }
 
 func (c *CloudWatch) Update() error {

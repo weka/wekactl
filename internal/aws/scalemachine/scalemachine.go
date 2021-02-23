@@ -111,3 +111,31 @@ func DeleteStateMachine(stateMachineName string) error {
 
 	return nil
 }
+
+func GetStateMachineVersion(stateMachineName string) (version string, err error) {
+	svc := connectors.GetAWSSession().SFN
+
+	stateMachinesOutput, err := svc.ListStateMachines(&sfn.ListStateMachinesInput{})
+	if err != nil {
+		return
+	}
+	for _, stateMachine := range stateMachinesOutput.StateMachines {
+		if *stateMachine.Name != stateMachineName {
+			continue
+		}
+		tagsOutput, err := svc.ListTagsForResource(&sfn.ListTagsForResourceInput{
+			ResourceArn: stateMachine.StateMachineArn,
+		})
+		if err != nil {
+			return "", err
+		}
+		for _, tag := range tagsOutput.Tags {
+			if *tag.Key == common.VersionTagKey {
+				version = *tag.Value
+				return version, nil
+			}
+		}
+	}
+
+	return
+}

@@ -85,6 +85,12 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName hostgroups.HostGroupNam
 		},
 		VersionDescription: aws.String("v1"),
 		LaunchTemplateName: aws.String(launchTemplateName),
+		TagSpecifications: []*ec2.TagSpecification{
+			{
+				ResourceType: aws.String("launch-template"),
+				Tags:         tags,
+			},
+		},
 	}
 
 	_, err = svc.CreateLaunchTemplate(input)
@@ -102,7 +108,7 @@ func DeleteLaunchTemplate(launchTemplateName string) error {
 	})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() == "InvalidLaunchTemplateName.NotFoundException"{
+			if aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
 				return nil
 			}
 		}
@@ -111,4 +117,30 @@ func DeleteLaunchTemplate(launchTemplateName string) error {
 		log.Debug().Msgf("launch template %s was deleted successfully", launchTemplateName)
 	}
 	return nil
+}
+
+func GetLaunchTemplateVersion(launchTemplateName string) (version string, err error) {
+	svc := connectors.GetAWSSession().EC2
+	launchTemplateOutput, err := svc.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{
+		LaunchTemplateNames: []*string{&launchTemplateName},
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
+				return "", nil
+			}
+		}
+		return
+	}
+
+	for _, lt := range launchTemplateOutput.LaunchTemplates {
+		for _, tag := range lt.Tags {
+			if *tag.Key == common.VersionTagKey {
+				version = *tag.Value
+				return
+			}
+		}
+	}
+
+	return
 }

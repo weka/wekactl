@@ -46,6 +46,6 @@ func EnsureResource(r Resource) error {
 	if r.DeployedVersion() != r.TargetVersion() {
 		return r.Update()
 	}
-	log.Debug().Msgf("%s resource exists and updated", strings.Trim(reflect.TypeOf(r).String(), "*cluster."))
+	log.Debug().Msgf("resource %s %s exists and updated", strings.TrimLeft(reflect.TypeOf(r).String(), "*cluster."), r.ResourceName())
 	return nil
 }

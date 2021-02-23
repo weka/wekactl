@@ -81,3 +81,32 @@ func DeleteCloudWatchEventRule(ruleName string) error {
 
 	return nil
 }
+
+func GetCloudWatchEventRuleVersion(ruleName string) (version string, err error) {
+	svc := connectors.GetAWSSession().CloudWatchEvents
+
+	ruleOutput, err := svc.DescribeRule(&cloudwatchevents.DescribeRuleInput{
+		Name: &ruleName,
+	})
+	if err != nil {
+		if _, ok := err.(*cloudwatchevents.ResourceNotFoundException); ok {
+			return "", nil
+		}
+		return
+	}
+
+	tagsOutput, err := svc.ListTagsForResource(&cloudwatchevents.ListTagsForResourceInput{
+		ResourceARN: ruleOutput.Arn,
+	})
+	if err != nil {
+		return
+	}
+	for _, tag := range tagsOutput.Tags {
+		if *tag.Key == common.VersionTagKey {
+			version = *tag.Value
+			return
+		}
+	}
+
+	return
+}
