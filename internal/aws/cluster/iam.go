@@ -5,7 +5,6 @@ import (
 	awsIam "github.com/aws/aws-sdk-go/service/iam"
 	"github.com/google/uuid"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/cluster"
@@ -42,7 +41,7 @@ func (i *IamProfile) ResourceName() string {
 }
 
 func (i *IamProfile) Fetch() error {
-	version, err := db.GetResourceVersion(i.TableName, "iam", i.Name, i.HostGroupInfo.Name)
+	version, err := iam.GetIamRoleVersion(i.resourceNameBase())
 	if err != nil {
 		return err
 	}
@@ -72,10 +71,8 @@ func (i *IamProfile) Create() error {
 	if err != nil {
 		return err
 	}
-
 	i.Arn = *arn
-
-	return db.SaveResourceVersion(i.TableName, "iam", i.Name, i.HostGroupInfo.Name, i.TargetVersion())
+	return nil
 }
 
 func (i *IamProfile) Update() error {

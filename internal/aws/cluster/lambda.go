@@ -5,7 +5,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
@@ -40,7 +39,7 @@ func (l *Lambda) ResourceName() string {
 }
 
 func (l *Lambda) Fetch() error {
-	version, err := db.GetResourceVersion(l.TableName, "lambda", string(l.Type), l.HostGroupInfo.Name)
+	version, err := lambdas.GetLambdaVersion(l.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -83,7 +82,7 @@ func (l *Lambda) Create() (err error) {
 	}
 	l.Arn = *functionConfiguration.FunctionArn
 
-	return db.SaveResourceVersion(l.TableName, "lambda", string(l.Type), l.HostGroupInfo.Name, l.TargetVersion())
+	return nil
 }
 
 func (l *Lambda) Update() error {

@@ -115,3 +115,24 @@ func DeleteKMSKey(aliasName string, clusterName cluster.ClusterName) error {
 
 	return nil
 }
+
+func GetKMSKeyVersion(clusterName cluster.ClusterName) (version string, err error) {
+	svc := connectors.GetAWSSession().KMS
+	kmsKey, err := GetKmsKey(clusterName)
+	if err != nil || kmsKey == nil {
+		return
+	}
+
+	tagsOutput, err := svc.ListResourceTags(&kms.ListResourceTagsInput{KeyId: kmsKey.KeyId})
+	if err != nil {
+		return
+	}
+
+	for _, tag := range tagsOutput.Tags {
+		if *tag.TagKey == common.VersionTagKey {
+			version = *tag.TagValue
+			return
+		}
+	}
+	return
+}

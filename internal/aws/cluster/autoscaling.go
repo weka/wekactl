@@ -6,7 +6,6 @@ import (
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 )
@@ -36,7 +35,7 @@ func (a *AutoscalingGroup) ResourceName() string {
 }
 
 func (a *AutoscalingGroup) Fetch() error {
-	version, err := db.GetResourceVersion(a.TableName, "autoscaling", "", a.HostGroupInfo.Name)
+	version, err := autoscaling.GetAutoScalingGroupVersion(a.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -68,11 +67,7 @@ func (a *AutoscalingGroup) Delete() error {
 
 func (a *AutoscalingGroup) Create() error {
 	maxSize := int64(autoscaling.GetMaxSize(a.HostGroupInfo.Role, len(a.HostGroupParams.InstanceIds)))
-	err := autoscaling.CreateAutoScalingGroup(a.Tags().([]*asg.Tag), a.LaunchTemplate.ResourceName(), maxSize, a.ResourceName())
-	if err != nil {
-		return err
-	}
-	return db.SaveResourceVersion(a.TableName, "autoscaling", "", a.HostGroupInfo.Name, a.TargetVersion())
+	return autoscaling.CreateAutoScalingGroup(a.Tags().([]*asg.Tag), a.LaunchTemplate.ResourceName(), maxSize, a.ResourceName())
 }
 
 func (a *AutoscalingGroup) Update() error {

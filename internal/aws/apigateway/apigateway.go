@@ -228,3 +228,24 @@ func DeleteRestApiGateway(resourceName string) error {
 
 	return nil
 }
+
+func GetRestApiGatewayVersion(resourceName string) (version string, err error) {
+	svc := connectors.GetAWSSession().ApiGateway
+
+	restApisOutput, err := svc.GetRestApis(&apigateway.GetRestApisInput{})
+	if err != nil {
+		return
+	}
+	for _, restApi := range restApisOutput.Items {
+		if *restApi.Name != resourceName {
+			continue
+		}
+		for key, value := range restApi.Tags {
+			if key == common.VersionTagKey {
+				version = *value
+				return
+			}
+		}
+	}
+	return
+}
