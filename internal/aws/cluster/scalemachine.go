@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
@@ -44,7 +43,7 @@ func (s *ScaleMachine) ResourceName() string {
 }
 
 func (s *ScaleMachine) Fetch() error {
-	version, err := db.GetResourceVersion(s.TableName, "scalemachine", "", s.HostGroupInfo.Name)
+	version, err := scalemachine.GetStateMachineVersion(s.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -102,7 +101,7 @@ func (s *ScaleMachine) Create() (err error) {
 		return
 	}
 	s.Arn = *arn
-	return db.SaveResourceVersion(s.TableName, "scalemachine", "", s.HostGroupInfo.Name, s.TargetVersion())
+	return nil
 }
 
 func (s *ScaleMachine) Update() error {

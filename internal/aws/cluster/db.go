@@ -38,13 +38,11 @@ func (d *DynamoDb) ResourceName() string {
 }
 
 func (d *DynamoDb) Fetch() error {
-	exists, err := db.Exists(d.ResourceName())
+	version, err := db.GetDbVersion(d.ResourceName())
 	if err != nil {
 		return err
 	}
-	if exists {
-		d.Version = dbVersion
-	}
+	d.Version = version
 	return nil
 }
 
@@ -74,12 +72,7 @@ func (d *DynamoDb) Create() error {
 	if err != nil {
 		return err
 	}
-
-	err = db.SaveCredentials(d.ResourceName(), d.Username, d.Password)
-	if err != nil {
-		return err
-	}
-	return db.SaveResourceVersion(d.ResourceName(), "kms", "", "", d.KmsKey.TargetVersion())
+	return db.SaveCredentials(d.ResourceName(), d.Username, d.Password)
 }
 
 func (d *DynamoDb) Update() error {

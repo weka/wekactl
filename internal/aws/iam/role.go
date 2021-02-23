@@ -144,3 +144,22 @@ func DeleteIamRole(roleBaseName, policyName string) error {
 
 	return deleteLeftoverPolicies(policyName, nil)
 }
+
+func GetIamRoleVersion(roleBaseName string) (version string, err error) {
+	role, err := getIamRole(roleBaseName, nil)
+	if err != nil || role == nil {
+		return
+	}
+	svc := connectors.GetAWSSession().IAM
+	tagsOutput, err := svc.ListRoleTags(&iam.ListRoleTagsInput{RoleName: role.RoleName})
+	if err != nil {
+		return
+	}
+	for _, tag := range tagsOutput.Tags {
+		if *tag.Key == common.VersionTagKey {
+			version = *tag.Value
+			return
+		}
+	}
+	return
+}

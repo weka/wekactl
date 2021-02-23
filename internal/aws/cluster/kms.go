@@ -28,13 +28,11 @@ func (k *KmsKey) ResourceName() string {
 }
 
 func (k *KmsKey) Fetch() error {
-	kmsKey, err := kms.GetKmsKey(k.ClusterName)
+	version, err := kms.GetKMSKeyVersion(k.ClusterName)
 	if err != nil {
 		return err
 	}
-	if kmsKey != nil {
-		k.Version = kmsVersion
-	}
+	k.Version = version
 	return nil
 }
 

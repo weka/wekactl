@@ -7,7 +7,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
 )
@@ -135,49 +134,29 @@ func DeleteDB(tableName string) error {
 	return nil
 }
 
-func Exists(tableName string) (bool, error) {
+func GetDbVersion(tableName string) (version string, err error) {
 	svc := connectors.GetAWSSession().DynamoDB
-	_, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: &tableName})
+	dbOutput, err := svc.DescribeTable(&dynamodb.DescribeTableInput{TableName: &tableName})
 	if err != nil {
 		if _, ok := err.(*dynamodb.ResourceNotFoundException); ok {
-			return false, nil
+			return "", nil
 		}
-		return false, err
+		return
 	}
-	return true, nil
-}
 
-func generateKey(resourceType, name string, hostGroupName hostgroups.HostGroupName) string {
-	key := resourceType
-	if name != "" {
-		key += "-" + name
-	}
-	if string(hostGroupName) != "" {
-		key += "-" + string(hostGroupName)
-	}
-	return key
-}
-
-func SaveResourceVersion(tableName, resourceType, name string, hostGroupName hostgroups.HostGroupName, version string) error {
-	key := generateKey(resourceType, name, hostGroupName)
-	err := PutItem(tableName, ResourceVersion{
-		Key:     key,
-		Version: version,
+	tagsOutput, err := svc.ListTagsOfResource(&dynamodb.ListTagsOfResourceInput{
+		ResourceArn: dbOutput.Table.TableArn,
 	})
 	if err != nil {
-		log.Debug().Msgf("error saving %s version to DB %v", key, err)
-		return err
-	}
-	log.Debug().Msgf("%s version was saved to DB successfully", key)
-	return nil
-}
-
-func GetResourceVersion(tableName, resourceType, name string, hostGroupName hostgroups.HostGroupName) (string, error) {
-	resourceVersion := ResourceVersion{}
-	err := GetItem(tableName, generateKey(resourceType, name, hostGroupName), &resourceVersion)
-	if err != nil {
-		return "", err
+		return
 	}
 
-	return resourceVersion.Version, nil
+	for _, tag := range tagsOutput.Tags {
+		if *tag.Key == common.VersionTagKey {
+			version = *tag.Value
+			return
+		}
+	}
+
+	return
 }

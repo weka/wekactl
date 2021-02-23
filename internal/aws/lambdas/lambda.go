@@ -108,3 +108,25 @@ func DeleteLambda(lambdaName string) error {
 	}
 	return nil
 }
+
+func GetLambdaVersion(lambdaName string) (version string, err error) {
+	svc := connectors.GetAWSSession().Lambda
+	lambdaOutput, err := svc.GetFunction(&lambda.GetFunctionInput{
+		FunctionName: &lambdaName,
+	})
+
+	if err != nil {
+		if _, ok := err.(*lambda.ResourceNotFoundException); ok {
+			return "", nil
+		}
+		return
+	}
+
+	for key, value := range lambdaOutput.Tags {
+		if key == common.VersionTagKey {
+			version = *value
+			return
+		}
+	}
+	return
+}

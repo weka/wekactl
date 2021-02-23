@@ -4,7 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
@@ -34,7 +33,7 @@ func (l *LaunchTemplate) ResourceName() string {
 }
 
 func (l *LaunchTemplate) Fetch() error {
-	version, err := db.GetResourceVersion(l.TableName, "launchtemplate", "", l.HostGroupInfo.Name)
+	version, err := launchtemplate.GetLaunchTemplateVersion(l.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -59,11 +58,7 @@ func (l *LaunchTemplate) Delete() error {
 }
 
 func (l *LaunchTemplate) Create() error {
-	err := launchtemplate.CreateLaunchTemplate(l.Tags().([]*ec2.Tag), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
-	if err != nil {
-		return err
-	}
-	return db.SaveResourceVersion(l.TableName, "launchtemplate", "", l.HostGroupInfo.Name, l.TargetVersion())
+	return launchtemplate.CreateLaunchTemplate(l.Tags().([]*ec2.Tag), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
 }
 
 func (l *LaunchTemplate) Update() error {

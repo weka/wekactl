@@ -4,7 +4,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
@@ -44,7 +43,7 @@ func (a *ApiGateway) ResourceName() string {
 }
 
 func (a *ApiGateway) Fetch() error {
-	version, err := db.GetResourceVersion(a.TableName, "apigateway", "", a.HostGroupInfo.Name)
+	version, err := apigateway.GetRestApiGatewayVersion(a.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -74,7 +73,7 @@ func (a *ApiGateway) Create() error {
 		return err
 	}
 	a.RestApiGateway = restApiGateway
-	return db.SaveResourceVersion(a.TableName, "apigateway", "", a.HostGroupInfo.Name, a.TargetVersion())
+	return nil
 }
 
 func (a *ApiGateway) Update() error {
