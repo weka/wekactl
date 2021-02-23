@@ -86,12 +86,5 @@ func (l *Lambda) Create() (err error) {
 }
 
 func (l *Lambda) Update() error {
-	if l.DeployedVersion() == l.TargetVersion() {
-		return nil
-	}
-	err := l.Profile.Update()
-	if err != nil {
-		return err
-	}
-	return nil
+	return lambdas.UpdateLambdaHandler(l.ResourceName())
 }

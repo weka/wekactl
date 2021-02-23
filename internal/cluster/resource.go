@@ -34,18 +34,23 @@ func EnsureResource(r Resource) error {
 		}
 	}
 
+	resourceType := strings.TrimLeft(reflect.TypeOf(r).String(), "*cluster.")
+
 	err := r.Fetch()
 	if err != nil {
 		return err
 	}
 
 	if r.DeployedVersion() == "" {
+		log.Debug().Msgf("creating resource %s %s ...", resourceType, r.ResourceName())
 		return r.Create()
 	}
 
 	if r.DeployedVersion() != r.TargetVersion() {
+		log.Debug().Msgf("updating resource %s %s ...", resourceType, r.ResourceName())
 		return r.Update()
 	}
-	log.Debug().Msgf("resource %s %s exists and updated", strings.TrimLeft(reflect.TypeOf(r).String(), "*cluster."), r.ResourceName())
+
+	log.Debug().Msgf("resource %s %s exists and updated", resourceType, r.ResourceName())
 	return nil
 }

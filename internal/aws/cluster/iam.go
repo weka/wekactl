@@ -76,5 +76,5 @@ func (i *IamProfile) Create() error {
 }
 
 func (i *IamProfile) Update() error {
-	panic("implement me")
+	return iam.UpdateRolePolicy(i.resourceNameBase(), i.PolicyName, i.Policy)
 }

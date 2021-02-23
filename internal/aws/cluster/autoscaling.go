@@ -71,7 +71,11 @@ func (a *AutoscalingGroup) Create() error {
 }
 
 func (a *AutoscalingGroup) Update() error {
-	panic("implement me")
+	err := a.Delete()
+	if err != nil {
+		return err
+	}
+	return a.Create()
 }
 
 func (a *AutoscalingGroup) Init() {

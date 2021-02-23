@@ -71,7 +71,11 @@ func (c *CloudWatch) Create() (err error) {
 }
 
 func (c *CloudWatch) Update() error {
-	panic("implement me")
+	err := c.Delete()
+	if err != nil {
+		return err
+	}
+	return c.Create()
 }
 
 func (c *CloudWatch) Init() {

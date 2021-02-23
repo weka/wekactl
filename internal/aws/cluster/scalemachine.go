@@ -105,7 +105,11 @@ func (s *ScaleMachine) Create() (err error) {
 }
 
 func (s *ScaleMachine) Update() error {
-	panic("implement me")
+	err := s.Delete()
+	if err != nil {
+		return err
+	}
+	return s.Create()
 }
 
 func (s *ScaleMachine) Init() {
