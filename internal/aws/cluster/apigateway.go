@@ -77,6 +77,10 @@ func (a *ApiGateway) Create() error {
 }
 
 func (a *ApiGateway) Update() error {
-	// DO actual update of this resource
-	return nil
+	err := a.Delete()
+	if err != nil {
+		return err
+	}
+
+	return a.Create()
 }

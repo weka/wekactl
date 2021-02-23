@@ -130,3 +130,21 @@ func GetLambdaVersion(lambdaName string) (version string, err error) {
 	}
 	return
 }
+
+func UpdateLambdaHandler(lambdaName string) error {
+	svc := connectors.GetAWSSession().Lambda
+	bucket, err := dist.GetLambdaBucket()
+	if err != nil {
+		return err
+	}
+
+	lambdaPackage := string(dist.WekaCtl)
+	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
+
+	_, err = svc.UpdateFunctionCode(&lambda.UpdateFunctionCodeInput{
+		FunctionName: &lambdaName,
+		S3Bucket:     aws.String(bucket),
+		S3Key:        aws.String(s3Key),
+	})
+	return err
+}

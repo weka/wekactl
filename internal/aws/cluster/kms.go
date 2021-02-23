@@ -63,5 +63,9 @@ func (k *KmsKey) Create() error {
 }
 
 func (k *KmsKey) Update() error {
-	panic("implement me")
+	err := k.Delete()
+	if err!=nil{
+		return err
+	}
+	return k.Create()
 }
