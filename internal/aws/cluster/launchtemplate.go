@@ -62,7 +62,11 @@ func (l *LaunchTemplate) Create() error {
 }
 
 func (l *LaunchTemplate) Update() error {
-	panic("implement me")
+	err := l.Delete()
+	if err != nil {
+		return err
+	}
+	return l.Create()
 }
 
 func (l *LaunchTemplate) Init() {

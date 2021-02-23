@@ -20,6 +20,22 @@ func GetIAMTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*iam.T
 	}
 	return iamTags
 }
+
+func attachIamPolicy(roleName, policyName string, policy PolicyDocument) error {
+	svc := connectors.GetAWSSession().IAM
+	policyOutput, err := createIamPolicy(policyName, policy)
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.AttachRolePolicy(&iam.AttachRolePolicyInput{PolicyArn: policyOutput.Arn, RoleName: &roleName})
+	if err != nil {
+		return err
+	}
+	log.Debug().Msgf("policy %s was attached successfully!", policyName)
+	return nil
+}
+
 func CreateIamRole(tags []*iam.Tag, roleName, policyName string, assumeRolePolicy AssumeRolePolicyDocument, policy PolicyDocument) (*string, error) {
 	log.Debug().Msgf("creating role %s", roleName)
 	svc := connectors.GetAWSSession().IAM
@@ -43,16 +59,10 @@ func CreateIamRole(tags []*iam.Tag, roleName, policyName string, assumeRolePolic
 	log.Debug().Msgf("role %s was created successfully!", roleName)
 
 	if policy.Version != "" {
-		policyOutput, err := createIamPolicy(policyName, policy)
+		err = attachIamPolicy(roleName, policyName, policy)
 		if err != nil {
 			return nil, err
 		}
-
-		_, err = svc.AttachRolePolicy(&iam.AttachRolePolicyInput{PolicyArn: policyOutput.Arn, RoleName: &roleName})
-		if err != nil {
-			return nil, err
-		}
-		log.Debug().Msgf("policy %s was attached successfully!", policyName)
 	}
 
 	return result.Role.Arn, nil
@@ -102,16 +112,8 @@ func deleteLeftoverPolicies(policyName string, marker *string) error {
 	return nil
 }
 
-func DeleteIamRole(roleBaseName, policyName string) error {
+func removeRolePolicy(role *iam.Role, policyName string) error {
 	svc := connectors.GetAWSSession().IAM
-	role, err := getIamRole(roleBaseName, nil)
-	if err != nil {
-		return err
-	}
-	if role == nil {
-		return nil
-	}
-
 	result, err := svc.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
 		RoleName: role.RoleName,
 	})
@@ -135,14 +137,31 @@ func DeleteIamRole(roleBaseName, policyName string) error {
 		}
 		log.Debug().Msgf("policy %s was deleted successfully", *policy.PolicyName)
 	}
+	return deleteLeftoverPolicies(policyName, nil)
+}
+
+func DeleteIamRole(roleBaseName, policyName string) error {
+	svc := connectors.GetAWSSession().IAM
+	role, err := getIamRole(roleBaseName, nil)
+	if err != nil {
+		return err
+	}
+	if role == nil {
+		return nil
+	}
+
+	err = removeRolePolicy(role, policyName)
+	if err != nil {
+		return err
+	}
 
 	_, err = svc.DeleteRole(&iam.DeleteRoleInput{RoleName: role.RoleName})
 	if err != nil {
 		return err
 	}
 	log.Debug().Msgf("role %s was deleted successfully", *role.RoleName)
+	return nil
 
-	return deleteLeftoverPolicies(policyName, nil)
 }
 
 func GetIamRoleVersion(roleBaseName string) (version string, err error) {
@@ -162,4 +181,16 @@ func GetIamRoleVersion(roleBaseName string) (version string, err error) {
 		}
 	}
 	return
+}
+
+func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument) error {
+	role, err := getIamRole(roleBaseName, nil)
+	if err != nil {
+		return err
+	}
+	err = removeRolePolicy(role, policyName)
+	if err != nil {
+		return err
+	}
+	return attachIamPolicy(*role.RoleName, policyName, policy)
 }
