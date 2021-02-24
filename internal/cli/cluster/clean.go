@@ -52,7 +52,7 @@ var cleanCmd = &cobra.Command{
 			}
 
 			awsCluster.Init()
-			err := awsCluster.Delete()
+			err := cluster.CleanResource(&awsCluster)
 
 			if err != nil {
 				logging.UserFailure("Cleaning failed!")
