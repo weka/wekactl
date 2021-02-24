@@ -18,7 +18,7 @@ type AWSCluster struct {
 	HostGroups    []HostGroup
 }
 
-func (c *AWSCluster) Tags() interface{} {
+func (c *AWSCluster) Tags() common.Tags {
 	return nil
 }
 

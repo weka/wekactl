@@ -14,17 +14,6 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func GetEc2Tags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*ec2.Tag {
-	var ec2Tags []*ec2.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
-		ec2Tags = append(ec2Tags, &ec2.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	return ec2Tags
-}
-
 func generateBlockDeviceMappingRequest(name hostgroups.HostGroupName, volumeInfo VolumeInfo) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
 
 	log.Debug().Msgf("%s launch template total root device volume size: %d", string(name), volumeInfo.Size)

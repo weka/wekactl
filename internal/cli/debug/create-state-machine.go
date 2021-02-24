@@ -68,14 +68,14 @@ var createStateMachineCmd = &cobra.Command{
 			policy := iam.GetStateMachineRolePolicy()
 
 			iamTargetVersion := policy.VersionHash()
-			iamTags := iam.GetIAMTags(hostGroup, iamTargetVersion)
+			iamTags := common.GetHostGroupResourceTags(hostGroup, iamTargetVersion).AsIam()
 			roleArn, err := iam.CreateIamRole(iamTags, roleName, policyName, assumeRolePolicy, policy)
 			if err != nil {
 				return err
 			}
 
 			stateMachineName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
-			stateMachineTags := scalemachine.GetStateMachineTags(hostGroup, "v1")
+			stateMachineTags := common.GetHostGroupResourceTags(hostGroup, "v1").AsSfn()
 			_, err = scalemachine.CreateStateMachine(stateMachineTags, lambdas, *roleArn, stateMachineName)
 			if err != nil {
 				return err

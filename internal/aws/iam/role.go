@@ -6,20 +6,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/connectors"
 )
-
-func GetIAMTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*iam.Tag {
-	var iamTags []*iam.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
-		iamTags = append(iamTags, &iam.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	return iamTags
-}
 
 func attachIamPolicy(roleName, policyName string, policy PolicyDocument) error {
 	svc := connectors.GetAWSSession().IAM

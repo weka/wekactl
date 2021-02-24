@@ -6,20 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/connectors"
 )
-
-func GetStateMachineTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*sfn.Tag {
-	var sfnTags []*sfn.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
-		sfnTags = append(sfnTags, &sfn.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	return sfnTags
-}
 
 func CreateStateMachine(tags []*sfn.Tag, lambda StateMachineLambdasArn, roleArn, stateMachineName string) (*string, error) {
 	svc := connectors.GetAWSSession().SFN

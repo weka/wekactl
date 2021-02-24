@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"fmt"
-	awsIam "github.com/aws/aws-sdk-go/service/iam"
 	"github.com/google/uuid"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
@@ -22,8 +21,8 @@ type IamProfile struct {
 	Policy           iam.PolicyDocument
 }
 
-func (i *IamProfile) Tags() interface{} {
-	return iam.GetIAMTags(i.HostGroupInfo, i.TargetVersion())
+func (i *IamProfile) Tags() common.Tags {
+	return common.GetHostGroupResourceTags(i.HostGroupInfo, i.TargetVersion())
 }
 
 func (i *IamProfile) SubResources() []cluster.Resource {
@@ -67,7 +66,7 @@ func (i *IamProfile) Delete() error {
 }
 
 func (i *IamProfile) Create() error {
-	arn, err := iam.CreateIamRole(i.Tags().([]*awsIam.Tag), i.ResourceName(), i.PolicyName, i.AssumeRolePolicy, i.Policy)
+	arn, err := iam.CreateIamRole(i.Tags().AsIam(), i.ResourceName(), i.PolicyName, i.AssumeRolePolicy, i.Policy)
 	if err != nil {
 		return err
 	}
