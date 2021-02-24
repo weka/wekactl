@@ -50,10 +50,6 @@ func (l *LaunchTemplate) TargetVersion() string {
 }
 
 func (l *LaunchTemplate) Delete() error {
-	err := l.JoinApi.Delete()
-	if err != nil {
-		return err
-	}
 	return launchtemplate.DeleteLaunchTemplate(l.ResourceName())
 }
 
