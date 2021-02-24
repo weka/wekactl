@@ -12,13 +12,13 @@ type DynamoDBName string
 
 type AWSCluster struct {
 	Name          cluster.ClusterName
-	DefaultParams db.DefaultClusterParams
-	CFStack       Stack
+	DefaultParams db.DefaultClusterParams //TODO: No need, fetched on demand from database
+	CFStack       Stack //TODO: No need, fetched on demand from database
 	DynamoDb      DynamoDb
 	HostGroups    []HostGroup
 }
 
-func (c *AWSCluster) Tags() interface{} {
+func (c *AWSCluster) Tags() common.Tags {
 	return nil
 }
 

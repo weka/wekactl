@@ -25,8 +25,8 @@ type Lambda struct {
 	Permissions   iam.PolicyDocument
 }
 
-func (l *Lambda) Tags() interface{} {
-	return common.GetHostGroupTags(l.HostGroupInfo, l.TargetVersion()).AsStringRefs()
+func (l *Lambda) Tags() common.Tags {
+	return common.GetHostGroupResourceTags(l.HostGroupInfo, l.TargetVersion()).AsStringRefs()
 }
 
 func (l *Lambda) SubResources() []cluster.Resource {

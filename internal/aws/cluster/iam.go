@@ -22,7 +22,7 @@ type IamProfile struct {
 	Policy           iam.PolicyDocument
 }
 
-func (i *IamProfile) Tags() interface{} {
+func (i *IamProfile) Tags() common.Tags {
 	return iam.GetIAMTags(i.HostGroupInfo, i.TargetVersion())
 }
 

@@ -16,7 +16,7 @@ type HostGroup struct {
 	TableName              string
 }
 
-func (h *HostGroup) Tags() interface{} {
+func (h *HostGroup) Tags() common.Tags {
 	return nil
 }
 

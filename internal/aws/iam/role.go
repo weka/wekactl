@@ -12,7 +12,7 @@ import (
 
 func GetIAMTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*iam.Tag {
 	var iamTags []*iam.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
+	for key, value := range common.GetHostGroupResourceTags(hostGroupInfo, version) {
 		iamTags = append(iamTags, &iam.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),

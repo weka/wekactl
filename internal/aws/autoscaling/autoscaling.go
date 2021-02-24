@@ -18,7 +18,7 @@ import (
 
 func GetAutoScalingTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*autoscaling.Tag {
 	var autoscalingTags []*autoscaling.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
+	for key, value := range common.GetHostGroupResourceTags(hostGroupInfo, version) {
 		autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),

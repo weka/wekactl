@@ -22,7 +22,7 @@ type AutoscalingGroup struct {
 	Version                string
 }
 
-func (a *AutoscalingGroup) Tags() interface{} {
+func (a *AutoscalingGroup) Tags() common.Tags {
 	return autoscaling.GetAutoScalingTags(a.HostGroupInfo, a.TargetVersion())
 }
 

@@ -15,7 +15,7 @@ type KmsKey struct {
 	ClusterName cluster.ClusterName
 }
 
-func (k *KmsKey) Tags() interface{} {
+func (k *KmsKey) Tags() common.Tags {
 	return kms.GetKMSTags(k.ClusterName, k.TargetVersion())
 }
 

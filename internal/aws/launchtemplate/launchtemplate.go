@@ -16,7 +16,7 @@ import (
 
 func GetEc2Tags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*ec2.Tag {
 	var ec2Tags []*ec2.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
+	for key, value := range common.GetHostGroupResourceTags(hostGroupInfo, version) {
 		ec2Tags = append(ec2Tags, &ec2.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),

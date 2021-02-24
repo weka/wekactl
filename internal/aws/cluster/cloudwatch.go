@@ -23,7 +23,7 @@ type CloudWatch struct {
 	ASGName         string
 }
 
-func (c *CloudWatch) Tags() interface{} {
+func (c *CloudWatch) Tags() common.Tags {
 	return cloudwatch.GetCloudWatchEventTags(c.HostGroupInfo, c.TargetVersion())
 }
 

@@ -12,7 +12,7 @@ import (
 
 func GetCloudWatchEventTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*cloudwatchevents.Tag {
 	var cloudWatchEventTags []*cloudwatchevents.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
+	for key, value := range common.GetHostGroupResourceTags(hostGroupInfo, version) {
 		cloudWatchEventTags = append(cloudWatchEventTags, &cloudwatchevents.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),

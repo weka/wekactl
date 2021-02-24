@@ -3,6 +3,7 @@ package common
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 )
@@ -20,6 +21,17 @@ func (t Tags) ToDynamoDb() (ret []*dynamodb.Tag) {
 		})
 	}
 	return
+}
+
+func (t Tags) AsEc2() []*ec2.Tag {
+	var ec2Tags []*ec2.Tag
+	for key, value := range t{
+		ec2Tags = append(ec2Tags, &ec2.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return ec2Tags
 }
 
 func (t Tags) Update(tags Tags) Tags {
@@ -46,18 +58,19 @@ func (t Tags) AsStringRefs() TagsRefsValues {
 	return tagsRefs
 }
 
-func GetCommonTags(clusterName cluster.ClusterName, version string) Tags {
+
+func GetCommonResourceTags(clusterName cluster.ClusterName, resourceVersion string) Tags {
 	tags := Tags{
 		"wekactl.io/managed":      "true",
 		"wekactl.io/api_version":  "v1",
-		VersionTagKey:             version,
+		VersionTagKey:             resourceVersion,
 		"wekactl.io/cluster_name": string(clusterName),
 	}
 	return tags
 }
 
-func GetHostGroupTags(hostGroup hostgroups.HostGroupInfo, version string) Tags {
-	tags := GetCommonTags(hostGroup.ClusterName, version)
+func GetHostGroupResourceTags(hostGroup hostgroups.HostGroupInfo, resourceVersion string) Tags {
+	tags := GetCommonResourceTags(hostGroup.ClusterName, resourceVersion)
 	return tags.Update(Tags{
 		"wekactl.io/hostgroup_name": string(hostGroup.Name),
 		"wekactl.io/hostgroup_type": string(hostGroup.Role),

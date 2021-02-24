@@ -11,7 +11,7 @@ import (
 
 func GetKMSTags(clusterName cluster.ClusterName, version string) []*kms.Tag {
 	var kmsTags []*kms.Tag
-	for key, value := range common.GetCommonTags(clusterName, version) {
+	for key, value := range common.GetCommonResourceTags(clusterName, version) {
 		kmsTags = append(kmsTags, &kms.Tag{
 			TagKey:   aws.String(key),
 			TagValue: aws.String(value),

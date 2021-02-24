@@ -30,7 +30,7 @@ type ScaleMachine struct {
 	Profile         IamProfile
 }
 
-func (s *ScaleMachine) Tags() interface{} {
+func (s *ScaleMachine) Tags() common.Tags {
 	return scalemachine.GetStateMachineTags(s.HostGroupInfo, s.TargetVersion())
 }
 

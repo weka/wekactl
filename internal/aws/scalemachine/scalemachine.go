@@ -12,7 +12,7 @@ import (
 
 func GetStateMachineTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*sfn.Tag {
 	var sfnTags []*sfn.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
+	for key, value := range common.GetHostGroupResourceTags(hostGroupInfo, version) {
 		sfnTags = append(sfnTags, &sfn.Tag{
 			Key:   aws.String(key),
 			Value: aws.String(value),

@@ -21,8 +21,8 @@ type ApiGateway struct {
 	ASGName        string
 }
 
-func (a *ApiGateway) Tags() interface{} {
-	return common.GetHostGroupTags(a.HostGroupInfo, a.TargetVersion()).AsStringRefs()
+func (a *ApiGateway) Tags() common.Tags {
+	return common.GetHostGroupResourceTags(a.HostGroupInfo, a.TargetVersion()).AsStringRefs()
 }
 
 func (a *ApiGateway) SubResources() []cluster.Resource {
