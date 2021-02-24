@@ -2,7 +2,13 @@ package common
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/kms"
+	"github.com/aws/aws-sdk-go/service/sfn"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 )
@@ -46,7 +52,73 @@ func (t Tags) AsStringRefs() TagsRefsValues {
 	return tagsRefs
 }
 
-func GetCommonTags(clusterName cluster.ClusterName, version string) Tags {
+func (t Tags) AsAsg() []*autoscaling.Tag {
+	var autoscalingTags []*autoscaling.Tag
+	for key, value := range t {
+		autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return autoscalingTags
+}
+
+func (t Tags) AsCloudWatch() []*cloudwatchevents.Tag {
+	var cloudWatchEventTags []*cloudwatchevents.Tag
+	for key, value := range t {
+		cloudWatchEventTags = append(cloudWatchEventTags, &cloudwatchevents.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return cloudWatchEventTags
+}
+
+func (t Tags) AsIam() []*iam.Tag {
+	var iamTags []*iam.Tag
+	for key, value := range t {
+		iamTags = append(iamTags, &iam.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return iamTags
+}
+
+func (t Tags) AsKms() []*kms.Tag {
+	var kmsTags []*kms.Tag
+	for key, value := range t {
+		kmsTags = append(kmsTags, &kms.Tag{
+			TagKey:   aws.String(key),
+			TagValue: aws.String(value),
+		})
+	}
+	return kmsTags
+}
+
+func (t Tags) AsEc2() []*ec2.Tag {
+	var ec2Tags []*ec2.Tag
+	for key, value := range t {
+		ec2Tags = append(ec2Tags, &ec2.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return ec2Tags
+}
+
+func (t Tags) AsSfn() []*sfn.Tag {
+	var sfnTags []*sfn.Tag
+	for key, value := range t {
+		sfnTags = append(sfnTags, &sfn.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return sfnTags
+}
+
+func GetCommonResourceTags(clusterName cluster.ClusterName, version string) Tags {
 	tags := Tags{
 		"wekactl.io/managed":      "true",
 		"wekactl.io/api_version":  "v1",
@@ -56,8 +128,8 @@ func GetCommonTags(clusterName cluster.ClusterName, version string) Tags {
 	return tags
 }
 
-func GetHostGroupTags(hostGroup hostgroups.HostGroupInfo, version string) Tags {
-	tags := GetCommonTags(hostGroup.ClusterName, version)
+func GetHostGroupResourceTags(hostGroup hostgroups.HostGroupInfo, version string) Tags {
+	tags := GetCommonResourceTags(hostGroup.ClusterName, version)
 	return tags.Update(Tags{
 		"wekactl.io/hostgroup_name": string(hostGroup.Name),
 		"wekactl.io/hostgroup_type": string(hostGroup.Role),

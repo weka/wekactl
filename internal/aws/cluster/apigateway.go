@@ -21,8 +21,8 @@ type ApiGateway struct {
 	ASGName        string
 }
 
-func (a *ApiGateway) Tags() interface{} {
-	return common.GetHostGroupTags(a.HostGroupInfo, a.TargetVersion()).AsStringRefs()
+func (a *ApiGateway) Tags() common.Tags {
+	return common.GetHostGroupResourceTags(a.HostGroupInfo, a.TargetVersion())
 }
 
 func (a *ApiGateway) SubResources() []cluster.Resource {
@@ -64,7 +64,7 @@ func (a *ApiGateway) Delete() error {
 }
 
 func (a *ApiGateway) Create() error {
-	restApiGateway, err := apigateway.CreateJoinApi(a.Tags().(common.TagsRefsValues), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
+	restApiGateway, err := apigateway.CreateJoinApi(a.Tags().AsStringRefs(), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
 	if err != nil {
 		return err
 	}

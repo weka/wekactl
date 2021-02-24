@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
@@ -20,8 +19,8 @@ type LaunchTemplate struct {
 	ASGName         string
 }
 
-func (l *LaunchTemplate) Tags() interface{} {
-	return launchtemplate.GetEc2Tags(l.HostGroupInfo, l.TargetVersion())
+func (l *LaunchTemplate) Tags() common.Tags {
+	return common.GetHostGroupResourceTags(l.HostGroupInfo, l.TargetVersion())
 }
 
 func (l *LaunchTemplate) SubResources() []cluster.Resource {
@@ -54,7 +53,7 @@ func (l *LaunchTemplate) Delete() error {
 }
 
 func (l *LaunchTemplate) Create() error {
-	return launchtemplate.CreateLaunchTemplate(l.Tags().([]*ec2.Tag), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
+	return launchtemplate.CreateLaunchTemplate(l.Tags().AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
 }
 
 func (l *LaunchTemplate) Update() error {

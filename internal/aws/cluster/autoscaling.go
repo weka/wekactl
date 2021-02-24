@@ -1,7 +1,7 @@
 package cluster
 
 import (
-	asg "github.com/aws/aws-sdk-go/service/autoscaling"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/autoscaling"
@@ -22,8 +22,9 @@ type AutoscalingGroup struct {
 	Version                string
 }
 
-func (a *AutoscalingGroup) Tags() interface{} {
-	return autoscaling.GetAutoScalingTags(a.HostGroupInfo, a.TargetVersion())
+func (a *AutoscalingGroup) Tags() common.Tags {
+	return common.GetHostGroupResourceTags(a.HostGroupInfo, a.TargetVersion()).Update(common.Tags{
+		"Name": fmt.Sprintf("%s-%s", a.HostGroupInfo.ClusterName, a.HostGroupInfo.Name)})
 }
 
 func (a *AutoscalingGroup) SubResources() []cluster.Resource {
@@ -57,7 +58,7 @@ func (a *AutoscalingGroup) Delete() error {
 
 func (a *AutoscalingGroup) Create() error {
 	maxSize := int64(autoscaling.GetMaxSize(a.HostGroupInfo.Role, len(a.HostGroupParams.InstanceIds)))
-	return autoscaling.CreateAutoScalingGroup(a.Tags().([]*asg.Tag), a.LaunchTemplate.ResourceName(), maxSize, a.ResourceName())
+	return autoscaling.CreateAutoScalingGroup(a.Tags().AsAsg(), a.LaunchTemplate.ResourceName(), maxSize, a.ResourceName())
 }
 
 func (a *AutoscalingGroup) Update() error {

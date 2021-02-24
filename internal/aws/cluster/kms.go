@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	awsKms "github.com/aws/aws-sdk-go/service/kms"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/kms"
 	"wekactl/internal/cluster"
@@ -15,8 +14,8 @@ type KmsKey struct {
 	ClusterName cluster.ClusterName
 }
 
-func (k *KmsKey) Tags() interface{} {
-	return kms.GetKMSTags(k.ClusterName, k.TargetVersion())
+func (k *KmsKey) Tags() common.Tags {
+	return common.GetCommonResourceTags(k.ClusterName, k.TargetVersion())
 }
 
 func (k *KmsKey) SubResources() []cluster.Resource {
@@ -53,7 +52,7 @@ func (k *KmsKey) Delete() error {
 }
 
 func (k *KmsKey) Create() error {
-	kmsKey, err := kms.CreateKMSKey(k.Tags().([]*awsKms.Tag), k.ResourceName())
+	kmsKey, err := kms.CreateKMSKey(k.Tags().AsKms(), k.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -64,7 +63,7 @@ func (k *KmsKey) Create() error {
 
 func (k *KmsKey) Update() error {
 	err := k.Delete()
-	if err!=nil{
+	if err != nil {
 		return err
 	}
 	return k.Create()
