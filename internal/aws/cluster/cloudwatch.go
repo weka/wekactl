@@ -53,16 +53,6 @@ func (c *CloudWatch) TargetVersion() string {
 }
 
 func (c *CloudWatch) Delete() error {
-	err := c.Profile.Delete()
-	if err != nil {
-		return err
-	}
-
-	err = c.ScaleMachine.Delete()
-	if err != nil {
-		return err
-	}
-
 	return cloudwatch.DeleteCloudWatchEventRule(c.ResourceName())
 }
 

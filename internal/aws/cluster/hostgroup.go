@@ -41,7 +41,7 @@ func (h *HostGroup) TargetVersion() string {
 }
 
 func (h *HostGroup) Delete() error {
-	return h.AutoscalingGroup.Delete()
+	return nil
 }
 
 func (h *HostGroup) Create() error {

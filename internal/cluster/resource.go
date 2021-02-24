@@ -54,3 +54,13 @@ func EnsureResource(r Resource) error {
 	log.Debug().Msgf("resource %s %s exists and updated", resourceType, r.ResourceName())
 	return nil
 }
+
+func CleanResource(r Resource) error {
+	for _, subresource := range r.SubResources() {
+		if err := CleanResource(subresource); err != nil {
+			return err
+		}
+	}
+
+	return r.Delete()
+}

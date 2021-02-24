@@ -60,10 +60,6 @@ func (d *DynamoDb) TargetVersion() string {
 }
 
 func (d *DynamoDb) Delete() error {
-	err := d.KmsKey.Delete()
-	if err != nil {
-		return err
-	}
 	return db.DeleteDB(d.ResourceName())
 }
 

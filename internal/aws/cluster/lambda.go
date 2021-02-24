@@ -67,10 +67,6 @@ func (l *Lambda) TargetVersion() string {
 }
 
 func (l *Lambda) Delete() error {
-	err := l.Profile.Delete()
-	if err != nil {
-		return err
-	}
 	return lambdas.DeleteLambda(l.ResourceName())
 }
 

@@ -52,16 +52,6 @@ func (a *AutoscalingGroup) TargetVersion() string {
 }
 
 func (a *AutoscalingGroup) Delete() error {
-	err := a.LaunchTemplate.Delete()
-	if err != nil {
-		return err
-	}
-
-	err = a.ScaleMachineCloudWatch.Delete()
-	if err != nil {
-		return err
-	}
-
 	return autoscaling.DeleteAutoScalingGroup(a.ResourceName())
 }
 

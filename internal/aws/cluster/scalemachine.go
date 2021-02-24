@@ -60,31 +60,6 @@ func (s *ScaleMachine) TargetVersion() string {
 }
 
 func (s *ScaleMachine) Delete() error {
-	err := s.Profile.Delete()
-	if err != nil {
-		return err
-	}
-
-	err = s.fetch.Delete()
-	if err != nil {
-		return err
-	}
-
-	err = s.scale.Delete()
-	if err != nil {
-		return err
-	}
-
-	err = s.terminate.Delete()
-	if err != nil {
-		return err
-	}
-
-	err = s.transient.Delete()
-	if err != nil {
-		return err
-	}
-
 	return scalemachine.DeleteStateMachine(s.ResourceName())
 }
 

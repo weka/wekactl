@@ -60,10 +60,6 @@ func (a *ApiGateway) TargetVersion() string {
 }
 
 func (a *ApiGateway) Delete() error {
-	err := a.Backend.Delete()
-	if err != nil {
-		return err
-	}
 	return apigateway.DeleteRestApiGateway(a.ResourceName())
 }
 
