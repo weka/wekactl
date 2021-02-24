@@ -6,20 +6,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/connectors"
 )
 
-func GetCloudWatchEventTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*cloudwatchevents.Tag {
-	var cloudWatchEventTags []*cloudwatchevents.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
-		cloudWatchEventTags = append(cloudWatchEventTags, &cloudwatchevents.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	return cloudWatchEventTags
-}
 func CreateCloudWatchEventRule(tags []*cloudwatchevents.Tag, arn *string, roleArn, ruleName string) error {
 	svc := connectors.GetAWSSession().CloudWatchEvents
 	_, err := svc.PutRule(&cloudwatchevents.PutRuleInput{

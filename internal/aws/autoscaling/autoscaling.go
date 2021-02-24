@@ -1,7 +1,6 @@
 package autoscaling
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -15,21 +14,6 @@ import (
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
 )
-
-func GetAutoScalingTags(hostGroupInfo hostgroups.HostGroupInfo, version string) []*autoscaling.Tag {
-	var autoscalingTags []*autoscaling.Tag
-	for key, value := range common.GetHostGroupTags(hostGroupInfo, version) {
-		autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	autoscalingTags = append(autoscalingTags, &autoscaling.Tag{
-		Key:   aws.String("Name"),
-		Value: aws.String(fmt.Sprintf("%s-%s", hostGroupInfo.ClusterName, hostGroupInfo.Name)),
-	})
-	return autoscalingTags
-}
 
 func GetMaxSize(role hostgroups.InstanceRole, initialSize int) int {
 	var maxSize int

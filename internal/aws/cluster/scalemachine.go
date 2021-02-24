@@ -3,7 +3,6 @@ package cluster
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
@@ -30,8 +29,8 @@ type ScaleMachine struct {
 	Profile         IamProfile
 }
 
-func (s *ScaleMachine) Tags() interface{} {
-	return scalemachine.GetStateMachineTags(s.HostGroupInfo, s.TargetVersion())
+func (s *ScaleMachine) Tags() common.Tags {
+	return common.GetHostGroupResourceTags(s.HostGroupInfo, s.TargetVersion())
 }
 
 func (s *ScaleMachine) SubResources() []cluster.Resource {
@@ -71,7 +70,7 @@ func (s *ScaleMachine) Create() (err error) {
 		Transient: s.transient.Arn,
 	}
 
-	arn, err := scalemachine.CreateStateMachine(s.Tags().([]*sfn.Tag), stateMachineLambdasArn, s.Profile.Arn, s.ResourceName())
+	arn, err := scalemachine.CreateStateMachine(s.Tags().AsSfn(), stateMachineLambdasArn, s.Profile.Arn, s.ResourceName())
 	if err != nil {
 		return
 	}
