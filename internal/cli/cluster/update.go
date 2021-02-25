@@ -12,8 +12,8 @@ import (
 	"wekactl/internal/logging"
 )
 
-var cleanCmd = &cobra.Command{
-	Use:   "clean [flags]",
+var updateCmd = &cobra.Command{
+	Use:   "update [flags]",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -21,19 +21,17 @@ var cleanCmd = &cobra.Command{
 
 			clusterName := cluster.ClusterName(StackName)
 
-			backendsHostGroup := cluster2.GenerateHostGroup(
-				clusterName,
-				hostgroups.HostGroupParams{},
-				hostgroups.RoleBackend,
-				"Backends",
-			)
+			backendsHostGroup, err := cluster2.GenerateHostGroupFromLaunchTemplate(
+				clusterName, hostgroups.RoleBackend, "Backends")
+			if err != nil {
+				return err
+			}
 
-			clientsHostGroup := cluster2.GenerateHostGroup(
-				clusterName,
-				hostgroups.HostGroupParams{},
-				hostgroups.RoleClient,
-				"Clients",
-			)
+			clientsHostGroup, err := cluster2.GenerateHostGroupFromLaunchTemplate(
+				clusterName, hostgroups.RoleClient, "Clients")
+			if err != nil {
+				return err
+			}
 
 			dynamoDb := cluster2.DynamoDb{
 				ClusterName: clusterName,
@@ -53,13 +51,13 @@ var cleanCmd = &cobra.Command{
 			}
 
 			awsCluster.Init()
-			err := cluster.CleanResource(&awsCluster)
+			err = cluster.EnsureResource(&awsCluster)
 
 			if err != nil {
-				logging.UserFailure("Cleaning failed!")
+				logging.UserFailure("Update failed!")
 				return err
 			}
-			logging.UserSuccess("Cleaning finished successfully!")
+			logging.UserSuccess("Update finished successfully!")
 		} else {
 			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
 			logging.UserFailure(err.Error())
@@ -70,6 +68,6 @@ var cleanCmd = &cobra.Command{
 }
 
 func init() {
-	cleanCmd.Flags().StringVarP(&StackName, "name", "n", "", "EKS cluster name")
-	_ = cleanCmd.MarkFlagRequired("name")
+	updateCmd.Flags().StringVarP(&StackName, "name", "n", "", "EKS cluster name")
+	_ = updateCmd.MarkFlagRequired("name")
 }
