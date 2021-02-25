@@ -225,7 +225,6 @@ func importClusterParamsFromCF(instances StackInstances) (defaultParams db.Defau
 	}
 
 	defaultParams.Subnet = defaultParams.Backends.Subnet
-	defaultParams.VPC = *instances.Backends[0].VpcId
 
 	if len(instances.Clients) == 0 {
 		defaultParams.Clients = defaultParams.Backends
