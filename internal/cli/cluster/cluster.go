@@ -6,6 +6,8 @@ import (
 )
 
 var Region string
+var StackName string
+
 var Cluster = &cobra.Command{
 	Use:   "cluster [command] [flags]",
 	Short: "Cluster operations",
@@ -23,5 +25,6 @@ func init() {
 	Cluster.AddCommand(importCmd)
 	Cluster.AddCommand(listCmd)
 	Cluster.AddCommand(cleanCmd)
+	Cluster.AddCommand(updateCmd)
 	_ = Cluster.MarkPersistentFlagRequired("region")
 }

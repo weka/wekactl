@@ -18,7 +18,6 @@ type DefaultClusterParams struct {
 	Key      string
 	Backends hostgroups.HostGroupParams
 	Clients  hostgroups.HostGroupParams
-	VPC      string
 	Subnet   string
 }
 
