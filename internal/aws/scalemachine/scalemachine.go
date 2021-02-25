@@ -5,7 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/rs/zerolog/log"
-	"wekactl/internal/aws/common"
+	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
 
@@ -118,7 +118,7 @@ func GetStateMachineVersion(stateMachineName string) (version string, err error)
 			return "", err
 		}
 		for _, tag := range tagsOutput.Tags {
-			if *tag.Key == common.VersionTagKey {
+			if *tag.Key == cluster.VersionTagKey {
 				version = *tag.Value
 				return version, nil
 			}

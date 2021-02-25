@@ -222,7 +222,7 @@ func GetAutoScalingGroupVersion(autoScalingGroupName string) (version string, er
 
 	for _, asg := range asgOutput.AutoScalingGroups {
 		for _, tag := range asg.Tags {
-			if *tag.Key == common.VersionTagKey {
+			if *tag.Key == cluster.VersionTagKey {
 				version = *tag.Value
 				return
 			}

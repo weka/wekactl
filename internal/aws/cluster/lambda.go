@@ -4,7 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"strings"
-	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
@@ -25,8 +24,8 @@ type Lambda struct {
 	Permissions   iam.PolicyDocument
 }
 
-func (l *Lambda) Tags() common.Tags {
-	return common.GetHostGroupResourceTags(l.HostGroupInfo, l.TargetVersion())
+func (l *Lambda) Tags() cluster.Tags {
+	return GetHostGroupResourceTags(l.HostGroupInfo, l.TargetVersion())
 }
 
 func (l *Lambda) SubResources() []cluster.Resource {

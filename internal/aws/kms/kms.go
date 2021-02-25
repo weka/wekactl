@@ -4,7 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/rs/zerolog/log"
-	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
@@ -118,7 +117,7 @@ func GetKMSKeyVersion(clusterName cluster.ClusterName) (version string, err erro
 	}
 
 	for _, tag := range tagsOutput.Tags {
-		if *tag.TagKey == common.VersionTagKey {
+		if *tag.TagKey == cluster.VersionTagKey {
 			version = *tag.TagValue
 			return
 		}

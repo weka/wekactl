@@ -14,8 +14,8 @@ type KmsKey struct {
 	ClusterName cluster.ClusterName
 }
 
-func (k *KmsKey) Tags() common.Tags {
-	return common.GetCommonResourceTags(k.ClusterName, k.TargetVersion())
+func (k *KmsKey) Tags() cluster.Tags {
+	return cluster.GetCommonResourceTags(k.ClusterName, k.TargetVersion())
 }
 
 func (k *KmsKey) SubResources() []cluster.Resource {

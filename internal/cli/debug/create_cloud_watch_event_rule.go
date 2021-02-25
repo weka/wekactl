@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/cloudwatch"
+	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
@@ -32,14 +33,14 @@ var createCloudWatchEventCmd = &cobra.Command{
 			policy := iam.GetCloudWatchEventRolePolicy()
 
 			iamTargetVersion := policy.VersionHash()
-			iamTags := common.GetHostGroupResourceTags(hostGroup, iamTargetVersion).AsIam()
+			iamTags := cluster2.GetHostGroupResourceTags(hostGroup, iamTargetVersion).AsIam()
 			roleArn, err := iam.CreateIamRole(iamTags, roleName, policyName, assumeRolePolicy, policy)
 			if err != nil {
 				return err
 			}
 
 			ruleName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
-			cloudwatchTags := common.GetHostGroupResourceTags(hostGroup, "v1").AsCloudWatch()
+			cloudwatchTags := cluster2.GetHostGroupResourceTags(hostGroup, "v1").AsCloudWatch()
 			err = cloudwatch.CreateCloudWatchEventRule(cloudwatchTags, &StateMachineArn, *roleArn, ruleName)
 			if err != nil {
 				return err

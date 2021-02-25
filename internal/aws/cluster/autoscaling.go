@@ -22,8 +22,8 @@ type AutoscalingGroup struct {
 	Version                string
 }
 
-func (a *AutoscalingGroup) Tags() common.Tags {
-	return common.GetHostGroupResourceTags(a.HostGroupInfo, a.TargetVersion()).Update(common.Tags{
+func (a *AutoscalingGroup) Tags() cluster.Tags {
+	return GetHostGroupResourceTags(a.HostGroupInfo, a.TargetVersion()).Update(cluster.Tags{
 		"Name": fmt.Sprintf("%s-%s", a.HostGroupInfo.ClusterName, a.HostGroupInfo.Name)})
 }
 

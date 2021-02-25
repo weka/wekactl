@@ -5,7 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/rs/zerolog/log"
 	"strings"
-	"wekactl/internal/aws/common"
+	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
 
@@ -163,7 +163,7 @@ func GetIamRoleVersion(roleBaseName string) (version string, err error) {
 		return
 	}
 	for _, tag := range tagsOutput.Tags {
-		if *tag.Key == common.VersionTagKey {
+		if *tag.Key == cluster.VersionTagKey {
 			version = *tag.Value
 			return
 		}
