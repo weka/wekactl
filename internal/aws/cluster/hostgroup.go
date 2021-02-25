@@ -16,7 +16,7 @@ type HostGroup struct {
 	TableName              string
 }
 
-func (h *HostGroup) Tags() common.Tags {
+func (h *HostGroup) Tags() cluster.Tags {
 	return nil
 }
 
@@ -58,4 +58,12 @@ func (h *HostGroup) Init() {
 	h.AutoscalingGroup.HostGroupParams = h.HostGroupParams
 	h.AutoscalingGroup.TableName = h.TableName
 	h.AutoscalingGroup.Init()
+}
+
+func GetHostGroupResourceTags(hostGroup hostgroups.HostGroupInfo, version string) cluster.Tags {
+	tags := cluster.GetCommonResourceTags(hostGroup.ClusterName, version)
+	return tags.Update(cluster.Tags{
+		"wekactl.io/hostgroup_name": string(hostGroup.Name),
+		"wekactl.io/hostgroup_type": string(hostGroup.Role),
+	})
 }

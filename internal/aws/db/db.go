@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/rs/zerolog/log"
 	"strings"
-	"wekactl/internal/aws/common"
+	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
 )
@@ -47,7 +47,7 @@ func GetItem(tableName string, key string, item interface{}) error {
 	}
 }
 
-func CreateDb(tableName, kmsKey string, tags common.Tags) error {
+func CreateDb(tableName, kmsKey string, tags cluster.Tags) error {
 	svc := connectors.GetAWSSession().DynamoDB
 
 	input := &dynamodb.CreateTableInput{
@@ -152,7 +152,7 @@ func GetDbVersion(tableName string) (version string, err error) {
 	}
 
 	for _, tag := range tagsOutput.Tags {
-		if *tag.Key == common.VersionTagKey {
+		if *tag.Key == cluster.VersionTagKey {
 			version = *tag.Value
 			return
 		}

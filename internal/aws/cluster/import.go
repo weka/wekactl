@@ -256,3 +256,26 @@ func importRoleParams(hostGroupParams *hostgroups.HostGroupParams, instances []*
 	hostGroupParams.InstanceIds = common.GetInstancesIdsRefs(instances)
 	return nil
 }
+
+func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams hostgroups.HostGroupParams, role hostgroups.InstanceRole) HostGroup {
+	// TODO: Should not be exported, as it is only relevant to import
+	var name string
+	if role == hostgroups.RoleBackend {
+		name = "Backends"
+	} else {
+		name = "Clients"
+	}
+
+	hostGroupInfo := hostgroups.HostGroupInfo{
+		Name:        hostgroups.HostGroupName(name),
+		Role:        role,
+		ClusterName: clusterName,
+	}
+
+	hostGroup := HostGroup{
+		HostGroupInfo:   hostGroupInfo,
+		HostGroupParams: hostGroupParams,
+	}
+
+	return hostGroup
+}

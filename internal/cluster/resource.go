@@ -4,7 +4,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"reflect"
 	"strings"
-	"wekactl/internal/aws/common"
 )
 
 /*
@@ -18,7 +17,7 @@ import (
 type Resource interface {
 	ResourceName() string
 	SubResources() []Resource
-	Tags() common.Tags
+	Tags() Tags
 	Fetch() error
 	DeployedVersion() string
 	TargetVersion() string

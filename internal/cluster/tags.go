@@ -1,4 +1,4 @@
-package common
+package cluster
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
@@ -9,8 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/sfn"
-	"wekactl/internal/aws/hostgroups"
-	"wekactl/internal/cluster"
 )
 
 type Tags map[string]string
@@ -118,7 +116,7 @@ func (t Tags) AsSfn() []*sfn.Tag {
 	return sfnTags
 }
 
-func GetCommonResourceTags(clusterName cluster.ClusterName, version string) Tags {
+func GetCommonResourceTags(clusterName ClusterName, version string) Tags {
 	tags := Tags{
 		"wekactl.io/managed":      "true",
 		"wekactl.io/api_version":  "v1",
@@ -128,10 +126,3 @@ func GetCommonResourceTags(clusterName cluster.ClusterName, version string) Tags
 	return tags
 }
 
-func GetHostGroupResourceTags(hostGroup hostgroups.HostGroupInfo, version string) Tags {
-	tags := GetCommonResourceTags(hostGroup.ClusterName, version)
-	return tags.Update(Tags{
-		"wekactl.io/hostgroup_name": string(hostGroup.Name),
-		"wekactl.io/hostgroup_type": string(hostGroup.Role),
-	})
-}

@@ -30,7 +30,7 @@ func createLambda(hostGroup hostgroups.HostGroupInfo, lambdaType lambdas.LambdaT
 	lambdaName := generateLambdaName(lambdaType)
 	policyName := lambdaName
 	iamTargetVersion := policy.VersionHash()
-	iamTags := common.GetHostGroupResourceTags(hostGroup, iamTargetVersion).AsIam()
+	iamTags := cluster2.GetHostGroupResourceTags(hostGroup, iamTargetVersion).AsIam()
 	roleArn, err := iam.CreateIamRole(iamTags, roleName, policyName, assumeRolePolicy, policy)
 	if err != nil {
 		return
@@ -38,7 +38,7 @@ func createLambda(hostGroup hostgroups.HostGroupInfo, lambdaType lambdas.LambdaT
 	asgName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
 	tableName := common.GenerateResourceName(hostGroup.ClusterName, "")
 	lambdaTargetVersion := dist.LambdasID + iamTargetVersion
-	lambdaTags := common.GetHostGroupResourceTags(hostGroup, lambdaTargetVersion).AsStringRefs()
+	lambdaTags := cluster2.GetHostGroupResourceTags(hostGroup, lambdaTargetVersion).AsStringRefs()
 	functionConfiguration, err = lambdas.CreateLambda(lambdaTags, lambdaType, lambdaName, *roleArn, asgName, tableName, hostGroup.Role, vpcConfig)
 	if err != nil {
 		return

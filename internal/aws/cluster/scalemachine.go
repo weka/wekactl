@@ -29,8 +29,8 @@ type ScaleMachine struct {
 	Profile         IamProfile
 }
 
-func (s *ScaleMachine) Tags() common.Tags {
-	return common.GetHostGroupResourceTags(s.HostGroupInfo, s.TargetVersion())
+func (s *ScaleMachine) Tags() cluster.Tags {
+	return GetHostGroupResourceTags(s.HostGroupInfo, s.TargetVersion())
 }
 
 func (s *ScaleMachine) SubResources() []cluster.Resource {
