@@ -26,12 +26,14 @@ var cleanCmd = &cobra.Command{
 				clusterName,
 				hostgroups.HostGroupParams{},
 				hostgroups.RoleBackend,
+				"Backends",
 			)
 
 			clientsHostGroup := cluster2.GenerateHostGroup(
 				clusterName,
 				hostgroups.HostGroupParams{},
 				hostgroups.RoleClient,
+				"Clients",
 			)
 
 			dynamoDb := cluster2.DynamoDb{

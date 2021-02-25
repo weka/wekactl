@@ -136,12 +136,14 @@ func generateAWSCluster(stackId, stackName, username, password string, defaultPa
 		clusterName,
 		defaultParams.Backends,
 		hostgroups.RoleBackend,
+		"Backends",
 	)
 
 	clientsHostGroup := GenerateHostGroup(
 		clusterName,
 		defaultParams.Clients,
 		hostgroups.RoleClient,
+		"Clients",
 	)
 
 	dynamoDb := DynamoDb{
@@ -257,17 +259,10 @@ func importRoleParams(hostGroupParams *hostgroups.HostGroupParams, instances []*
 	return nil
 }
 
-func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams hostgroups.HostGroupParams, role hostgroups.InstanceRole) HostGroup {
+func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams hostgroups.HostGroupParams, role hostgroups.InstanceRole, name hostgroups.HostGroupName) HostGroup {
 	// TODO: Should not be exported, as it is only relevant to import
-	var name string
-	if role == hostgroups.RoleBackend {
-		name = "Backends"
-	} else {
-		name = "Clients"
-	}
-
 	hostGroupInfo := hostgroups.HostGroupInfo{
-		Name:        hostgroups.HostGroupName(name),
+		Name:        name,
 		Role:        role,
 		ClusterName: clusterName,
 	}
