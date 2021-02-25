@@ -19,8 +19,8 @@ type LaunchTemplate struct {
 	ASGName         string
 }
 
-func (l *LaunchTemplate) Tags() common.Tags {
-	return common.GetHostGroupResourceTags(l.HostGroupInfo, l.TargetVersion())
+func (l *LaunchTemplate) Tags() cluster.Tags {
+	return GetHostGroupResourceTags(l.HostGroupInfo, l.TargetVersion())
 }
 
 func (l *LaunchTemplate) SubResources() []cluster.Resource {

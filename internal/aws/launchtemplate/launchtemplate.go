@@ -9,8 +9,8 @@ import (
 	"github.com/lithammer/dedent"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
-	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
 
@@ -124,7 +124,7 @@ func GetLaunchTemplateVersion(launchTemplateName string) (version string, err er
 
 	for _, lt := range launchTemplateOutput.LaunchTemplates {
 		for _, tag := range lt.Tags {
-			if *tag.Key == common.VersionTagKey {
+			if *tag.Key == cluster.VersionTagKey {
 				version = *tag.Value
 				return
 			}

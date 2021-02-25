@@ -7,9 +7,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"time"
-	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
@@ -22,7 +22,7 @@ func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcC
 	}
 }
 
-func CreateLambda(tags common.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, role hostgroups.InstanceRole, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
+func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, role hostgroups.InstanceRole, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
 	bucket, err := dist.GetLambdaBucket()
@@ -123,7 +123,7 @@ func GetLambdaVersion(lambdaName string) (version string, err error) {
 	}
 
 	for key, value := range lambdaOutput.Tags {
-		if key == common.VersionTagKey {
+		if key == cluster.VersionTagKey {
 			version = *value
 			return
 		}

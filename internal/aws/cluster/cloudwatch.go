@@ -22,8 +22,8 @@ type CloudWatch struct {
 	ASGName         string
 }
 
-func (c *CloudWatch) Tags() common.Tags {
-	return common.GetHostGroupResourceTags(c.HostGroupInfo, c.TargetVersion())
+func (c *CloudWatch) Tags() cluster.Tags {
+	return GetHostGroupResourceTags(c.HostGroupInfo, c.TargetVersion())
 }
 
 func (c *CloudWatch) SubResources() []cluster.Resource {

@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/apigateway"
+	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
@@ -33,7 +34,7 @@ var createLambdaEndPointCmd = &cobra.Command{
 			}
 
 			apiGatewayName := common.GenerateResourceName(hostGroup.ClusterName, hostGroup.Name)
-			tags := common.GetHostGroupResourceTags(hostGroup, "v1").AsStringRefs()
+			tags := cluster2.GetHostGroupResourceTags(hostGroup, "v1").AsStringRefs()
 			_, err = apigateway.CreateJoinApi(tags, *functionConfiguration.FunctionArn, *functionConfiguration.FunctionName, apiGatewayName)
 			if err != nil {
 				return err

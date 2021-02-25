@@ -24,9 +24,9 @@ type DynamoDb struct {
 	KmsKey      KmsKey
 }
 
-func (d *DynamoDb) Tags() common.Tags {
-	return common.GetCommonResourceTags(d.ClusterName, d.TargetVersion()).Update(
-		common.Tags{"wekactl.io/stack_id": d.StackId})
+func (d *DynamoDb) Tags() cluster.Tags {
+	return cluster.GetCommonResourceTags(d.ClusterName, d.TargetVersion()).Update(
+		cluster.Tags{"wekactl.io/stack_id": d.StackId})
 }
 
 func (d *DynamoDb) SubResources() []cluster.Resource {

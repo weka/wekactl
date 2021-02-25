@@ -21,8 +21,8 @@ type IamProfile struct {
 	Policy           iam.PolicyDocument
 }
 
-func (i *IamProfile) Tags() common.Tags {
-	return common.GetHostGroupResourceTags(i.HostGroupInfo, i.TargetVersion())
+func (i *IamProfile) Tags() cluster.Tags {
+	return GetHostGroupResourceTags(i.HostGroupInfo, i.TargetVersion())
 }
 
 func (i *IamProfile) SubResources() []cluster.Resource {
