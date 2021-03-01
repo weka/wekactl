@@ -6,27 +6,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/rs/zerolog/log"
-	"math"
 	"time"
-	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
 )
-
-func GetMaxSize(role cluster2.InstanceRole, initialSize int) int {
-	var maxSize int
-	switch role {
-	case "backend":
-		maxSize = 7 * initialSize
-	case "client":
-		maxSize = int(math.Ceil(float64(initialSize)/float64(500))) * 500
-	default:
-		maxSize = 1000
-	}
-	return maxSize
-}
 
 func CreateAutoScalingGroup(tags []*autoscaling.Tag, launchTemplateName string, maxSize int64, autoScalingGroupName string) (err error) {
 	svc := connectors.GetAWSSession().ASG
