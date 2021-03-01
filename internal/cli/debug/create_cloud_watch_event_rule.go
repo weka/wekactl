@@ -7,7 +7,6 @@ import (
 	"wekactl/internal/aws/cloudwatch"
 	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/cluster"
 	"wekactl/internal/env"
@@ -21,7 +20,7 @@ var createCloudWatchEventCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			hostGroup := hostgroups.HostGroupInfo{
+			hostGroup := cluster2.HostGroupInfo{
 				Name:        "Backends",
 				Role:        "backend",
 				ClusterName: cluster.ClusterName(StackName),

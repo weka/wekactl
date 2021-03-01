@@ -1,7 +1,7 @@
 package db
 
 import (
-	"wekactl/internal/aws/hostgroups"
+	"wekactl/internal/aws/cluster"
 )
 
 const ModelClusterCreds = "cluster-creds"
@@ -16,8 +16,8 @@ const ModelDefaultClusterParams = "default-cluster-params"
 
 type DefaultClusterParams struct {
 	Key      string
-	Backends hostgroups.HostGroupParams
-	Clients  hostgroups.HostGroupParams
+	Backends cluster.HostGroupParams
+	Clients  cluster.HostGroupParams
 	Subnet   string
 }
 

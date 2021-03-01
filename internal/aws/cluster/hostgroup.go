@@ -3,17 +3,16 @@ package cluster
 import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 )
 
 const hostGroupVersion = "v1"
 
 type HostGroup struct {
-	HostGroupInfo          hostgroups.HostGroupInfo
-	HostGroupParams        hostgroups.HostGroupParams
-	AutoscalingGroup       AutoscalingGroup
-	TableName              string
+	HostGroupInfo    HostGroupInfo
+	HostGroupParams  HostGroupParams
+	AutoscalingGroup AutoscalingGroup
+	TableName        string
 }
 
 func (h *HostGroup) Tags() cluster.Tags {
@@ -60,7 +59,7 @@ func (h *HostGroup) Init() {
 	h.AutoscalingGroup.Init()
 }
 
-func GetHostGroupResourceTags(hostGroup hostgroups.HostGroupInfo, version string) cluster.Tags {
+func GetHostGroupResourceTags(hostGroup HostGroupInfo, version string) cluster.Tags {
 	tags := cluster.GetCommonResourceTags(hostGroup.ClusterName, version)
 	return tags.Update(cluster.Tags{
 		"wekactl.io/hostgroup_name": string(hostGroup.Name),

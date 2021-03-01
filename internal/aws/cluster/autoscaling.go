@@ -6,15 +6,14 @@ import (
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 )
 
 const autoscalingVersion = "v1"
 
 type AutoscalingGroup struct {
-	HostGroupInfo          hostgroups.HostGroupInfo
-	HostGroupParams        hostgroups.HostGroupParams
+	HostGroupInfo          HostGroupInfo
+	HostGroupParams        HostGroupParams
 	RestApiGateway         apigateway.RestApiGateway
 	LaunchTemplate         LaunchTemplate
 	ScaleMachineCloudWatch CloudWatch
