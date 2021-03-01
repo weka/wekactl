@@ -12,8 +12,8 @@ import (
 const cloudwatchVersion = "v1"
 
 type CloudWatch struct {
-	HostGroupInfo   HostGroupInfo
-	HostGroupParams HostGroupParams
+	HostGroupInfo   common.HostGroupInfo
+	HostGroupParams common.HostGroupParams
 	ScaleMachine    ScaleMachine
 	Profile         IamProfile
 	TableName       string

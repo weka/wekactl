@@ -96,7 +96,7 @@ func GetInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
 	return securityGroupIds
 }
 
-func getVolumeInfo(instance *ec2.Instance, role InstanceRole) (volumeInfo launchtemplate.VolumeInfo, err error) {
+func getVolumeInfo(instance *ec2.Instance, role common.InstanceRole) (volumeInfo launchtemplate.VolumeInfo, err error) {
 	log.Debug().Msgf("Retrieving %s instance volume info ...", string(role))
 	var volumeIds []*string
 	for _, blockDeviceMapping := range instance.BlockDeviceMappings {
@@ -134,14 +134,14 @@ func generateAWSCluster(stackId, stackName, username, password string, defaultPa
 	backendsHostGroup := GenerateHostGroup(
 		clusterName,
 		defaultParams.Backends,
-		RoleBackend,
+		common.RoleBackend,
 		"Backends",
 	)
 
 	clientsHostGroup := GenerateHostGroup(
 		clusterName,
 		defaultParams.Clients,
-		RoleClient,
+		common.RoleClient,
 		"Clients",
 	)
 
@@ -196,16 +196,16 @@ func ImportCluster(stackName, username, password string) error {
 		return err
 	}
 
-	roleInstanceIdsRefs := make(map[InstanceRole][]*string)
-	roleInstanceIdsRefs[RoleBackend] = common.GetInstancesIdsRefs(stackInstances.Backends)
-	roleInstanceIdsRefs[RoleClient] = common.GetInstancesIdsRefs(stackInstances.Clients)
+	roleInstanceIdsRefs := make(map[common.InstanceRole][]*string)
+	roleInstanceIdsRefs[common.RoleBackend] = common.GetInstancesIdsRefs(stackInstances.Backends)
+	roleInstanceIdsRefs[common.RoleClient] = common.GetInstancesIdsRefs(stackInstances.Clients)
 	for _, hostgroup := range awsCluster.HostGroups {
 		autoscalingGroupName := hostgroup.AutoscalingGroup.ResourceName()
 		err = autoscaling.AttachInstancesToAutoScalingGroups(roleInstanceIdsRefs[hostgroup.HostGroupInfo.Role], autoscalingGroupName)
 		if err != nil {
 			return err
 		}
-		if hostgroup.HostGroupInfo.Role == RoleBackend {
+		if hostgroup.HostGroupInfo.Role == common.RoleBackend {
 			err = autoscaling.AttachLoadBalancer(hostgroup.HostGroupInfo.ClusterName, autoscalingGroupName)
 			if err != nil {
 				return err
@@ -221,7 +221,7 @@ func importClusterParamsFromCF(instances StackInstances) (defaultParams db.Defau
 		return defaultParams, errors.New("backend instances not found, can't proceed with import")
 	}
 
-	err = importRoleParams(&defaultParams.Backends, instances.Backends, RoleBackend)
+	err = importRoleParams(&defaultParams.Backends, instances.Backends, common.RoleBackend)
 	if err != nil {
 		return
 	}
@@ -232,7 +232,7 @@ func importClusterParamsFromCF(instances StackInstances) (defaultParams db.Defau
 		defaultParams.Clients = defaultParams.Backends
 		return
 	}
-	err = importRoleParams(&defaultParams.Clients, instances.Clients, RoleClient)
+	err = importRoleParams(&defaultParams.Clients, instances.Clients, common.RoleClient)
 	if err != nil {
 		return
 	}
@@ -240,7 +240,7 @@ func importClusterParamsFromCF(instances StackInstances) (defaultParams db.Defau
 	return
 }
 
-func importRoleParams(hostGroupParams *HostGroupParams, instances []*ec2.Instance, role InstanceRole) error {
+func importRoleParams(hostGroupParams *common.HostGroupParams, instances []*ec2.Instance, role common.InstanceRole) error {
 	instance := instances[0]
 
 	volumeInfo, err := getVolumeInfo(instance, role)
@@ -256,6 +256,6 @@ func importRoleParams(hostGroupParams *HostGroupParams, instances []*ec2.Instanc
 	hostGroupParams.VolumeName = volumeInfo.Name
 	hostGroupParams.VolumeType = volumeInfo.Type
 	hostGroupParams.VolumeSize = volumeInfo.Size
-	hostGroupParams.MaxSize = GetMaxSize(role, len(instances))
+	hostGroupParams.MaxSize = common.GetMaxSize(role, len(instances))
 	return nil
 }

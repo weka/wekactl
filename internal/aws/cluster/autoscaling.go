@@ -12,8 +12,8 @@ import (
 const autoscalingVersion = "v1"
 
 type AutoscalingGroup struct {
-	HostGroupInfo          HostGroupInfo
-	HostGroupParams        HostGroupParams
+	HostGroupInfo          common.HostGroupInfo
+	HostGroupParams        common.HostGroupParams
 	RestApiGateway         apigateway.RestApiGateway
 	LaunchTemplate         LaunchTemplate
 	ScaleMachineCloudWatch CloudWatch

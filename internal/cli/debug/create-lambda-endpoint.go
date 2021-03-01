@@ -21,7 +21,7 @@ var createLambdaEndPointCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
 
-			hostGroup := cluster2.HostGroupInfo{
+			hostGroup := common.HostGroupInfo{
 				Name:        "Backends",
 				Role:        "backend",
 				ClusterName: cluster.ClusterName(StackName),

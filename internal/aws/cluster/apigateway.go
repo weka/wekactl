@@ -13,7 +13,7 @@ const joinApiVersion = "v1"
 
 type ApiGateway struct {
 	RestApiGateway apigateway.RestApiGateway
-	HostGroupInfo  HostGroupInfo
+	HostGroupInfo  common.HostGroupInfo
 	Backend        Lambda
 	TableName      string
 	Version        string

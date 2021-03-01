@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	cluster2 "wekactl/internal/aws/cluster"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 	"wekactl/internal/env"
@@ -22,15 +23,15 @@ var cleanCmd = &cobra.Command{
 
 			backendsHostGroup := cluster2.GenerateHostGroup(
 				clusterName,
-				cluster2.HostGroupParams{},
-				cluster2.RoleBackend,
+				common.HostGroupParams{},
+				common.RoleBackend,
 				"Backends",
 			)
 
 			clientsHostGroup := cluster2.GenerateHostGroup(
 				clusterName,
-				cluster2.HostGroupParams{},
-				cluster2.RoleClient,
+				common.HostGroupParams{},
+				common.RoleClient,
 				"Clients",
 			)
 
