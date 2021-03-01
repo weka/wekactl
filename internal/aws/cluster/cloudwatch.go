@@ -5,7 +5,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/cloudwatch"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/cluster"
 )
@@ -13,8 +12,8 @@ import (
 const cloudwatchVersion = "v1"
 
 type CloudWatch struct {
-	HostGroupInfo   hostgroups.HostGroupInfo
-	HostGroupParams hostgroups.HostGroupParams
+	HostGroupInfo   HostGroupInfo
+	HostGroupParams HostGroupParams
 	ScaleMachine    ScaleMachine
 	Profile         IamProfile
 	TableName       string

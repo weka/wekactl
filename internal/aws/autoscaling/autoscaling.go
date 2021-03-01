@@ -8,14 +8,14 @@ import (
 	"github.com/rs/zerolog/log"
 	"math"
 	"time"
+	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
 )
 
-func GetMaxSize(role hostgroups.InstanceRole, initialSize int) int {
+func GetMaxSize(role cluster2.InstanceRole, initialSize int) int {
 	var maxSize int
 	switch role {
 	case "backend":

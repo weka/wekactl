@@ -5,7 +5,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/dist"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/cluster"
@@ -20,7 +19,7 @@ type Lambda struct {
 	Type          lambdas.LambdaType
 	Profile       IamProfile
 	VPCConfig     lambda.VpcConfig
-	HostGroupInfo hostgroups.HostGroupInfo
+	HostGroupInfo HostGroupInfo
 	Permissions   iam.PolicyDocument
 }
 

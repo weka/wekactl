@@ -7,7 +7,6 @@ import (
 	"wekactl/internal/aws/apigateway"
 	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/cluster"
@@ -22,7 +21,7 @@ var createLambdaEndPointCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
 
-			hostGroup := hostgroups.HostGroupInfo{
+			hostGroup := cluster2.HostGroupInfo{
 				Name:        "Backends",
 				Role:        "backend",
 				ClusterName: cluster.ClusterName(StackName),

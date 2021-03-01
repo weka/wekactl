@@ -4,7 +4,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/cluster"
@@ -14,7 +13,7 @@ const joinApiVersion = "v1"
 
 type ApiGateway struct {
 	RestApiGateway apigateway.RestApiGateway
-	HostGroupInfo  hostgroups.HostGroupInfo
+	HostGroupInfo  HostGroupInfo
 	Backend        Lambda
 	TableName      string
 	Version        string

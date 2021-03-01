@@ -5,7 +5,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/aws/scalemachine"
@@ -19,8 +18,8 @@ type ScaleMachine struct {
 	TableName       string
 	Version         string
 	ASGName         string
-	HostGroupInfo   hostgroups.HostGroupInfo
-	HostGroupParams hostgroups.HostGroupParams
+	HostGroupInfo   HostGroupInfo
+	HostGroupParams HostGroupParams
 	fetch           Lambda
 	scale           Lambda
 	terminate       Lambda

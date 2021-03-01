@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/aws/scalemachine"
@@ -22,7 +21,7 @@ var createStateMachineCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			hostGroup := hostgroups.HostGroupInfo{
+			hostGroup := cluster2.HostGroupInfo{
 				Name:        "Backends",
 				Role:        "backend",
 				ClusterName: cluster.ClusterName(StackName),

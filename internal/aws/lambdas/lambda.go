@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"time"
+	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/dist"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
@@ -22,7 +22,7 @@ func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcC
 	}
 }
 
-func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, role hostgroups.InstanceRole, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
+func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, role cluster2.InstanceRole, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
 	bucket, err := dist.GetLambdaBucket()

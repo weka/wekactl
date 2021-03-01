@@ -10,7 +10,6 @@ import (
 	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/cluster"
@@ -24,7 +23,7 @@ func generateLambdaName(lambdaType lambdas.LambdaType) string {
 	return strings2.ElfHashSuffixed(n, 64)
 }
 
-func createLambda(hostGroup hostgroups.HostGroupInfo, lambdaType lambdas.LambdaType, policy iam.PolicyDocument, vpcConfig lambda.VpcConfig) (functionConfiguration *lambda.FunctionConfiguration, err error) {
+func createLambda(hostGroup cluster2.HostGroupInfo, lambdaType lambdas.LambdaType, policy iam.PolicyDocument, vpcConfig lambda.VpcConfig) (functionConfiguration *lambda.FunctionConfiguration, err error) {
 	assumeRolePolicy := iam.GetLambdaAssumeRolePolicy()
 	roleName := fmt.Sprintf("wekactl-%s-%s-%s", hostGroup.Name, string(lambdaType), uuid.New().String())
 	lambdaName := generateLambdaName(lambdaType)
@@ -52,7 +51,7 @@ var createLambdaCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			hostGroup := hostgroups.HostGroupInfo{
+			hostGroup := cluster2.HostGroupInfo{
 				Name:        "Backends",
 				Role:        "backend",
 				ClusterName: cluster.ClusterName(StackName),

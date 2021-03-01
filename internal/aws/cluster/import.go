@@ -10,7 +10,6 @@ import (
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
@@ -97,7 +96,7 @@ func GetInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
 	return securityGroupIds
 }
 
-func getVolumeInfo(instance *ec2.Instance, role hostgroups.InstanceRole) (volumeInfo launchtemplate.VolumeInfo, err error) {
+func getVolumeInfo(instance *ec2.Instance, role InstanceRole) (volumeInfo launchtemplate.VolumeInfo, err error) {
 	log.Debug().Msgf("Retrieving %s instance volume info ...", string(role))
 	var volumeIds []*string
 	for _, blockDeviceMapping := range instance.BlockDeviceMappings {
@@ -135,14 +134,14 @@ func generateAWSCluster(stackId, stackName, username, password string, defaultPa
 	backendsHostGroup := GenerateHostGroup(
 		clusterName,
 		defaultParams.Backends,
-		hostgroups.RoleBackend,
+		RoleBackend,
 		"Backends",
 	)
 
 	clientsHostGroup := GenerateHostGroup(
 		clusterName,
 		defaultParams.Clients,
-		hostgroups.RoleClient,
+		RoleClient,
 		"Clients",
 	)
 
@@ -203,7 +202,7 @@ func ImportCluster(stackName, username, password string) error {
 		if err != nil {
 			return err
 		}
-		if hostgroup.HostGroupInfo.Role == hostgroups.RoleBackend {
+		if hostgroup.HostGroupInfo.Role == RoleBackend {
 			err = autoscaling.AttachLoadBalancer(hostgroup.HostGroupInfo.ClusterName, autoscalingGroupName)
 			if err != nil {
 				return err
@@ -219,7 +218,7 @@ func importClusterParamsFromCF(instances StackInstances) (defaultParams db.Defau
 		return defaultParams, errors.New("backend instances not found, can't proceed with import")
 	}
 
-	err = importRoleParams(&defaultParams.Backends, instances.Backends, hostgroups.RoleBackend)
+	err = importRoleParams(&defaultParams.Backends, instances.Backends, RoleBackend)
 	if err != nil {
 		return
 	}
@@ -230,7 +229,7 @@ func importClusterParamsFromCF(instances StackInstances) (defaultParams db.Defau
 		defaultParams.Clients = defaultParams.Backends
 		return
 	}
-	err = importRoleParams(&defaultParams.Clients, instances.Clients, hostgroups.RoleClient)
+	err = importRoleParams(&defaultParams.Clients, instances.Clients, RoleClient)
 	if err != nil {
 		return
 	}
@@ -238,7 +237,7 @@ func importClusterParamsFromCF(instances StackInstances) (defaultParams db.Defau
 	return
 }
 
-func importRoleParams(hostGroupParams *hostgroups.HostGroupParams, instances []*ec2.Instance, role hostgroups.InstanceRole) error {
+func importRoleParams(hostGroupParams *HostGroupParams, instances []*ec2.Instance, role InstanceRole) error {
 	instance := instances[0]
 
 	volumeInfo, err := getVolumeInfo(instance, role)
@@ -258,18 +257,3 @@ func importRoleParams(hostGroupParams *hostgroups.HostGroupParams, instances []*
 	return nil
 }
 
-func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams hostgroups.HostGroupParams, role hostgroups.InstanceRole, name hostgroups.HostGroupName) HostGroup {
-	// TODO: Should not be exported, as it is only relevant to import
-	hostGroupInfo := hostgroups.HostGroupInfo{
-		Name:        name,
-		Role:        role,
-		ClusterName: clusterName,
-	}
-
-	hostGroup := HostGroup{
-		HostGroupInfo:   hostGroupInfo,
-		HostGroupParams: hostGroupParams,
-	}
-
-	return hostGroup
-}
