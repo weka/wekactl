@@ -4,6 +4,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/rs/zerolog/log"
 	"strings"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
@@ -19,7 +20,7 @@ type Lambda struct {
 	Type          lambdas.LambdaType
 	Profile       IamProfile
 	VPCConfig     lambda.VpcConfig
-	HostGroupInfo HostGroupInfo
+	HostGroupInfo common.HostGroupInfo
 	Permissions   iam.PolicyDocument
 }
 

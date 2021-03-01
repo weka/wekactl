@@ -10,8 +10,8 @@ import (
 const launchtemplateVersion = "v1"
 
 type LaunchTemplate struct {
-	HostGroupInfo   HostGroupInfo
-	HostGroupParams HostGroupParams
+	HostGroupInfo   common.HostGroupInfo
+	HostGroupParams common.HostGroupParams
 	JoinApi         ApiGateway
 	TableName       string
 	Version         string

@@ -18,8 +18,8 @@ type ScaleMachine struct {
 	TableName       string
 	Version         string
 	ASGName         string
-	HostGroupInfo   HostGroupInfo
-	HostGroupParams HostGroupParams
+	HostGroupInfo   common.HostGroupInfo
+	HostGroupParams common.HostGroupParams
 	fetch           Lambda
 	scale           Lambda
 	terminate       Lambda

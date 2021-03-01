@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	cluster2 "wekactl/internal/aws/cluster"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 	"wekactl/internal/env"
@@ -21,13 +22,13 @@ var updateCmd = &cobra.Command{
 			clusterName := cluster.ClusterName(StackName)
 
 			backendsHostGroup, err := cluster2.GenerateHostGroupFromLaunchTemplate(
-				clusterName, cluster2.RoleBackend, "Backends")
+				clusterName, common.RoleBackend, "Backends")
 			if err != nil {
 				return err
 			}
 
 			clientsHostGroup, err := cluster2.GenerateHostGroupFromLaunchTemplate(
-				clusterName, cluster2.RoleClient, "Clients")
+				clusterName, common.RoleClient, "Clients")
 			if err != nil {
 				return err
 			}
