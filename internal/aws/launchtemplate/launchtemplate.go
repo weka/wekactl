@@ -9,12 +9,12 @@ import (
 	"github.com/lithammer/dedent"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
-	"wekactl/internal/aws/hostgroups"
+	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
 
-func generateBlockDeviceMappingRequest(name hostgroups.HostGroupName, volumeInfo VolumeInfo) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+func generateBlockDeviceMappingRequest(name cluster2.HostGroupName, volumeInfo VolumeInfo) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
 
 	log.Debug().Msgf("%s launch template total root device volume size: %d", string(name), volumeInfo.Size)
 
@@ -30,7 +30,7 @@ func generateBlockDeviceMappingRequest(name hostgroups.HostGroupName, volumeInfo
 	}
 }
 
-func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName hostgroups.HostGroupName, hostGroupParams hostgroups.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string) (err error) {
+func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName cluster2.HostGroupName, hostGroupParams cluster2.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string) (err error) {
 	svc := connectors.GetAWSSession().EC2
 	userDataTemplate := `
 	#!/usr/bin/env bash

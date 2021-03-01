@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/cluster"
 	strings2 "wekactl/internal/lib/strings"
@@ -17,7 +16,7 @@ type IamProfile struct {
 	TableName        string
 	Version          string
 	AssumeRolePolicy iam.AssumeRolePolicyDocument
-	HostGroupInfo    hostgroups.HostGroupInfo
+	HostGroupInfo    HostGroupInfo
 	Policy           iam.PolicyDocument
 }
 

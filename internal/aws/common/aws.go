@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"os"
 	"sync"
-	"wekactl/internal/aws/hostgroups"
+	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	strings2 "wekactl/internal/lib/strings"
@@ -148,7 +148,7 @@ func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) 
 	return
 }
 
-func GenerateResourceName(clusterName cluster.ClusterName, hostGroupName hostgroups.HostGroupName) string {
+func GenerateResourceName(clusterName cluster.ClusterName, hostGroupName cluster2.HostGroupName) string {
 	resourceName := "wekactl-" + string(clusterName)
 	name := string(hostGroupName)
 	if name != "" {

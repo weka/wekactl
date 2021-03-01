@@ -3,12 +3,11 @@ package cluster
 import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/hostgroups"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
 
-func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name hostgroups.HostGroupName) (hostGroupParams hostgroups.HostGroupParams, err error) {
+func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name HostGroupName) (hostGroupParams HostGroupParams, err error) {
 	launchTemplateName := common.GenerateResourceName(clusterName, name)
 	svc := connectors.GetAWSSession().EC2
 
@@ -22,7 +21,7 @@ func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name host
 
 	launchTemplateData := launchTemplateVersionsOutput.LaunchTemplateVersions[0].LaunchTemplateData
 
-	hostGroupParams = hostgroups.HostGroupParams{
+	hostGroupParams = HostGroupParams{
 		SecurityGroupsIds: launchTemplateData.SecurityGroupIds,
 		ImageID:           *launchTemplateData.ImageId,
 		KeyName:           *launchTemplateData.KeyName,
@@ -32,12 +31,15 @@ func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name host
 		VolumeName:        *launchTemplateData.BlockDeviceMappings[0].DeviceName,
 		VolumeType:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType,
 		VolumeSize:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize,
+		//TODO: MaxSize populated differently on-import and on-update
+		//Here if possible - set what is set on autoscaling group
+		//If ASG does not exist - set 1000
 	}
 
 	return
 }
 
-func GenerateHostGroupFromLaunchTemplate(clusterName cluster.ClusterName, role hostgroups.InstanceRole, name hostgroups.HostGroupName) (hostGroup HostGroup, err error) {
+func GenerateHostGroupFromLaunchTemplate(clusterName cluster.ClusterName, role InstanceRole, name HostGroupName) (hostGroup HostGroup, err error) {
 	hostGroupParams, err := fetchClusterLaunchTemplateParams(clusterName, name)
 	if err != nil {
 		return
