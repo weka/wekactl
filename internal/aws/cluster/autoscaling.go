@@ -56,8 +56,8 @@ func (a *AutoscalingGroup) Delete() error {
 }
 
 func (a *AutoscalingGroup) Create() error {
-	maxSize := int64(autoscaling.GetMaxSize(a.HostGroupInfo.Role, len(a.HostGroupParams.InstanceIds)))
-	return autoscaling.CreateAutoScalingGroup(a.Tags().AsAsg(), a.LaunchTemplate.ResourceName(), maxSize, a.ResourceName())
+	return autoscaling.CreateAutoScalingGroup(
+		a.Tags().AsAsg(), a.LaunchTemplate.ResourceName(), a.HostGroupParams.MaxSize, a.ResourceName())
 }
 
 func (a *AutoscalingGroup) Update() error {

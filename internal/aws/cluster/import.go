@@ -196,9 +196,12 @@ func ImportCluster(stackName, username, password string) error {
 		return err
 	}
 
+	roleInstanceIdsRefs := make(map[InstanceRole][]*string)
+	roleInstanceIdsRefs[RoleBackend] = common.GetInstancesIdsRefs(stackInstances.Backends)
+	roleInstanceIdsRefs[RoleClient] = common.GetInstancesIdsRefs(stackInstances.Clients)
 	for _, hostgroup := range awsCluster.HostGroups {
 		autoscalingGroupName := hostgroup.AutoscalingGroup.ResourceName()
-		err = autoscaling.AttachInstancesToAutoScalingGroups(hostgroup.HostGroupParams.InstanceIds, autoscalingGroupName)
+		err = autoscaling.AttachInstancesToAutoScalingGroups(roleInstanceIdsRefs[hostgroup.HostGroupInfo.Role], autoscalingGroupName)
 		if err != nil {
 			return err
 		}
@@ -253,7 +256,6 @@ func importRoleParams(hostGroupParams *HostGroupParams, instances []*ec2.Instanc
 	hostGroupParams.VolumeName = volumeInfo.Name
 	hostGroupParams.VolumeType = volumeInfo.Type
 	hostGroupParams.VolumeSize = volumeInfo.Size
-	hostGroupParams.InstanceIds = common.GetInstancesIdsRefs(instances)
+	hostGroupParams.MaxSize = GetMaxSize(role, len(instances))
 	return nil
 }
-
