@@ -9,8 +9,8 @@ import (
 const hostGroupVersion = "v1"
 
 type HostGroup struct {
-	HostGroupInfo    HostGroupInfo
-	HostGroupParams  HostGroupParams
+	HostGroupInfo    common.HostGroupInfo
+	HostGroupParams  common.HostGroupParams
 	AutoscalingGroup AutoscalingGroup
 	TableName        string
 }
@@ -59,7 +59,7 @@ func (h *HostGroup) Init() {
 	h.AutoscalingGroup.Init()
 }
 
-func GetHostGroupResourceTags(hostGroup HostGroupInfo, version string) cluster.Tags {
+func GetHostGroupResourceTags(hostGroup common.HostGroupInfo, version string) cluster.Tags {
 	tags := cluster.GetCommonResourceTags(hostGroup.ClusterName, version)
 	return tags.Update(cluster.Tags{
 		"wekactl.io/hostgroup_name": string(hostGroup.Name),

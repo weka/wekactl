@@ -7,7 +7,7 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name HostGroupName) (hostGroupParams HostGroupParams, err error) {
+func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name common.HostGroupName) (hostGroupParams common.HostGroupParams, err error) {
 	launchTemplateName := common.GenerateResourceName(clusterName, name)
 	svc := connectors.GetAWSSession().EC2
 
@@ -21,7 +21,7 @@ func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name Host
 
 	launchTemplateData := launchTemplateVersionsOutput.LaunchTemplateVersions[0].LaunchTemplateData
 
-	hostGroupParams = HostGroupParams{
+	hostGroupParams = common.HostGroupParams{
 		SecurityGroupsIds: launchTemplateData.SecurityGroupIds,
 		ImageID:           *launchTemplateData.ImageId,
 		KeyName:           *launchTemplateData.KeyName,
@@ -39,7 +39,7 @@ func fetchClusterLaunchTemplateParams(clusterName cluster.ClusterName, name Host
 	return
 }
 
-func GenerateHostGroupFromLaunchTemplate(clusterName cluster.ClusterName, role InstanceRole, name HostGroupName) (hostGroup HostGroup, err error) {
+func GenerateHostGroupFromLaunchTemplate(clusterName cluster.ClusterName, role common.InstanceRole, name common.HostGroupName) (hostGroup HostGroup, err error) {
 	hostGroupParams, err := fetchClusterLaunchTemplateParams(clusterName, name)
 	if err != nil {
 		return

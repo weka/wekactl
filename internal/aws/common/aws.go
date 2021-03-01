@@ -9,9 +9,9 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/semaphore"
+	"math"
 	"os"
 	"sync"
-	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	strings2 "wekactl/internal/lib/strings"
@@ -148,15 +148,6 @@ func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) 
 	return
 }
 
-func GenerateResourceName(clusterName cluster.ClusterName, hostGroupName cluster2.HostGroupName) string {
-	resourceName := "wekactl-" + string(clusterName)
-	name := string(hostGroupName)
-	if name != "" {
-		resourceName += "-" + name
-	}
-	return resourceName
-}
-
 func getInstanceIdsSet(instanceIds []*string) InstanceIdsSet {
 	instanceIdsSet := make(InstanceIdsSet)
 	for _, instanceId := range instanceIds {
@@ -174,4 +165,26 @@ func GetDeltaInstancesIds(instanceIds1 []*string, instanceIds2 []*string) (delta
 		}
 	}
 	return
+}
+
+func GetMaxSize(role InstanceRole, initialSize int) int64 {
+	var maxSize int
+	switch role {
+	case "backend":
+		maxSize = 7 * initialSize
+	case "client":
+		maxSize = int(math.Ceil(float64(initialSize)/float64(500))) * 500
+	default:
+		maxSize = 1000
+	}
+	return int64(maxSize)
+}
+
+func GenerateResourceName(clusterName cluster.ClusterName, hostGroupName HostGroupName) string {
+	resourceName := "wekactl-" + string(clusterName)
+	name := string(hostGroupName)
+	if name != "" {
+		resourceName += "-" + name
+	}
+	return resourceName
 }

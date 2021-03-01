@@ -16,7 +16,7 @@ type IamProfile struct {
 	TableName        string
 	Version          string
 	AssumeRolePolicy iam.AssumeRolePolicyDocument
-	HostGroupInfo    HostGroupInfo
+	HostGroupInfo    common.HostGroupInfo
 	Policy           iam.PolicyDocument
 }
 
