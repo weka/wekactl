@@ -1,6 +1,9 @@
 package cluster
 
-import "wekactl/internal/cluster"
+import (
+	"math"
+	"wekactl/internal/cluster"
+)
 
 type InstanceRole string
 
@@ -19,8 +22,7 @@ type HostGroupParams struct {
 	VolumeName        string
 	VolumeType        string
 	VolumeSize        int64
-	InstanceIds       []*string // Is not part of Params, it is related only to importing
-	//TODO: Replace instanceIds with max size
+	MaxSize           int64
 }
 
 type HostGroupInfo struct {
@@ -42,4 +44,17 @@ func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams HostGrou
 	}
 
 	return hostGroup
+}
+
+func GetMaxSize(role InstanceRole, initialSize int) int64 {
+	var maxSize int
+	switch role {
+	case "backend":
+		maxSize = 7 * initialSize
+	case "client":
+		maxSize = int(math.Ceil(float64(initialSize)/float64(500))) * 500
+	default:
+		maxSize = 1000
+	}
+	return int64(maxSize)
 }
