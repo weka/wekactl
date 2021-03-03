@@ -74,5 +74,6 @@ func (i *IamProfile) Create() error {
 }
 
 func (i *IamProfile) Update() error {
-	return iam.UpdateRolePolicy(i.resourceNameBase(), i.PolicyName, i.Policy)
+	return iam.UpdateRolePolicy(
+		i.resourceNameBase(), i.PolicyName, i.Policy, cluster.GetResourceVersionTag(i.TargetVersion()).AsIam())
 }
