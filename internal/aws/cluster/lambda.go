@@ -81,5 +81,5 @@ func (l *Lambda) Create() (err error) {
 }
 
 func (l *Lambda) Update() error {
-	return lambdas.UpdateLambdaHandler(l.ResourceName())
+	return lambdas.UpdateLambdaHandler(l.ResourceName(), cluster.GetResourceVersionTag(l.TargetVersion()).AsStringRefs())
 }
