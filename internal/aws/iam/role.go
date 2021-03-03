@@ -171,7 +171,7 @@ func GetIamRoleVersion(roleBaseName string) (version string, err error) {
 	return
 }
 
-func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument) error {
+func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument, versionTag []*iam.Tag) error {
 	role, err := getIamRole(roleBaseName, nil)
 	if err != nil {
 		return err
@@ -180,5 +180,16 @@ func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument) er
 	if err != nil {
 		return err
 	}
-	return attachIamPolicy(*role.RoleName, policyName, policy)
+	if policy.Version != "" {
+		err = attachIamPolicy(*role.RoleName, policyName, policy)
+		if err != nil {
+			return err
+		}
+	}
+	svc := connectors.GetAWSSession().IAM
+	_, err = svc.TagRole(&iam.TagRoleInput{
+		RoleName: role.RoleName,
+		Tags:     versionTag,
+	})
+	return err
 }
