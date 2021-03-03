@@ -131,7 +131,7 @@ func GetLambdaVersion(lambdaName string) (version string, err error) {
 	return
 }
 
-func UpdateLambdaHandler(lambdaName string) error {
+func UpdateLambdaHandler(lambdaName string, versionTag cluster.TagsRefsValues) error {
 	svc := connectors.GetAWSSession().Lambda
 	bucket, err := dist.GetLambdaBucket()
 	if err != nil {
@@ -146,5 +146,23 @@ func UpdateLambdaHandler(lambdaName string) error {
 		S3Bucket:     aws.String(bucket),
 		S3Key:        aws.String(s3Key),
 	})
+
+	if err != nil {
+		return err
+	}
+
+	functionInfo, err := svc.GetFunction(&lambda.GetFunctionInput{
+		FunctionName: &lambdaName,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.TagResource(&lambda.TagResourceInput{
+		Resource: functionInfo.Configuration.FunctionArn,
+		Tags:     versionTag,
+	})
+
 	return err
 }

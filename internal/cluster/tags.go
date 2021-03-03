@@ -116,6 +116,12 @@ func (t Tags) AsSfn() []*sfn.Tag {
 	return sfnTags
 }
 
+func GetResourceVersionTag(version string) Tags {
+	return Tags{
+		VersionTagKey: version,
+	}
+}
+
 func GetCommonResourceTags(clusterName ClusterName, version string) Tags {
 	tags := Tags{
 		"wekactl.io/managed":      "true",
@@ -125,4 +131,3 @@ func GetCommonResourceTags(clusterName ClusterName, version string) Tags {
 	}
 	return tags
 }
-
