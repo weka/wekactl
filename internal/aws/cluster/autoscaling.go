@@ -3,7 +3,6 @@ package cluster
 import (
 	"fmt"
 	"github.com/rs/zerolog/log"
-	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
@@ -14,7 +13,6 @@ const autoscalingVersion = "v1"
 type AutoscalingGroup struct {
 	HostGroupInfo          common.HostGroupInfo
 	HostGroupParams        common.HostGroupParams
-	RestApiGateway         apigateway.RestApiGateway
 	LaunchTemplate         LaunchTemplate
 	ScaleMachineCloudWatch CloudWatch
 	TableName              string
