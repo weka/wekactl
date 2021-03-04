@@ -4,14 +4,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
+	"wekactl/internal/aws/kms"
 	"wekactl/internal/cluster"
 )
-
-/*
-type DynamoDb struct{
-	KMSKey KmsKey
-}
-*/
 
 const dbVersion = "v1"
 
@@ -43,6 +38,14 @@ func (d *DynamoDb) Fetch() error {
 		return err
 	}
 	d.Version = version
+
+	if d.KmsKey.Key == "" {
+		kmsKeyId, err := kms.GetKMSKeyId(d.ClusterName)
+		if err != nil {
+			return err
+		}
+		d.KmsKey.Key = kmsKeyId
+	}
 	return nil
 }
 
