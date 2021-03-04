@@ -72,5 +72,5 @@ func (d *DynamoDb) Create() error {
 }
 
 func (d *DynamoDb) Update() error {
-	panic("implement me")
+	panic("update not supported")
 }

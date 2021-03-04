@@ -72,10 +72,5 @@ func (a *ApiGateway) Create() error {
 }
 
 func (a *ApiGateway) Update() error {
-	err := a.Delete()
-	if err != nil {
-		return err
-	}
-
-	return a.Create()
+	panic("update not supported")
 }

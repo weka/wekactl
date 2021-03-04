@@ -61,11 +61,7 @@ func (a *AutoscalingGroup) Create() error {
 }
 
 func (a *AutoscalingGroup) Update() error {
-	err := a.Delete()
-	if err != nil {
-		return err
-	}
-	return a.Create()
+	panic("update not supported")
 }
 
 func (a *AutoscalingGroup) Init() {

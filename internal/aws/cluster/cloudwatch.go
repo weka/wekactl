@@ -59,11 +59,7 @@ func (c *CloudWatch) Create() (err error) {
 }
 
 func (c *CloudWatch) Update() error {
-	err := c.Delete()
-	if err != nil {
-		return err
-	}
-	return c.Create()
+	panic("update not supported")
 }
 
 func (c *CloudWatch) Init() {
