@@ -56,11 +56,7 @@ func (l *LaunchTemplate) Create() error {
 }
 
 func (l *LaunchTemplate) Update() error {
-	err := l.Delete()
-	if err != nil {
-		return err
-	}
-	return l.Create()
+	panic("update not supported")
 }
 
 func (l *LaunchTemplate) Init() {
