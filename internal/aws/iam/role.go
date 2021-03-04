@@ -171,6 +171,15 @@ func GetIamRoleVersion(roleBaseName string) (version string, err error) {
 	return
 }
 
+func GetIamRoleArn(roleBaseName string) (arn string, err error) {
+	role, err := getIamRole(roleBaseName, nil)
+	if err != nil || role == nil {
+		return
+	}
+	arn = *role.Arn
+	return
+}
+
 func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument, versionTag []*iam.Tag) error {
 	role, err := getIamRole(roleBaseName, nil)
 	if err != nil {

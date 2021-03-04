@@ -46,6 +46,47 @@ func (s *ScaleMachine) Fetch() error {
 		return err
 	}
 	s.Version = version
+
+	if s.Profile.Arn == "" {
+		profileArn, err := iam.GetIamRoleArn(s.Profile.resourceNameBase())
+		if err != nil {
+			return err
+		}
+		s.Profile.Arn = profileArn
+	}
+
+	if s.fetch.Arn == "" {
+		backendArn, err := lambdas.GetLambdaArn(s.fetch.ResourceName())
+		if err != nil {
+			return err
+		}
+		s.fetch.Arn = backendArn
+	}
+
+	if s.scale.Arn == "" {
+		backendArn, err := lambdas.GetLambdaArn(s.scale.ResourceName())
+		if err != nil {
+			return err
+		}
+		s.scale.Arn = backendArn
+	}
+
+	if s.terminate.Arn == "" {
+		backendArn, err := lambdas.GetLambdaArn(s.terminate.ResourceName())
+		if err != nil {
+			return err
+		}
+		s.terminate.Arn = backendArn
+	}
+
+	if s.transient.Arn == "" {
+		backendArn, err := lambdas.GetLambdaArn(s.transient.ResourceName())
+		if err != nil {
+			return err
+		}
+		s.transient.Arn = backendArn
+	}
+
 	return nil
 }
 

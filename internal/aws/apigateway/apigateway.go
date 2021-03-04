@@ -1,6 +1,7 @@
 package apigateway
 
 import (
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/apigateway"
@@ -128,7 +129,6 @@ func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGate
 	restApiGateway = RestApiGateway{
 		Id:     *restApiId,
 		Name:   apiGatewayName,
-		Url:    fmt.Sprintf("https://%s.execute-api.%s.amazonaws.com/default/%s", *restApiId, env.Config.Region, apiGatewayName),
 		ApiKey: *apiKeyOutput.Value,
 	}
 	return
@@ -247,5 +247,44 @@ func GetRestApiGatewayVersion(resourceName string) (version string, err error) {
 			}
 		}
 	}
+	return
+}
+
+func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err error) {
+	svc := connectors.GetAWSSession().ApiGateway
+
+	restApisOutput, err := svc.GetRestApis(&apigateway.GetRestApisInput{})
+	if err != nil {
+		return
+	}
+	for _, restApi := range restApisOutput.Items {
+		if *restApi.Name != resourceName {
+			continue
+		}
+		restApiGateway.Id = *restApi.Id
+		break
+	}
+	if restApiGateway.Id == "" {
+		err = errors.New("api gateway wasn't found")
+		return
+	}
+
+	apiKeysOutput, err := svc.GetApiKeys(&apigateway.GetApiKeysInput{IncludeValues: aws.Bool(true)})
+	if err != nil {
+		return
+	}
+	for _, apiKey := range apiKeysOutput.Items {
+		if *apiKey.Name != resourceName {
+			continue
+		}
+		restApiGateway.ApiKey = *apiKey.Value
+		break
+	}
+	if restApiGateway.ApiKey == "" {
+		err = errors.New("api key wasn't found")
+		return
+	}
+
+	restApiGateway.Name = resourceName
 	return
 }

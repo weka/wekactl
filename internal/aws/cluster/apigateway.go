@@ -47,6 +47,14 @@ func (a *ApiGateway) Fetch() error {
 		return err
 	}
 	a.Version = version
+
+	if a.Backend.Arn == "" {
+		backendArn, err := lambdas.GetLambdaArn(a.Backend.ResourceName())
+		if err != nil {
+			return err
+		}
+		a.Backend.Arn = backendArn
+	}
 	return nil
 }
 

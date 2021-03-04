@@ -6,6 +6,7 @@ import (
 	"wekactl/internal/aws/cloudwatch"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/iam"
+	"wekactl/internal/aws/scalemachine"
 	"wekactl/internal/cluster"
 )
 
@@ -39,6 +40,23 @@ func (c *CloudWatch) Fetch() error {
 		return err
 	}
 	c.Version = version
+
+	if c.ScaleMachine.Arn == "" {
+		scaleMachineArn, err := scalemachine.GetStateMachineArn(c.ScaleMachine.ResourceName())
+		if err != nil {
+			return err
+		}
+		c.ScaleMachine.Arn = scaleMachineArn
+	}
+
+	if c.Profile.Arn == "" {
+		profileArn, err := iam.GetIamRoleArn(c.Profile.resourceNameBase())
+		if err != nil {
+			return err
+		}
+		c.Profile.Arn = profileArn
+	}
+
 	return nil
 }
 

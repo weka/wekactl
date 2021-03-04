@@ -43,6 +43,15 @@ func (l *Lambda) Fetch() error {
 		return err
 	}
 	l.Version = version
+
+	if l.Profile.Arn == "" {
+		profileArn, err := iam.GetIamRoleArn(l.Profile.resourceNameBase())
+		if err != nil {
+			return err
+		}
+		l.Profile.Arn = profileArn
+	}
+
 	return nil
 }
 

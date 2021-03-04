@@ -124,3 +124,12 @@ func GetKMSKeyVersion(clusterName cluster.ClusterName) (version string, err erro
 	}
 	return
 }
+
+func GetKMSKeyId(clusterName cluster.ClusterName) (arn string, err error) {
+	kmsKey, err := GetKmsKey(clusterName)
+	if err != nil || kmsKey == nil {
+		return
+	}
+	arn = *kmsKey.KeyId
+	return
+}
