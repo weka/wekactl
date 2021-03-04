@@ -78,11 +78,7 @@ func (s *ScaleMachine) Create() (err error) {
 }
 
 func (s *ScaleMachine) Update() error {
-	err := s.Delete()
-	if err != nil {
-		return err
-	}
-	return s.Create()
+	panic("update not supported")
 }
 
 func (s *ScaleMachine) Init() {

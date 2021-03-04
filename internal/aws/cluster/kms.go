@@ -62,9 +62,5 @@ func (k *KmsKey) Create() error {
 }
 
 func (k *KmsKey) Update() error {
-	err := k.Delete()
-	if err != nil {
-		return err
-	}
-	return k.Create()
+	panic("update not supported")
 }
