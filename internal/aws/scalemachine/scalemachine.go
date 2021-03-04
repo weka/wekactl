@@ -127,3 +127,20 @@ func GetStateMachineVersion(stateMachineName string) (version string, err error)
 
 	return
 }
+
+func GetStateMachineArn(stateMachineName string) (arn string, err error) {
+	svc := connectors.GetAWSSession().SFN
+
+	stateMachinesOutput, err := svc.ListStateMachines(&sfn.ListStateMachinesInput{})
+	if err != nil {
+		return
+	}
+	for _, stateMachine := range stateMachinesOutput.StateMachines {
+		if *stateMachine.Name != stateMachineName {
+			continue
+		}
+		arn = *stateMachine.StateMachineArn
+		break
+	}
+	return
+}

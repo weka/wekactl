@@ -131,6 +131,18 @@ func GetLambdaVersion(lambdaName string) (version string, err error) {
 	return
 }
 
+func GetLambdaArn(lambdaName string) (arn string, err error) {
+	svc := connectors.GetAWSSession().Lambda
+	lambdaOutput, err := svc.GetFunction(&lambda.GetFunctionInput{
+		FunctionName: &lambdaName,
+	})
+	if err != nil {
+		return
+	}
+	arn = *lambdaOutput.Configuration.FunctionArn
+	return
+}
+
 func UpdateLambdaHandler(lambdaName string, versionTag cluster.TagsRefsValues) error {
 	svc := connectors.GetAWSSession().Lambda
 	bucket, err := dist.GetLambdaBucket()

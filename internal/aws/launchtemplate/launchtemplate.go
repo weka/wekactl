@@ -40,7 +40,7 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 	fi
 	`
 
-	userData := fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.Url, restApiGateway.ApiKey)
+	userData := fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.Url(), restApiGateway.ApiKey)
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			ImageId:               &hostGroupParams.ImageID,

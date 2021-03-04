@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"github.com/rs/zerolog/log"
+	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
@@ -36,6 +37,14 @@ func (l *LaunchTemplate) Fetch() error {
 		return err
 	}
 	l.Version = version
+
+	if l.JoinApi.RestApiGateway.Id == "" {
+		restApiGateway, err := apigateway.GetRestApiGateway(l.JoinApi.ResourceName())
+		if err != nil {
+			return err
+		}
+		l.JoinApi.RestApiGateway = restApiGateway
+	}
 	return nil
 }
 
