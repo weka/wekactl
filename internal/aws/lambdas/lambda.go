@@ -143,6 +143,14 @@ func GetLambdaArn(lambdaName string) (arn string, err error) {
 	return
 }
 
+func InvokePolicyExists(lambdaName string) bool {
+	svc := connectors.GetAWSSession().Lambda
+	_, err := svc.GetPolicy(&lambda.GetPolicyInput{
+		FunctionName: &lambdaName,
+	})
+	return err == nil
+}
+
 func UpdateLambdaHandler(lambdaName string, versionTag cluster.TagsRefsValues) error {
 	svc := connectors.GetAWSSession().Lambda
 	bucket, err := dist.GetLambdaBucket()
