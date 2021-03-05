@@ -3,7 +3,6 @@ package cluster
 import (
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/cluster"
 	"wekactl/internal/env"
@@ -25,7 +24,6 @@ var importCmd = &cobra.Command{
 			err := cluster.ImportCluster(importParams.name, importParams.username, importParams.password)
 			if err != nil {
 				logging.UserFailure("Import failed!")
-				log.Debug().Msg(err.Error())
 				return err
 			}
 			logging.UserSuccess("Import finished successfully!")
