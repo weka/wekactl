@@ -48,6 +48,10 @@ func (a *ApiGateway) Fetch() error {
 	}
 	a.Version = version
 
+	if version != "" && !lambdas.InvokePolicyExists(a.Backend.ResourceName()) {
+		a.Version = "re-create"
+	}
+
 	if a.Backend.Arn == "" {
 		backendArn, err := lambdas.GetLambdaArn(a.Backend.ResourceName())
 		if err != nil {
@@ -80,5 +84,13 @@ func (a *ApiGateway) Create() error {
 }
 
 func (a *ApiGateway) Update() error {
+	if a.Version == "re-create" {
+		err := a.Delete()
+		if err != nil {
+			return err
+		}
+		return a.Create()
+	}
+
 	panic("update not supported")
 }
