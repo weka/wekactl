@@ -12,7 +12,7 @@ fi
 
 if [[ "$GA" == "1" ]]; then
   if [[ -z $NEW_TAG ]]; then
-    LATEST_TAG=$(git tag -l | grep "$BASE_VERSION" | grep -v "-" || true)
+    LATEST_TAG=$(git tag -l | grep "$BASE_VERSION" | grep -v "-" | tail -1 || true)
     if [[ -z $LATEST_TAG ]]; then
       patch=0
     else
