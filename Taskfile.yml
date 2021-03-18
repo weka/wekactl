@@ -41,6 +41,7 @@ tasks:
     env:
       WEKACTL_AWS_LAMBDAS_BUCKETS: "eu-west-1=weka-wekactl-images-eu-west-1,ap-northeast-2=weka-wekactl-images-ap-northeast-2,ap-northeast-1=weka-wekactl-images-ap-northeast-1,eu-west-2=weka-wekactl-images-eu-west-2,eu-central-1=weka-wekactl-images-eu-central-1,ap-southeast-1=weka-wekactl-images-ap-southeast-1,us-east-1=weka-wekactl-images-us-east-1,us-west-2=weka-wekactl-images-us-west-2,us-east-2=weka-wekactl-images-us-east-2,ap-southeast-2=weka-wekactl-images-ap-southeast-2,sa-east-1=weka-wekactl-images-sa-east-1,ap-south-1=weka-wekactl-images-ap-south-1,us-west-1=weka-wekactl-images-us-west-1"
       DEPLOY: 1
+      RELEASE: 1
     cmds:
       - ./deploy.sh
   deploy-ga:
