@@ -54,6 +54,10 @@ if [[ "$RELEASE" == 1 ]]; then
   fi
   BUILD_VERSION="$VERSION"
   LAMBDAS_ID="release/$BUILD_VERSION"
+  if aws s3 ls "s3://weka-wekactl-images-eu-west-1/$LAMBDAS_ID" > /dev/null 2>&1 ; then
+	  echo "Release with VERSION=$VERSION already exists!"
+	  exit 1
+  fi
 fi
 
 echo "$BUILD_VERSION"
