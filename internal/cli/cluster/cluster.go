@@ -24,7 +24,7 @@ func init() {
 	Cluster.AddCommand(createCmd)
 	Cluster.AddCommand(importCmd)
 	Cluster.AddCommand(listCmd)
-	Cluster.AddCommand(cleanCmd)
+	Cluster.AddCommand(destroyCmd)
 	Cluster.AddCommand(updateCmd)
 	_ = Cluster.MarkPersistentFlagRequired("region")
 }

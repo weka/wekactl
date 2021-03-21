@@ -55,9 +55,9 @@ func EnsureResource(r Resource) error {
 	return nil
 }
 
-func CleanResource(r Resource) error {
+func DestroyResource(r Resource) error {
 	for _, subresource := range r.SubResources() {
-		if err := CleanResource(subresource); err != nil {
+		if err := DestroyResource(subresource); err != nil {
 			return err
 		}
 	}
