@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"wekactl/internal/aws/autoscaling"
 	cluster2 "wekactl/internal/aws/cluster"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
@@ -11,6 +12,8 @@ import (
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
 )
+
+var keepInstances bool
 
 var cleanCmd = &cobra.Command{
 	Use:   "clean [flags]",
@@ -52,6 +55,10 @@ var cleanCmd = &cobra.Command{
 				},
 			}
 
+			if keepInstances {
+				autoscaling.KeepInstances = true
+			}
+
 			awsCluster.Init()
 			err := cluster.CleanResource(&awsCluster)
 
@@ -71,5 +78,6 @@ var cleanCmd = &cobra.Command{
 
 func init() {
 	cleanCmd.Flags().StringVarP(&StackName, "name", "n", "", "EKS cluster name")
+	cleanCmd.Flags().BoolVarP(&keepInstances, "keep-instances", "k", false, "Keep instances")
 	_ = cleanCmd.MarkFlagRequired("name")
 }

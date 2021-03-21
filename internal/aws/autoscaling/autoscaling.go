@@ -13,6 +13,8 @@ import (
 	"wekactl/internal/logging"
 )
 
+var KeepInstances bool
+
 func CreateAutoScalingGroup(tags []*autoscaling.Tag, launchTemplateName string, maxSize int64, autoScalingGroupName string) (err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.CreateAutoScalingGroupInput{
@@ -154,7 +156,7 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 		}
 	}
 
-	if len(instanceIds) > 0 {
+	if KeepInstances && len(instanceIds) > 0 {
 		_, err = svc.DetachInstances(&autoscaling.DetachInstancesInput{
 			AutoScalingGroupName:           &autoScalingGroupName,
 			ShouldDecrementDesiredCapacity: aws.Bool(true),
@@ -186,6 +188,7 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 
 	_, err = svc.DeleteAutoScalingGroup(&autoscaling.DeleteAutoScalingGroupInput{
 		AutoScalingGroupName: &autoScalingGroupName,
+		ForceDelete: aws.Bool(true),
 	})
 	if err != nil {
 		return err
