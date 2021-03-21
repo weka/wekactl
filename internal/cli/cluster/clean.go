@@ -15,8 +15,8 @@ import (
 
 var keepInstances bool
 
-var cleanCmd = &cobra.Command{
-	Use:   "clean [flags]",
+var destroyCmd = &cobra.Command{
+	Use:   "destroy [flags]",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -60,13 +60,13 @@ var cleanCmd = &cobra.Command{
 			}
 
 			awsCluster.Init()
-			err := cluster.CleanResource(&awsCluster)
+			err := cluster.DestroyResource(&awsCluster)
 
 			if err != nil {
-				logging.UserFailure("Cleaning failed!")
+				logging.UserFailure("Destroying failed!")
 				return err
 			}
-			logging.UserSuccess("Cleaning finished successfully!")
+			logging.UserSuccess("Destroying finished successfully!")
 		} else {
 			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
 			logging.UserFailure(err.Error())
@@ -77,7 +77,7 @@ var cleanCmd = &cobra.Command{
 }
 
 func init() {
-	cleanCmd.Flags().StringVarP(&StackName, "name", "n", "", "EKS cluster name")
-	cleanCmd.Flags().BoolVarP(&keepInstances, "keep-instances", "k", false, "Keep instances")
-	_ = cleanCmd.MarkFlagRequired("name")
+	destroyCmd.Flags().StringVarP(&StackName, "name", "n", "", "EKS cluster name")
+	destroyCmd.Flags().BoolVarP(&keepInstances, "keep-instances", "k", false, "Keep instances")
+	_ = destroyCmd.MarkFlagRequired("name")
 }
