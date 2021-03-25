@@ -28,7 +28,7 @@ result=$(curl \
   -X POST \
   -H "$AUTH" \
   https://api.github.com/repos/$github_repo/releases \
-  -d "{\"tag_name\":\"$BUILD_VERSION\", \"body\":\"$release_body\"}")
+  -d "{\"tag_name\":\"$BUILD_VERSION\", \"name\":\"$BUILD_VERSION\", \"body\":\"$release_body\", \"draft\": true}")
 
 id=$(echo "$result" | jq -c ".id")
 
