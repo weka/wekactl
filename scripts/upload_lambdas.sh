@@ -5,7 +5,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 cd ../
 
-. ./scripts/get_lambda_id.sh
+. ./scripts/get_build_params.sh
 
 AWS_DIST="internal/aws/dist/dist_generated.go"
 rm -f $AWS_DIST
