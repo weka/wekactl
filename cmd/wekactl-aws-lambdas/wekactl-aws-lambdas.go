@@ -15,6 +15,7 @@ import (
 
 func joinHandler() (events.APIGatewayProxyResponse, error) {
 	result, err := lambdas.GetJoinParams(
+		os.Getenv("CLUSTER_NAME"),
 		os.Getenv("ASG_NAME"),
 		os.Getenv("TABLE_NAME"),
 		os.Getenv("ROLE"),
@@ -27,6 +28,7 @@ func joinHandler() (events.APIGatewayProxyResponse, error) {
 
 func fetchHandler() (protocol.HostGroupInfoResponse, error) {
 	result, err := lambdas.GetFetchDataParams(
+		os.Getenv("CLUSTER_NAME"),
 		os.Getenv("ASG_NAME"),
 		os.Getenv("TABLE_NAME"),
 		os.Getenv("ROLE"),

@@ -16,7 +16,7 @@ var GetInstanceJoinParamsCmd = &cobra.Command{
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		if env.Config.Provider == "aws" {
-			res, err := lambdas.GetJoinParams(AsgName, TableName, "Backends")
+			res, err := lambdas.GetJoinParams(StackName, AsgName, TableName, "Backends")
 			if err != nil {
 				fmt.Println(err)
 			} else {
@@ -29,9 +29,11 @@ var GetInstanceJoinParamsCmd = &cobra.Command{
 }
 
 func init() {
+	GetInstanceJoinParamsCmd.Flags().StringVarP(&StackName, "name", "n", "", "StackName")
 	GetInstanceJoinParamsCmd.Flags().StringVarP(&AsgName, "asg-name", "g", "", "Auto scaling group name")
 	GetInstanceJoinParamsCmd.Flags().StringVarP(&TableName, "table-name", "t", "", "Dynamo DB table name")
 
+	_ = GetInstanceJoinParamsCmd.MarkFlagRequired("name")
 	_ = GetInstanceJoinParamsCmd.MarkFlagRequired("asg-name")
 	_ = GetInstanceJoinParamsCmd.MarkFlagRequired("table-name")
 	Debug.AddCommand(GetInstanceJoinParamsCmd)

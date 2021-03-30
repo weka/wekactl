@@ -8,7 +8,7 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupInfoResponse, err error) {
+func GetFetchDataParams(clusterName, asgName, tableName, role string) (fd protocol.HostGroupInfoResponse, err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
 	asgOutput, err := svc.DescribeAutoScalingGroups(input)
@@ -22,9 +22,9 @@ func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupI
 		return
 	}
 
-	var ids []string
-	for _, instanceId := range instanceIds {
-		ids = append(ids, *instanceId)
+	backendIps, err := common.GetBackendsPrivateIps(clusterName)
+	if err != nil {
+		return
 	}
 
 	creds, err := getUsernameAndPassword(tableName)
@@ -37,6 +37,7 @@ func GetFetchDataParams(asgName, tableName, role string) (fd protocol.HostGroupI
 		Password:        creds.Password,
 		DesiredCapacity: getAutoScalingGroupDesiredCapacity(asgOutput),
 		Instances:       getHostGroupInfoInstances(instances),
+		BackendIps:      backendIps,
 		Role:            role,
 	}, nil
 }
@@ -45,9 +46,9 @@ func getHostGroupInfoInstances(instances []*ec2.Instance) (ret []protocol.HgInst
 	for _, i := range instances {
 		if i.InstanceId != nil && i.PrivateIpAddress != nil {
 			ret = append(ret, protocol.HgInstance{
-			Id:        *i.InstanceId,
-			PrivateIp: *i.PrivateIpAddress,
-		})
+				Id:        *i.InstanceId,
+				PrivateIp: *i.PrivateIpAddress,
+			})
 		}
 	}
 	return

@@ -15,8 +15,8 @@ type HostGroupInfoResponse struct {
 	Username        string       `json:"username"`
 	Password        string       `json:"password"`
 	DesiredCapacity int          `json:"desired_capacity"`
-	InstanceIds     []string     `json:"instance_ids"` //TODO: Remove
 	Instances       []HgInstance `json:"instances"`
+	BackendIps      []string     `json:"backend_ips"`
 	Role            string       `json:"role"`
 }
 
