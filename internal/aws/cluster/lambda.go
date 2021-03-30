@@ -80,7 +80,7 @@ func (l *Lambda) Delete() error {
 
 func (l *Lambda) Create() (err error) {
 	functionConfiguration, err := lambdas.CreateLambda(
-		l.Tags().AsStringRefs(), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo.Role, l.VPCConfig)
+		l.Tags().AsStringRefs(), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo, l.VPCConfig)
 	if err != nil {
 		return
 	}

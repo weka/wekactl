@@ -106,15 +106,6 @@ func GetInstanceTypeFromAutoScalingGroupOutput(asgOutput *autoscaling.DescribeAu
 	return *asgOutput.AutoScalingGroups[0].Instances[0].InstanceType
 }
 
-func GetInstancesIps(instances []*ec2.Instance) []string {
-	var instanceIps []string
-	for _, instance := range instances {
-		instanceIps = append(instanceIps, *instance.PrivateIpAddress)
-	}
-	return instanceIps
-}
-
-
 func GetInstancesIds(instances []*ec2.Instance) []string {
 	var instanceIds []string
 	for _, instance := range instances {
@@ -125,6 +116,15 @@ func GetInstancesIds(instances []*ec2.Instance) []string {
 
 func GetInstancesIdsRefs(instances []*ec2.Instance) []*string {
 	return strings2.ListToRefList(GetInstancesIds(instances))
+}
+
+func getEc2InstancesFromDescribeOutput(describeResponse *ec2.DescribeInstancesOutput) (instances []*ec2.Instance) {
+	for _, reservation := range describeResponse.Reservations {
+		for _, instance := range reservation.Instances {
+			instances = append(instances, instance)
+		}
+	}
+	return
 }
 
 func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) {
@@ -140,11 +140,7 @@ func GetInstances(instanceIds []*string) (instances []*ec2.Instance, err error) 
 		return
 	}
 
-	for _, reservation := range describeResponse.Reservations {
-		for _, instance := range reservation.Instances {
-			instances = append(instances, instance)
-		}
-	}
+	instances = getEc2InstancesFromDescribeOutput(describeResponse)
 	return
 }
 
@@ -187,4 +183,47 @@ func GenerateResourceName(clusterName cluster.ClusterName, hostGroupName HostGro
 		resourceName += "-" + name
 	}
 	return resourceName
+}
+
+func GetBackendsPrivateIps(clusterName string) (ips []string, err error) {
+	svc := connectors.GetAWSSession().EC2
+	log.Debug().Msgf("Fetching backends ips...")
+	describeResponse, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("running"),
+				},
+			},
+			{
+				Name: aws.String("tag:wekactl.io/cluster_name"),
+				Values: []*string{
+					&clusterName,
+				},
+			},
+			{
+				Name: aws.String("tag:wekactl.io/hostgroup_type"),
+				Values: []*string{
+					aws.String("backend"),
+				},
+			},
+		},
+	})
+
+	if err != nil {
+		return
+	}
+
+	for _, reservation := range describeResponse.Reservations {
+		for _, instance := range reservation.Instances {
+			if instance.PrivateIpAddress == nil {
+				log.Warn().Msgf("Found backend instance %s without private ip!", *instance.InstanceId)
+				continue
+			}
+			ips = append(ips, *instance.PrivateIpAddress)
+		}
+	}
+	log.Debug().Msgf("found %d backends private ips: %s", len(ips), ips)
+	return
 }

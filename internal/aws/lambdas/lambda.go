@@ -22,7 +22,7 @@ func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcC
 	}
 }
 
-func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, role common.InstanceRole, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
+func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, hostGroupInfo common.HostGroupInfo, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
 	bucket, err := dist.GetLambdaBucket()
@@ -46,11 +46,12 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 		Description: aws.String(fmt.Sprintf("Wekactl %s", string(lambdaType))),
 		Environment: &lambda.Environment{
 			Variables: map[string]*string{
-				"LAMBDA":     aws.String(string(lambdaType)),
-				"REGION":     aws.String(env.Config.Region),
-				"ASG_NAME":   aws.String(asgName),
-				"TABLE_NAME": aws.String(tableName),
-				"ROLE":       aws.String(string(role)),
+				"LAMBDA":       aws.String(string(lambdaType)),
+				"REGION":       aws.String(env.Config.Region),
+				"CLUSTER_NAME": aws.String(string(hostGroupInfo.ClusterName)),
+				"ASG_NAME":     aws.String(asgName),
+				"TABLE_NAME":   aws.String(tableName),
+				"ROLE":         aws.String(string(hostGroupInfo.Role)),
 			},
 		},
 		Handler:      aws.String(lambdaHandler),

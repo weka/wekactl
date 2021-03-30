@@ -48,7 +48,7 @@ func getBackendCoreCounts() BackendCoreCounts {
 	return backendCoreCounts
 }
 
-func GetJoinParams(asgName, tableName, role string) (string, error) {
+func GetJoinParams(clusterName, asgName, tableName, role string) (string, error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
 	asgOutput, err := svc.DescribeAutoScalingGroups(input)
@@ -56,12 +56,10 @@ func GetJoinParams(asgName, tableName, role string) (string, error) {
 		return "", err
 	}
 
-	instanceIds := common.GetInstanceIdsFromAutoScalingGroupOutput(asgOutput)
-	instances, err := common.GetInstances(instanceIds)
+	ips, err := common.GetBackendsPrivateIps(clusterName)
 	if err != nil {
 		return "", err
 	}
-	ips := common.GetInstancesIps(instances)
 	instanceType := common.GetInstanceTypeFromAutoScalingGroupOutput(asgOutput)
 	shuffleSlice(ips)
 	creds, err := getUsernameAndPassword(tableName)

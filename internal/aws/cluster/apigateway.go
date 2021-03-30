@@ -34,6 +34,7 @@ func (a *ApiGateway) Init() {
 	a.Backend.HostGroupInfo = a.HostGroupInfo
 	a.Backend.Permissions = iam.GetJoinAndFetchLambdaPolicy()
 	a.Backend.Type = lambdas.LambdaJoin
+	a.Backend.ASGName = a.ASGName
 	a.Backend.Init()
 }
 

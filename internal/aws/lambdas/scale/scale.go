@@ -110,13 +110,6 @@ func (host hostInfo) managementTimedOut() bool {
 	return false
 }
 
-func instancesIps(instances []protocol.HgInstance) (ret []string) {
-	for _, i := range instances {
-		ret = append(ret, i.PrivateIp)
-	}
-	return
-}
-
 func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response protocol.ScaleResponse, err error) {
 	/*
 		Code in here based on following logic:
@@ -134,7 +127,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	jrpcBuilder := func(ip string) *jrpc.BaseClient {
 		return connectors.NewJrpcClient(ctx, ip, weka.ManagementJrpcPort, info.Username, info.Password)
 	}
-	ips := instancesIps(info.Instances)
+	ips := info.BackendIps
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(ips), func(i, j int) { ips[i], ips[j] = ips[j], ips[i] })
 	jpool := &jrpc.Pool{
