@@ -80,6 +80,18 @@ func (host hostInfo) numNotHealthyDrives() int {
 	return notActive
 }
 
+
+func (host hostInfo) allDisksBeingRemoved() bool {
+	ret := false
+	for _, drive := range host.drives {
+		ret = true
+		if drive.ShouldBeActive {
+			return false
+		}
+	}
+	return ret
+}
+
 func (host hostInfo) anyDiskBeingRemoved() bool {
 	for _, drive := range host.drives {
 		if !drive.ShouldBeActive {
@@ -310,12 +322,14 @@ func getNumToDeactivate(hostInfo []hostInfo, desired int) int {
 	}
 
 	toDeactivate := calculateDeactivateTarget(nHealthy, nUnhealthy, nDeactivating, desired)
-	log.Info().Msgf("%d hosts set to deactivate", toDeactivate)
+	log.Info().Msgf("%d hosts set to deactivate. nHealthy: %d nUnhealthy:%d nDeactivating: %d desired:%d", toDeactivate, nHealthy, nUnhealthy, nDeactivating, desired)
 	return toDeactivate
 }
 
 func calculateDeactivateTarget(nHealthy int, nUnhealthy int, nDeactivating int, desired int) int {
-	return math.Max(nHealthy+nUnhealthy+nDeactivating-desired, math.Min(2-nDeactivating, nUnhealthy))
+	ret := math.Max(nHealthy+nUnhealthy+nDeactivating-desired, math.Min(2-nDeactivating, nUnhealthy))
+	ret = math.Max(nDeactivating, ret)
+	return ret
 }
 
 func isAllowedToScale(status weka.StatusResponse) error {
@@ -330,16 +344,19 @@ func isAllowedToScale(status weka.StatusResponse) error {
 }
 
 func deriveHostState(host *hostInfo) hostState {
-	if host.anyDiskBeingRemoved() {
+	if host.allDisksBeingRemoved() {
+		log.Info().Msgf("Marking %s as deactivating due to unhealthy disks", host.id.String())
 		return DEACTIVATING
 	}
 	if strings.AnyOf(host.State, "DEACTIVATING", "REMOVING", "INACTIVE") {
 		return DEACTIVATING
 	}
 	if host.Status == "DOWN" && host.managementTimedOut() {
+		log.Info().Msgf("Marking %s as unhealthy due to DOWN", host.id.String())
 		return UNHEALTHY
 	}
-	if host.numNotHealthyDrives() > 0 {
+	if host.numNotHealthyDrives() > 0  || host.anyDiskBeingRemoved() {
+		log.Info().Msgf("Marking %s as unhealthy due to unhealthy drives", host.id.String())
 		return UNHEALTHY
 	}
 	return HEALTHY
