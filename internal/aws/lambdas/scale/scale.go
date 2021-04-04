@@ -19,9 +19,10 @@ import (
 )
 
 type hostState int
-const unhealthyDeactivateTimeout = 5 * time.Minute
-const downKickOutTimeout = 3 * time.Hour
 
+const unhealthyDeactivateTimeout = 5 * time.Minute
+const backendCleanupDelay = 5*time.Minute // Giving own HG chance to take care
+const downKickOutTimeout = 3 * time.Hour
 
 func (h hostState) String() string {
 	switch h {
@@ -83,7 +84,6 @@ func (host hostInfo) numNotHealthyDrives() int {
 	return notActive
 }
 
-
 func (host hostInfo) allDisksBeingRemoved() bool {
 	ret := false
 	for _, drive := range host.drives {
@@ -124,6 +124,7 @@ func (host hostInfo) managementTimedOut(timeout time.Duration) bool {
 	}
 	return false
 }
+
 
 func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response protocol.ScaleResponse, err error) {
 	/*
@@ -211,8 +212,8 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		case "INACTIVE":
 			if host.belongsToHgIpBased(info.Instances) {
 				inactiveHosts = append(inactiveHosts, host)
-			}else{
-				if info.Role == "backend" {
+			} else {
+				if info.Role == "backend" && time.Since(host.StateChangedTime) > backendCleanupDelay{
 					// Since terminate logic is mostly delta based, and remove might be transient errors
 					// We might have leftovers, that we are unable to recognize
 					// So decision is, to kick out whatever is inactive.
@@ -222,16 +223,20 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		default:
 			if host.belongsToHg(info.Instances) {
 				hostsList = append(hostsList, host)
-			}else if host.Status == "DOWN" && host.belongsToHgIpBased(info.Instances) {
+			} else if host.Status == "DOWN" {
+				log.Info().Msgf("found down host, %s : %s : %s", host.id, host.Status, host.HostIp)
+				if host.belongsToHgIpBased(info.Instances) {
+					log.Info().Msgf("including in known hosts  %s : %s", host.id, host.Status)
+					hostsList = append(hostsList, host)
+				}
 				// Down hosts lose instanceIds, so have to account basing on IPs
-				hostsList = append(hostsList, host)
 			}
 		}
 
 		switch host.Status {
 		case "DOWN":
 			if info.Role == "backend" {
-				if host.State != "INACTIVE" && host.managementTimedOut(downKickOutTimeout){
+				if host.State != "INACTIVE" && host.managementTimedOut(downKickOutTimeout) {
 					log.Info().Msgf("host %s is still active but down for too long, kicking out", host.id)
 					downHosts = append(downHosts, host)
 				}
@@ -379,7 +384,7 @@ func deriveHostState(host *hostInfo) hostState {
 		log.Info().Msgf("Marking %s as unhealthy due to DOWN", host.id.String())
 		return UNHEALTHY
 	}
-	if host.numNotHealthyDrives() > 0  || host.anyDiskBeingRemoved() {
+	if host.numNotHealthyDrives() > 0 || host.anyDiskBeingRemoved() {
 		log.Info().Msgf("Marking %s as unhealthy due to unhealthy drives", host.id.String())
 		return UNHEALTHY
 	}

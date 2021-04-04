@@ -146,6 +146,12 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 		return
 	}
 
+	err = detachUnhealthyInstances(asgInstances, asgName)
+	if err != nil {
+		log.Error().Msgf("error detaching instances", err)
+		response.AddTransientError(err, "detach unhealthy")
+	}
+
 	deltaInstanceIds, err := getDeltaInstancesIds(asgInstanceIds, scaleResponse)
 	if err != nil {
 		return
@@ -154,6 +160,7 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 	if len(deltaInstanceIds) == 0 {
 		return
 	}
+
 	candidatesToTerminate, err := common.GetInstances(deltaInstanceIds)
 	if err != nil {
 		return
@@ -161,11 +168,6 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 
 	terminatedInstances, errs := terminateUnneededInstances(asgName, candidatesToTerminate, scaleResponse.ToTerminate)
 	response.AddTransientErrors(errs)
-	err = detachUnhealthyInstances(asgInstances, asgName)
-	if err != nil {
-		response.AddTransientError(err, "detach unhealthy")
-		return
-	}
 
 	//detachTerminated(asgName)
 
@@ -182,7 +184,8 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string) error {
 	toDetach := []*string{}
 	for _, instance := range instances {
-		if instance.HealthStatus == aws.String("Unhealthy") && !*instance.ProtectedFromScaleIn {
+		if *instance.HealthStatus == "Unhealthy" && !*instance.ProtectedFromScaleIn {
+			log.Info().Msgf("detaching %s", *instance.InstanceId)
 			toDetach = append(toDetach, instance.InstanceId)
 		}
 	}

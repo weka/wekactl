@@ -69,11 +69,6 @@ func AttachInstancesToASG(instancesIds []*string, autoScalingGroupsName string) 
 
 
 func DetachInstancesFromASG(instancesIds []*string, autoScalingGroupsName string) error {
-	asgInstanceIds, err := common.GetAutoScalingGroupInstanceIds(autoScalingGroupsName)
-	if err != nil {
-		return err
-	}
-	instancesIds = common.GetDeltaInstancesIds(asgInstanceIds, instancesIds)
 	svc := connectors.GetAWSSession().ASG
 	limit := 20
 	for i := 0; i < len(instancesIds); i += limit {
@@ -81,11 +76,12 @@ func DetachInstancesFromASG(instancesIds []*string, autoScalingGroupsName string
 		_, err := svc.DetachInstances(&autoscaling.DetachInstancesInput{
 			AutoScalingGroupName: &autoScalingGroupsName,
 			InstanceIds:          batch,
+			ShouldDecrementDesiredCapacity: aws.Bool(false),
 		})
 		if err != nil {
 			return err
 		}
-		log.Debug().Msgf("Attached %d instances to %s successfully!", len(batch), autoScalingGroupsName)
+		log.Info().Msgf("Detached %d instances from %s successfully!", len(batch), autoScalingGroupsName)
 	}
 	return nil
 }

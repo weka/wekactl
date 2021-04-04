@@ -194,6 +194,7 @@ func GetTerminateLambdaPolicy() PolicyDocument {
 					"ec2:DeleteNetworkInterface",
 					"ec2:ModifyInstanceAttribute",
 					"ec2:TerminateInstances",
+					"autoscaling:DetachInstances",
 					"autoscaling:Describe*",
 					"autoscaling:SetInstanceProtection",
 					"ec2:Describe*",
