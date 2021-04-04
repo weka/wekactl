@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"os"
 	"time"
+	autoscaling2 "wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/lambdas/protocol"
 	"wekactl/internal/connectors"
@@ -73,9 +74,6 @@ func terminateInstances(instanceIds []string) (terminatingInstances []*string, e
 	res, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: strings.ListToRefList(instanceIds),
 	})
-	if res != nil {
-		log.Info().Msgf("terminating output: %s", res.String())
-	}
 	if err != nil {
 		log.Error().Msgf("error terminating instances %s", err.Error())
 		return
@@ -141,7 +139,9 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 	}
 	response.TransientErrors = scaleResponse.TransientErrors[0:len(scaleResponse.TransientErrors):len(scaleResponse.TransientErrors)]
 
-	asgInstanceIds, err := common.GetAutoScalingGroupInstanceIds(asgName)
+	asgInstances, err := common.GetASGInstances(asgName)
+	asgInstanceIds := common.UnpackASGInstanceIds(asgInstances)
+	log.Info().Msgf("Found %d instances on ASG", len(asgInstanceIds))
 	if err != nil {
 		return
 	}
@@ -161,6 +161,13 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 
 	terminatedInstances, errs := terminateUnneededInstances(asgName, candidatesToTerminate, scaleResponse.ToTerminate)
 	response.AddTransientErrors(errs)
+	err = detachUnhealthyInstances(asgInstances, asgName)
+	if err != nil {
+		response.AddTransientError(err, "detach unhealthy")
+		return
+	}
+
+	//detachTerminated(asgName)
 
 	for _, instance := range terminatedInstances {
 		response.Instances = append(response.Instances, protocol.TerminatedInstance{
@@ -170,4 +177,19 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 	}
 
 	return
+}
+
+func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string) error {
+	toDetach := []*string{}
+	for _, instance := range instances {
+		if instance.HealthStatus == aws.String("Unhealthy") && !*instance.ProtectedFromScaleIn {
+			toDetach = append(toDetach, instance.InstanceId)
+		}
+	}
+
+	if len(toDetach) == 0 {
+		return nil
+	}
+
+	return autoscaling2.DetachInstancesFromASG(toDetach, asgName)
 }

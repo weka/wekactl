@@ -57,3 +57,7 @@ func (r *TerminatedInstancesResponse) AddTransientErrors(errs []error) {
 		r.TransientErrors = append(r.TransientErrors, err.Error())
 	}
 }
+
+func (r *TerminatedInstancesResponse) AddTransientError(err error, caller string) {
+	r.TransientErrors = append(r.TransientErrors, fmt.Sprintf("%s:%s", caller, err.Error()))
+}

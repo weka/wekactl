@@ -72,7 +72,8 @@ func SetDisableInstancesApiTermination(instanceIds []string, value bool) (update
 	return
 }
 
-func GetAutoScalingGroupInstanceIds(asgName string) ([]*string, error) {
+
+func GetASGInstances(asgName string) ([]*autoscaling.Instance, error) {
 	svc := connectors.GetAWSSession().ASG
 	asgOutput, err := svc.DescribeAutoScalingGroups(
 		&autoscaling.DescribeAutoScalingGroupsInput{
@@ -80,17 +81,26 @@ func GetAutoScalingGroupInstanceIds(asgName string) ([]*string, error) {
 		},
 	)
 	if err != nil {
-		return []*string{}, err
+		return []*autoscaling.Instance{}, err
 	}
-	return GetInstanceIdsFromAutoScalingGroupOutput(asgOutput), nil
+	return asgOutput.AutoScalingGroups[0].Instances, nil
 }
 
-func GetInstanceIdsFromAutoScalingGroupOutput(asgOutput *autoscaling.DescribeAutoScalingGroupsOutput) []*string {
-	var instanceIds []*string
-	if len(asgOutput.AutoScalingGroups) == 0 {
-		return []*string{}
+
+func GetAutoScalingGroupInstanceIds(asgName string) ([]*string, error) {
+	instances, err := GetASGInstances(asgName)
+	if err != nil {
+		return []*string{}, err
 	}
-	for _, instance := range asgOutput.AutoScalingGroups[0].Instances {
+	return UnpackASGInstanceIds(instances), nil
+}
+
+func UnpackASGInstanceIds(instances []*autoscaling.Instance) []*string {
+	instanceIds := []*string{}
+	if len(instances) == 0 {
+		return instanceIds
+	}
+	for _, instance := range instances {
 		instanceIds = append(instanceIds, instance.InstanceId)
 	}
 	return instanceIds

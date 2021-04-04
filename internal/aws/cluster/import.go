@@ -201,7 +201,7 @@ func ImportCluster(stackName, username, password string) error {
 	roleInstanceIdsRefs[common.RoleClient] = common.GetInstancesIdsRefs(stackInstances.Clients)
 	for _, hostgroup := range awsCluster.HostGroups {
 		autoscalingGroupName := hostgroup.AutoscalingGroup.ResourceName()
-		err = autoscaling.AttachInstancesToAutoScalingGroups(roleInstanceIdsRefs[hostgroup.HostGroupInfo.Role], autoscalingGroupName)
+		err = autoscaling.AttachInstancesToASG(roleInstanceIdsRefs[hostgroup.HostGroupInfo.Role], autoscalingGroupName)
 		if err != nil {
 			return err
 		}

@@ -45,7 +45,7 @@ func CreateAutoScalingGroup(tags []*autoscaling.Tag, launchTemplateName string, 
 	return
 }
 
-func AttachInstancesToAutoScalingGroups(instancesIds []*string, autoScalingGroupsName string) error {
+func AttachInstancesToASG(instancesIds []*string, autoScalingGroupsName string) error {
 	asgInstanceIds, err := common.GetAutoScalingGroupInstanceIds(autoScalingGroupsName)
 	if err != nil {
 		return err
@@ -66,6 +66,30 @@ func AttachInstancesToAutoScalingGroups(instancesIds []*string, autoScalingGroup
 	}
 	return nil
 }
+
+
+func DetachInstancesFromASG(instancesIds []*string, autoScalingGroupsName string) error {
+	asgInstanceIds, err := common.GetAutoScalingGroupInstanceIds(autoScalingGroupsName)
+	if err != nil {
+		return err
+	}
+	instancesIds = common.GetDeltaInstancesIds(asgInstanceIds, instancesIds)
+	svc := connectors.GetAWSSession().ASG
+	limit := 20
+	for i := 0; i < len(instancesIds); i += limit {
+		batch := instancesIds[i:common.Min(i+limit, len(instancesIds))]
+		_, err := svc.DetachInstances(&autoscaling.DetachInstancesInput{
+			AutoScalingGroupName: &autoScalingGroupsName,
+			InstanceIds:          batch,
+		})
+		if err != nil {
+			return err
+		}
+		log.Debug().Msgf("Attached %d instances to %s successfully!", len(batch), autoScalingGroupsName)
+	}
+	return nil
+}
+
 
 func getStackLoadBalancer(stackName string) (loadBalancerName *string, err error) {
 	svc := connectors.GetAWSSession().CF

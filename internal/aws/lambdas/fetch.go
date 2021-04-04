@@ -16,7 +16,7 @@ func GetFetchDataParams(clusterName, asgName, tableName, role string) (fd protoc
 		return
 	}
 
-	instanceIds := common.GetInstanceIdsFromAutoScalingGroupOutput(asgOutput)
+	instanceIds := common.UnpackASGInstanceIds(asgOutput.AutoScalingGroups[0].Instances)
 	instances, err := common.GetInstances(instanceIds)
 	if err != nil {
 		return
