@@ -33,6 +33,15 @@ func CreateAutoScalingGroup(tags []*autoscaling.Tag, launchTemplateName string, 
 		return
 	}
 	log.Debug().Msgf("AutoScalingGroup: \"%s\" was created successfully!", autoScalingGroupName)
+
+	log.Debug().Msgf("AutoScalingGroup: \"%s\" suspending ReplaceUnhealthy...", autoScalingGroupName)
+	_, err = svc.SuspendProcesses(&autoscaling.ScalingProcessQuery{
+		AutoScalingGroupName: &autoScalingGroupName,
+		ScalingProcesses : []*string{
+			aws.String("ReplaceUnhealthy"),
+		},
+	})
+
 	return
 }
 
