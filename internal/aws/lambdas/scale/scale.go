@@ -19,6 +19,9 @@ import (
 )
 
 type hostState int
+const unhealthyDeactivateTimeout = 5 * time.Minute
+const downKickOutTimeout = 3 * time.Hour
+
 
 func (h hostState) String() string {
 	switch h {
@@ -110,12 +113,12 @@ func (host hostInfo) allDrivesInactive() bool {
 	return true
 }
 
-func (host hostInfo) managementTimedOut() bool {
+func (host hostInfo) managementTimedOut(timeout time.Duration) bool {
 	for nodeId, node := range host.nodes {
 		if !nodeId.IsManagement() {
 			continue
 		}
-		if node.Status == "DOWN" && time.Since(*node.LastFencingTime) > 2 * time.Hour {
+		if node.Status == "DOWN" && time.Since(*node.LastFencingTime) > timeout {
 			return true
 		}
 	}
@@ -201,6 +204,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 
 	var hostsList []hostInfo
 	var inactiveHosts []hostInfo
+	var downHosts []hostInfo
 
 	for _, host := range hosts {
 		switch host.State {
@@ -216,10 +220,22 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 				}
 			}
 		default:
-			if !host.belongsToHg(info.Instances) {
-				continue
+			if host.belongsToHg(info.Instances) {
+				hostsList = append(hostsList, host)
+			}else if host.Status == "DOWN" && host.belongsToHgIpBased(info.Instances) {
+				// Down hosts lose instanceIds, so have to account basing on IPs
+				hostsList = append(hostsList, host)
 			}
-			hostsList = append(hostsList, host)
+		}
+
+		switch host.Status {
+		case "DOWN":
+			if info.Role == "backend" {
+				if host.State != "INACTIVE" && host.managementTimedOut(downKickOutTimeout){
+					log.Info().Msgf("host %s is still active but down for too long, kicking out", host.id)
+					downHosts = append(downHosts, host)
+				}
+			}
 		}
 	}
 
@@ -282,6 +298,10 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		deactivateHost(host)
 	}
 
+	for _, host := range downHosts {
+		deactivateHost(host)
+	}
+
 	for _, host := range hostsList {
 		response.Hosts = append(response.Hosts, protocol.ScaleResponseHost{
 			InstanceId: host.Aws.InstanceId,
@@ -291,6 +311,10 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		})
 	}
 	return
+}
+
+func remoteDownHosts(hosts []hostInfo, jpool *jrpc.Pool) {
+
 }
 
 func getNumToDeactivate(hostInfo []hostInfo, desired int) int {
@@ -351,7 +375,7 @@ func deriveHostState(host *hostInfo) hostState {
 	if strings.AnyOf(host.State, "DEACTIVATING", "REMOVING", "INACTIVE") {
 		return DEACTIVATING
 	}
-	if host.Status == "DOWN" && host.managementTimedOut() {
+	if host.Status == "DOWN" && host.managementTimedOut(unhealthyDeactivateTimeout) {
 		log.Info().Msgf("Marking %s as unhealthy due to DOWN", host.id.String())
 		return UNHEALTHY
 	}
