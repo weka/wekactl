@@ -69,11 +69,15 @@ func setForExplicitRemoval(instance *ec2.Instance, toRemove []protocol.HgInstanc
 
 func terminateInstances(instanceIds []string) (terminatingInstances []*string, err error) {
 	svc := connectors.GetAWSSession().EC2
-	log.Error().Msgf("Terminating instances %s", instanceIds)
+	log.Info().Msgf("Terminating instances %s", instanceIds)
 	res, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: strings.ListToRefList(instanceIds),
 	})
+	if res != nil {
+		log.Info().Msgf("terminating output: %s", res.String())
+	}
 	if err != nil {
+		log.Error().Msgf("error terminating instances %s", err.Error())
 		return
 	}
 	for _, terminatingInstance := range res.TerminatingInstances {
@@ -119,6 +123,7 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance, expli
 	terminatingInstances, err := terminateInstances(setToTerminate)
 	if err != nil {
 		log.Error().Err(err)
+		errs = append(errs, err)
 		return
 	}
 
