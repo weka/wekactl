@@ -33,6 +33,9 @@ PATH_TO_WEKACTL_BINARY cluster destroy -n CLUSTER_NAME --region CLUSTER_REGION
 
 *Note: the cloud formation stack will not be deleted. i.e., destroy removes only the resources created by the wekactl utility.*
 
+### Changing cluster credentials
+    PATH_TO_WEKACTL_BINARY cluster change-credentials -n CLUSTER_NAME  -u NEW_WEKA_USERNAME -p NEW_WEKA_PASSWORD --region CLUSTER_REGION
+
 ### Notes
 
 - Unhealthy instances, as identified by Weka: instances with user-invoked drives deactivate or stopped weka containers considered as unhealthy by Weka and will be removed from the Weka cluster and replaced with new instances.
