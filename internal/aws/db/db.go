@@ -106,6 +106,34 @@ func SaveCredentials(tableName string, username, password string) error {
 	return nil
 }
 
+func ChangeCredentials(tableName string, username, password string) error {
+	svc := connectors.GetAWSSession().DynamoDB
+	_, err := svc.UpdateItem(&dynamodb.UpdateItemInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":u": {
+				S: aws.String(username),
+			},
+			":p": {
+				S: aws.String(password),
+			},
+		},
+		TableName: aws.String(tableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			"Key": {
+				S: aws.String(ModelClusterCreds),
+			},
+		},
+		UpdateExpression: aws.String("set Username = :u, Password = :p"),
+	})
+
+	if err != nil {
+		log.Debug().Msgf("error changing credentials %v", err)
+		return err
+	}
+	log.Debug().Msgf("Username:%s and Password:%s were changed successfully!", username, strings.Repeat("*", len(password)))
+	return nil
+}
+
 func saveClusterParams(tableName string, params DefaultClusterParams) error {
 	if params.Key == "" {
 		params.Key = ModelDefaultClusterParams

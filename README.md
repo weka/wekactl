@@ -22,6 +22,9 @@ The utility allows importing CloudFormation weka stacks and managing it via AWS 
 **--keep-instances** : for keeping auto scaling group instances <br>
 *notice: cloud formation stack will not be deleted. i.e. `destroy` removes the resources created by wekactl.*
 
+### Changing cluster credentials
+    PATH_TO_WEKACTL_BINARY cluster change-credentials -n CLUSTER_NAME  -u NEW_WEKA_USERNAME -p NEW_WEKA_PASSWORD --region CLUSTER_REGION
+
 ### Notes
 - Uhealthy instances, instances with user-invoked drives deactivate or stopped weka containers considered unhealthy and will be removed from cluster and replaced with fresh instances
 - Filesystem scaling is not supported right now. For scaling down filesystem must be the size that can fit into shrinked cluster, alternatively, object store tiering can be used to allow downscaling. In future weka versions we will support automatic scaling of filesystems

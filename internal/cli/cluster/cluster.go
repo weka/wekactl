@@ -26,5 +26,6 @@ func init() {
 	Cluster.AddCommand(listCmd)
 	Cluster.AddCommand(destroyCmd)
 	Cluster.AddCommand(updateCmd)
+	Cluster.AddCommand(changeCredentialsCmd)
 	_ = Cluster.MarkPersistentFlagRequired("region")
 }
