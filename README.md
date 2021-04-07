@@ -22,6 +22,8 @@ The utility can import Weka CloudFormation stacks and manage it via AWS Auto Sca
 PATH_TO_WEKACTL_BINARY cluster import -n CLUSTER_NAME -u WEKA_USERNAME -p WEKA_PASSWORD --region CLUSTER_REGION
 ```
 
+The import reads the CloudFormation stack and creates Auto Scaling Groups based on that.
+It Creates an auto-scaling group for the Weka cluster (backend servers), and if clients have been deployed via the CloudFormation stack, it also creates an auto-scaling group for the clients.
 
 ### Destroying an existing cluster
 
@@ -40,10 +42,12 @@ PATH_TO_WEKACTL_BINARY cluster destroy -n CLUSTER_NAME --region CLUSTER_REGION
 
 - Unhealthy instances, as identified by Weka: instances with user-invoked drives deactivate or stopped weka containers considered as unhealthy by Weka and will be removed from the Weka cluster and replaced with new instances.
 - Filesystem scaling is not supported. For scaling down, the filesystems must be in a size that can fit into the shrunk cluster. Alternatively, tiering to S3 can be used to allow downscaling. Future weka versions will address that.
+- When scaling-in, the Auto-Scaling Group activity log will show the operation as Cancelled since Weka protects the instances from un-managed and us-safe scale-in. Yet, the wekactl utility receives the scale-in request and manages the scale-in. Once the managed deactivation of hosts and drives from the cluster finishes, the wekactl utility removes the scale-in protection. Then, the instances are terminated and removed from the Auto-Scaling group (will be seen on the Auto-Scaling Group activity log).
+- As noted, the wekactl utility can manage client instances auto-scaling, also replacing unhealthy client instances. If that is not desirable for clients, remove the auto-scaling group generated for the clients.
 
 ## Additional info
 
-Importing a Weka cluster will create the following resources:
+Importing a Weka cluster will create the following resources (note, these should not be exposed to a user that has not ClusterAdmin permission for the Weka cluster):
 
 - **KMS key**
 
