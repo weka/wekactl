@@ -6,6 +6,10 @@ WEKACTL_LINUX=$1
 WEKACTL_DARWIN=$2
 BUILD_VERSION=$3
 
+git tag "$BUILD_VERSION"
+git push --set-upstream origin master
+git push --tags
+
 github_repo="weka/wekactl"
 filenames="tmp/upload/wekactl_linux_amd64 tmp/upload/wekactl_darwin_amd64"
 
