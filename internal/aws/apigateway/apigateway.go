@@ -188,6 +188,9 @@ func DeleteRestApiGateway(resourceName string) error {
 		_, err = svc.DeleteRestApi(&apigateway.DeleteRestApiInput{
 			RestApiId: restApi.Id,
 		})
+		if err != nil {
+			return err
+		}
 		log.Debug().Msgf("rest api gateway %s %s was deleted successfully", resourceName, *restApi.Id)
 	}
 
