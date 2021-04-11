@@ -4,6 +4,8 @@ The wekactl utility is an open-source utility for managing Weka CloudFormation s
 
 The utility can import Weka CloudFormation stacks and manage it via AWS Auto Scaling groups, allowing to scale the Weka cluster up and down.
 
+Once deployed, you can control the number of instances by either changing the desired capacity of instances from the AWS auto-scaling group console or defining your custom metrics and scaling policy in AWS. Once the desired capacity has changed, Weka will take care of safely scaling the instances.
+
 # Requirements
 
 - For initial setup, the user running the wekactl utility should have AWS admin credentials.
