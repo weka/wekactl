@@ -22,12 +22,13 @@ type Resource interface {
 	DeployedVersion() string
 	TargetVersion() string
 	Delete() error
-	Create() error
+	Create(Tags) error
 	Update() error
 	Init()
+	GetCurrentTags() Tags
 }
 
-func EnsureResource(r Resource) error {
+func EnsureResource(r Resource, ClusterSettings) error {
 	for _, subresource := range r.SubResources() {
 		if err := EnsureResource(subresource); err != nil {
 			return err
@@ -43,12 +44,17 @@ func EnsureResource(r Resource) error {
 
 	if r.DeployedVersion() == "" {
 		log.Info().Msgf("creating resource %s %s ...", resourceType, r.ResourceName())
-		return r.Create()
+		return r.Create(r.Tags().Update(settings.Tags))
 	}
 
 	if r.DeployedVersion() != r.TargetVersion() {
 		log.Info().Msgf("updating resource %s %s ...", resourceType, r.ResourceName())
 		return r.Update()
+	}
+
+	if r.GetCurrentTags().Equals(r.Tags()) {
+		log.Info().Msgf("updating resource %s %s ...", resourceType, r.ResourceName())
+		return r.UpdateTags(r.Tags().Update(settings.Tags))
 	}
 
 	log.Debug().Msgf("resource %s %s exists and updated", resourceType, r.ResourceName())

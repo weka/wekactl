@@ -134,7 +134,7 @@ func ChangeCredentials(tableName string, username, password string) error {
 	return nil
 }
 
-func saveClusterParams(tableName string, params DefaultClusterParams) error {
+func saveClusterParams(tableName string, params ClusterParams) error {
 	if params.Key == "" {
 		params.Key = ModelDefaultClusterParams
 	}

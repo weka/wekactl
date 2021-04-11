@@ -12,7 +12,7 @@ type DynamoDBName string
 
 type AWSCluster struct {
 	Name          cluster.ClusterName
-	DefaultParams db.DefaultClusterParams
+	ClusterParams db.ClusterParams
 	CFStack       Stack
 	DynamoDb      DynamoDb
 	HostGroups    []HostGroup

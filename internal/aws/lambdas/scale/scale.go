@@ -20,7 +20,7 @@ import (
 
 type hostState int
 
-const unhealthyDeactivateTimeout = 120 * time.Minute
+const unhealthyDeactivateTimeout = 5 * time.Minute
 const backendCleanupDelay = 5*time.Minute // Giving own HG chance to take care
 const downKickOutTimeout = 3 * time.Hour
 

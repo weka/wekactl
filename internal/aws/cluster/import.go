@@ -128,19 +128,19 @@ func getVolumeInfo(instance *ec2.Instance, role common.InstanceRole) (volumeInfo
 	return
 }
 
-func generateAWSCluster(stackId, stackName, username, password string, defaultParams db.DefaultClusterParams) AWSCluster {
+func generateAWSCluster(stackId, stackName, username, password string, defaultParams db.ClusterParams) AWSCluster {
 	clusterName := cluster.ClusterName(stackName)
 
 	backendsHostGroup := GenerateHostGroup(
 		clusterName,
-		defaultParams.Backends,
+		defaultParams.DefaultBackendParams,
 		common.RoleBackend,
 		"Backends",
 	)
 
 	clientsHostGroup := GenerateHostGroup(
 		clusterName,
-		defaultParams.Clients,
+		defaultParams.DefaultClientParams,
 		common.RoleClient,
 		"Clients",
 	)
@@ -154,7 +154,7 @@ func generateAWSCluster(stackId, stackName, username, password string, defaultPa
 
 	return AWSCluster{
 		Name:          clusterName,
-		DefaultParams: defaultParams,
+		ClusterParams: defaultParams,
 		CFStack: Stack{
 			StackId:   stackId,
 			StackName: stackName,
@@ -216,23 +216,23 @@ func ImportCluster(stackName, username, password string) error {
 	return nil
 }
 
-func importClusterParamsFromCF(instances StackInstances) (defaultParams db.DefaultClusterParams, err error) {
+func importClusterParamsFromCF(instances StackInstances) (defaultParams db.ClusterParams, err error) {
 	if len(instances.Backends) == 0 {
 		return defaultParams, errors.New("backend instances not found, can't proceed with import")
 	}
 
-	err = importRoleParams(&defaultParams.Backends, instances.Backends, common.RoleBackend)
+	err = importRoleParams(&defaultParams.DefaultBackendParams, instances.Backends, common.RoleBackend)
 	if err != nil {
 		return
 	}
 
-	defaultParams.Subnet = defaultParams.Backends.Subnet
+	defaultParams.Subnet = defaultParams.DefaultBackendParams.Subnet
 
 	if len(instances.Clients) == 0 {
-		defaultParams.Clients = defaultParams.Backends
+		defaultParams.DefaultClientParams = defaultParams.DefaultBackendParams
 		return
 	}
-	err = importRoleParams(&defaultParams.Clients, instances.Clients, common.RoleClient)
+	err = importRoleParams(&defaultParams.DefaultClientParams, instances.Clients, common.RoleClient)
 	if err != nil {
 		return
 	}

@@ -80,7 +80,7 @@ func generateUpdateAWSCluster(stackName string) (awsCluster AWSCluster, err erro
 
 	awsCluster = AWSCluster{
 		Name:          clusterName,
-		DefaultParams: db.DefaultClusterParams{},
+		ClusterParams: db.ClusterParams{},
 		CFStack: Stack{
 			StackName: stackName,
 		},
