@@ -16,7 +16,7 @@ type HostGroup struct {
 }
 
 func (h *HostGroup) Tags() cluster.Tags {
-	return nil
+	return cluster.Tags{}
 }
 
 func (h *HostGroup) SubResources() []cluster.Resource {
@@ -43,7 +43,7 @@ func (h *HostGroup) Delete() error {
 	return nil
 }
 
-func (h *HostGroup) Create() error {
+func (h *HostGroup) Create(tags cluster.Tags) error {
 	return nil
 }
 

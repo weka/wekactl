@@ -41,6 +41,11 @@ var destroyCmd = &cobra.Command{
 			dynamoDb := cluster2.DynamoDb{
 				ClusterName: clusterName,
 			}
+			dynamoDb.Init()
+			err := cluster.DestroyResource(&dynamoDb)
+			if err != nil {
+				return err
+			}
 
 			awsCluster := cluster2.AWSCluster{
 				Name:          clusterName,
@@ -48,7 +53,6 @@ var destroyCmd = &cobra.Command{
 				CFStack: cluster2.Stack{
 					StackName: StackName,
 				},
-				DynamoDb: dynamoDb,
 				HostGroups: []cluster2.HostGroup{
 					backendsHostGroup,
 					clientsHostGroup,
@@ -60,8 +64,7 @@ var destroyCmd = &cobra.Command{
 			}
 
 			awsCluster.Init()
-			err := cluster.DestroyResource(&awsCluster)
-
+			err = cluster.DestroyResource(&awsCluster)
 			if err != nil {
 				logging.UserFailure("Destroying failed!")
 				return err

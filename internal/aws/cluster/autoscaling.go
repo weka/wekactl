@@ -53,9 +53,9 @@ func (a *AutoscalingGroup) Delete() error {
 	return autoscaling.DeleteAutoScalingGroup(a.ResourceName())
 }
 
-func (a *AutoscalingGroup) Create() error {
+func (a *AutoscalingGroup) Create(tags cluster.Tags) error {
 	return autoscaling.CreateAutoScalingGroup(
-		a.Tags().AsAsg(), a.LaunchTemplate.ResourceName(), a.HostGroupParams.MaxSize, a.ResourceName())
+		tags.AsAsg(), a.LaunchTemplate.ResourceName(), a.HostGroupParams.MaxSize, a.ResourceName())
 }
 
 func (a *AutoscalingGroup) Update() error {

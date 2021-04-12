@@ -128,7 +128,7 @@ func getVolumeInfo(instance *ec2.Instance, role common.InstanceRole) (volumeInfo
 	return
 }
 
-func generateAWSCluster(stackId, stackName, username, password string, defaultParams db.DefaultClusterParams) AWSCluster {
+func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.DefaultClusterParams) AWSCluster {
 	clusterName := cluster.ClusterName(stackName)
 
 	backendsHostGroup := GenerateHostGroup(
@@ -145,13 +145,6 @@ func generateAWSCluster(stackId, stackName, username, password string, defaultPa
 		"Clients",
 	)
 
-	dynamoDb := DynamoDb{
-		ClusterName: clusterName,
-		Username:    username,
-		Password:    password,
-		StackId:     stackId,
-	}
-
 	return AWSCluster{
 		Name:          clusterName,
 		DefaultParams: defaultParams,
@@ -159,16 +152,29 @@ func generateAWSCluster(stackId, stackName, username, password string, defaultPa
 			StackId:   stackId,
 			StackName: stackName,
 		},
-		DynamoDb: dynamoDb,
 		HostGroups: []HostGroup{
 			backendsHostGroup,
 			clientsHostGroup,
 		},
+		TableName: tableName,
 	}
 }
 
-func ImportCluster(stackName, username, password string) error {
+func ImportCluster(stackName, username, password string, clusterSettings cluster.ClusterSettings) error {
 	stackId, err := GetStackId(stackName)
+	if err != nil {
+		return err
+	}
+
+	dynamoDb := DynamoDb{
+		ClusterName:     cluster.ClusterName(stackName),
+		Username:        username,
+		Password:        password,
+		StackId:         stackId,
+		ClusterSettings: clusterSettings,
+	}
+	dynamoDb.Init()
+	err = cluster.EnsureResource(&dynamoDb, clusterSettings)
 	if err != nil {
 		return err
 	}
@@ -189,9 +195,9 @@ func ImportCluster(stackName, username, password string) error {
 		return err
 	}
 
-	awsCluster := generateAWSCluster(stackId, stackName, username, password, defaultParams)
+	awsCluster := generateAWSCluster(stackId, stackName, dynamoDb.ResourceName(), defaultParams)
 	awsCluster.Init()
-	err = cluster.EnsureResource(&awsCluster)
+	err = cluster.EnsureResource(&awsCluster, clusterSettings)
 	if err != nil {
 		return err
 	}

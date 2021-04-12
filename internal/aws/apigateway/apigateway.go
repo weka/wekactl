@@ -253,7 +253,8 @@ func GetRestApiGatewayVersion(resourceName string) (version string, err error) {
 	return
 }
 
-func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err error) {
+
+func GetRestApi(resourceName string) (restApiResource *apigateway.RestApi, err error){
 	svc := connectors.GetAWSSession().ApiGateway
 
 	restApisOutput, err := svc.GetRestApis(&apigateway.GetRestApisInput{})
@@ -264,13 +265,25 @@ func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err 
 		if *restApi.Name != resourceName {
 			continue
 		}
-		restApiGateway.Id = *restApi.Id
+		restApiResource = restApi
 		break
 	}
-	if restApiGateway.Id == "" {
+	return
+}
+
+
+func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err error) {
+	svc := connectors.GetAWSSession().ApiGateway
+
+	restApi, err := GetRestApi(resourceName)
+	if err!=nil{
+		return
+	}
+	if restApi == nil {
 		err = errors.New("api gateway wasn't found")
 		return
 	}
+	restApiGateway.Id = *restApi.Id
 
 	apiKeysOutput, err := svc.GetApiKeys(&apigateway.GetApiKeysInput{IncludeValues: aws.Bool(true)})
 	if err != nil {
@@ -289,5 +302,14 @@ func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err 
 	}
 
 	restApiGateway.Name = resourceName
+	return
+}
+
+func GetRestApiGatewayTags(resourceName string) (tags cluster.Tags, err error ){
+	restApi, err :=GetRestApi(resourceName)
+	if err!=nil{
+		return
+	}
+	tags = cluster.StringRefsMapToStrings(restApi.Tags)
 	return
 }

@@ -75,8 +75,8 @@ func (a *ApiGateway) Delete() error {
 	return apigateway.DeleteRestApiGateway(a.ResourceName())
 }
 
-func (a *ApiGateway) Create() error {
-	restApiGateway, err := apigateway.CreateJoinApi(a.Tags().AsStringRefs(), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
+func (a *ApiGateway) Create(tags cluster.Tags) error {
+	restApiGateway, err := apigateway.CreateJoinApi(tags.AsStringRefs(), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
 	if err != nil {
 		return err
 	}
@@ -86,11 +86,15 @@ func (a *ApiGateway) Create() error {
 
 func (a *ApiGateway) Update() error {
 	if a.Version == "re-create" {
-		err := a.Delete()
+		tags, err := apigateway.GetRestApiGatewayTags(a.ResourceName())
 		if err != nil {
 			return err
 		}
-		return a.Create()
+		err = a.Delete()
+		if err != nil {
+			return err
+		}
+		return a.Create(tags)
 	}
 
 	panic("update not supported")

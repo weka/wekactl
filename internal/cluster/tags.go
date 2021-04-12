@@ -116,6 +116,14 @@ func (t Tags) AsSfn() []*sfn.Tag {
 	return sfnTags
 }
 
+func StringRefsMapToStrings(tagsRefs TagsRefsValues) Tags {
+	tags := Tags{}
+	for key, value := range tagsRefs {
+		tags[key] = *value
+	}
+	return tags
+}
+
 func GetResourceVersionTag(version string) Tags {
 	return Tags{
 		VersionTagKey: version,

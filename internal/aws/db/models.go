@@ -5,6 +5,7 @@ import (
 )
 
 const ModelClusterCreds = "cluster-creds"
+const ModelClusterSettings = "cluster-settings"
 
 type ClusterCreds struct {
 	Key      string

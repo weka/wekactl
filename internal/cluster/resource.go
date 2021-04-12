@@ -22,19 +22,21 @@ type Resource interface {
 	DeployedVersion() string
 	TargetVersion() string
 	Delete() error
-	Create() error
+	Create(tags Tags) error
 	Update() error
 	Init()
+	//UpdateTags(tags Tags) error
 }
 
-func EnsureResource(r Resource) error {
+func EnsureResource(r Resource, clusterSettings ClusterSettings) error {
 	for _, subresource := range r.SubResources() {
-		if err := EnsureResource(subresource); err != nil {
+		if err := EnsureResource(subresource, clusterSettings); err != nil {
 			return err
 		}
 	}
 
 	resourceType := strings.TrimLeft(reflect.TypeOf(r).String(), "*cluster.")
+	tags := r.Tags().Update(clusterSettings.Tags)
 
 	err := r.Fetch()
 	if err != nil {
@@ -43,13 +45,18 @@ func EnsureResource(r Resource) error {
 
 	if r.DeployedVersion() == "" {
 		log.Info().Msgf("creating resource %s %s ...", resourceType, r.ResourceName())
-		return r.Create()
+		return r.Create(tags)
 	}
 
 	if r.DeployedVersion() != r.TargetVersion() {
 		log.Info().Msgf("updating resource %s %s ...", resourceType, r.ResourceName())
 		return r.Update()
 	}
+
+	//if len(clusterSettings.Tags) > 0 {
+	//	log.Info().Msgf("updating resource %s %s ...", resourceType, r.ResourceName())
+	//	return r.UpdateTags(tags)
+	//}
 
 	log.Debug().Msgf("resource %s %s exists and updated", resourceType, r.ResourceName())
 	return nil

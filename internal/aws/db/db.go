@@ -106,6 +106,16 @@ func SaveCredentials(tableName string, username, password string) error {
 	return nil
 }
 
+func SaveClusterSettings(tableName string, clusterSettings cluster.ClusterSettings) error {
+	err := PutItem(tableName, clusterSettings)
+	if err != nil {
+		log.Debug().Msgf("error saving cluster settings to DB %v", err)
+		return err
+	}
+	log.Debug().Msgf("cluster settings were added to DB successfully!")
+	return nil
+}
+
 func ChangeCredentials(tableName string, username, password string) error {
 	svc := connectors.GetAWSSession().DynamoDB
 	_, err := svc.UpdateItem(&dynamodb.UpdateItemInput{
@@ -186,5 +196,13 @@ func GetDbVersion(tableName string) (version string, err error) {
 		}
 	}
 
+	return
+}
+
+func GetClusterSettings(tableName string) (clusterSettings cluster.ClusterSettings, err error){
+	err = GetItem(tableName, ModelClusterSettings, &clusterSettings)
+	if err != nil {
+		return
+	}
 	return
 }
