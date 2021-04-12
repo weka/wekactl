@@ -17,6 +17,7 @@ type DynamoDb struct {
 	StackId     string
 	Version     string
 	KmsKey      KmsKey
+	ClusterSettings cluster.ClusterSettings
 }
 
 func (d *DynamoDb) Tags() cluster.Tags {
@@ -66,12 +67,16 @@ func (d *DynamoDb) Delete() error {
 	return db.DeleteDB(d.ResourceName())
 }
 
-func (d *DynamoDb) Create() error {
-	err := db.CreateDb(d.ResourceName(), d.KmsKey.Key, d.Tags())
+func (d *DynamoDb) Create(tags cluster.Tags) error {
+	err := db.CreateDb(d.ResourceName(), d.KmsKey.Key, tags)
 	if err != nil {
 		return err
 	}
-	return db.SaveCredentials(d.ResourceName(), d.Username, d.Password)
+	err = db.SaveCredentials(d.ResourceName(), d.Username, d.Password)
+	if err != nil {
+		return err
+	}
+	return db.SaveClusterSettings(d.ResourceName(), d.ClusterSettings)
 }
 
 func (d *DynamoDb) Update() error {

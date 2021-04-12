@@ -51,8 +51,8 @@ func (k *KmsKey) Delete() error {
 	return kms.DeleteKMSKey(k.ResourceName(), k.ClusterName)
 }
 
-func (k *KmsKey) Create() error {
-	kmsKey, err := kms.CreateKMSKey(k.Tags().AsKms(), k.ResourceName())
+func (k *KmsKey) Create(tags cluster.Tags) error {
+	kmsKey, err := kms.CreateKMSKey(tags.AsKms(), k.ResourceName())
 	if err != nil {
 		return err
 	}

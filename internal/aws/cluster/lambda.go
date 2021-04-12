@@ -78,9 +78,9 @@ func (l *Lambda) Delete() error {
 	return lambdas.DeleteLambda(l.ResourceName())
 }
 
-func (l *Lambda) Create() (err error) {
+func (l *Lambda) Create(tags cluster.Tags) (err error) {
 	functionConfiguration, err := lambdas.CreateLambda(
-		l.Tags().AsStringRefs(), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo, l.VPCConfig)
+		tags.AsStringRefs(), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo, l.VPCConfig)
 	if err != nil {
 		return
 	}

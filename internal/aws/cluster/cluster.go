@@ -14,16 +14,16 @@ type AWSCluster struct {
 	Name          cluster.ClusterName
 	DefaultParams db.DefaultClusterParams
 	CFStack       Stack
-	DynamoDb      DynamoDb
 	HostGroups    []HostGroup
+	TableName     string
 }
 
 func (c *AWSCluster) Tags() cluster.Tags {
-	return nil
+	return cluster.Tags{}
 }
 
 func (c *AWSCluster) SubResources() []cluster.Resource {
-	resources := []cluster.Resource{&c.DynamoDb}
+	var resources []cluster.Resource
 	for i := range c.HostGroups {
 		resources = append(resources, &c.HostGroups[i])
 	}
@@ -49,9 +49,9 @@ func (c *AWSCluster) Fetch() error {
 
 func (c *AWSCluster) Init() {
 	log.Debug().Msgf("Initializing cluster %s ...", string(c.Name))
-	c.DynamoDb.Init()
+
 	for i := range c.HostGroups {
-		c.HostGroups[i].TableName = c.DynamoDb.ResourceName()
+		c.HostGroups[i].TableName = c.TableName
 		c.HostGroups[i].Init()
 	}
 	return
@@ -69,7 +69,7 @@ func (c *AWSCluster) Delete() error {
 	return nil
 }
 
-func (c *AWSCluster) Create() (err error) {
+func (c *AWSCluster) Create(tags cluster.Tags) (err error) {
 	return nil
 }
 

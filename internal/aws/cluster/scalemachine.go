@@ -102,7 +102,7 @@ func (s *ScaleMachine) Delete() error {
 	return scalemachine.DeleteStateMachine(s.ResourceName())
 }
 
-func (s *ScaleMachine) Create() (err error) {
+func (s *ScaleMachine) Create(tags cluster.Tags) (err error) {
 	stateMachineLambdasArn := scalemachine.StateMachineLambdasArn{
 		Fetch:     s.fetch.Arn,
 		Scale:     s.scale.Arn,
@@ -110,7 +110,7 @@ func (s *ScaleMachine) Create() (err error) {
 		Transient: s.transient.Arn,
 	}
 
-	arn, err := scalemachine.CreateStateMachine(s.Tags().AsSfn(), stateMachineLambdasArn, s.Profile.Arn, s.ResourceName())
+	arn, err := scalemachine.CreateStateMachine(tags.AsSfn(), stateMachineLambdasArn, s.Profile.Arn, s.ResourceName())
 	if err != nil {
 		return
 	}

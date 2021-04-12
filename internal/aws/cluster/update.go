@@ -74,17 +74,12 @@ func generateUpdateAWSCluster(stackName string) (awsCluster AWSCluster, err erro
 		return
 	}
 
-	dynamoDb := DynamoDb{
-		ClusterName: clusterName,
-	}
-
 	awsCluster = AWSCluster{
 		Name:          clusterName,
 		DefaultParams: db.DefaultClusterParams{},
 		CFStack: Stack{
 			StackName: stackName,
 		},
-		DynamoDb: dynamoDb,
 		HostGroups: []HostGroup{
 			backendsHostGroup,
 			clientsHostGroup,
@@ -94,11 +89,19 @@ func generateUpdateAWSCluster(stackName string) (awsCluster AWSCluster, err erro
 }
 
 func UpdateCluster(stackName string) error {
+	dynamoDb := DynamoDb{
+		ClusterName: cluster.ClusterName(stackName),
+	}
+	dbClusterSettings, err := db.GetClusterSettings(dynamoDb.ResourceName())
+	if err != nil {
+		return err
+	}
+
 	awsCluster, err := generateUpdateAWSCluster(stackName)
 	if err != nil {
 		return err
 	}
 
 	awsCluster.Init()
-	return cluster.EnsureResource(&awsCluster)
+	return cluster.EnsureResource(&awsCluster, dbClusterSettings)
 }

@@ -60,8 +60,8 @@ func (l *LaunchTemplate) Delete() error {
 	return launchtemplate.DeleteLaunchTemplate(l.ResourceName())
 }
 
-func (l *LaunchTemplate) Create() error {
-	return launchtemplate.CreateLaunchTemplate(l.Tags().AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
+func (l *LaunchTemplate) Create(tags cluster.Tags) error {
+	return launchtemplate.CreateLaunchTemplate(tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
 }
 
 func (l *LaunchTemplate) Update() error {
