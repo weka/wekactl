@@ -5,6 +5,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 )
 
@@ -17,6 +18,7 @@ type AutoscalingGroup struct {
 	ScaleMachineCloudWatch CloudWatch
 	TableName              string
 	Version                string
+	ClusterSettings        db.ClusterSettings
 }
 
 func (a *AutoscalingGroup) Tags() cluster.Tags {
@@ -53,7 +55,7 @@ func (a *AutoscalingGroup) Delete() error {
 	return autoscaling.DeleteAutoScalingGroup(a.ResourceName())
 }
 
-func (a *AutoscalingGroup) Create(tags cluster.Tags, PrivateSubnet bool) error {
+func (a *AutoscalingGroup) Create(tags cluster.Tags) error {
 	return autoscaling.CreateAutoScalingGroup(
 		tags.AsAsg(), a.LaunchTemplate.ResourceName(), a.HostGroupParams.MaxSize, a.ResourceName())
 }
@@ -68,6 +70,7 @@ func (a *AutoscalingGroup) Init() {
 	a.LaunchTemplate.HostGroupParams = a.HostGroupParams
 	a.LaunchTemplate.TableName = a.TableName
 	a.LaunchTemplate.ASGName = a.ResourceName()
+	a.LaunchTemplate.ClusterSettings = a.ClusterSettings
 	a.LaunchTemplate.Init()
 	a.ScaleMachineCloudWatch.HostGroupInfo = a.HostGroupInfo
 	a.ScaleMachineCloudWatch.HostGroupParams = a.HostGroupParams

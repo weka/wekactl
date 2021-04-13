@@ -149,8 +149,8 @@ func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.C
 	)
 
 	return AWSCluster{
-		Name:          clusterName,
-		DefaultParams: defaultParams,
+		Name:            clusterName,
+		ClusterSettings: defaultParams,
 		CFStack: Stack{
 			StackId:   stackId,
 			StackName: stackName,
@@ -163,38 +163,41 @@ func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.C
 	}
 }
 
-func ImportCluster(stackName, username, password string, cliParams db.ClusterSettings) error {
-	stackId, err := GetStackId(stackName)
+func ImportCluster(params cluster.ImportParams) error {
+	stackId, err := GetStackId(params.Name)
 	if err != nil {
 		return err
 	}
 
+
+	stackInstances, err := GetStackInstancesInfo(params.Name)
+	if err != nil {
+		return err
+	}
+
+	clusterSettings, err := importClusterParamsFromCF(stackInstances)
+	if err != nil {
+		return err
+	}
+	clusterSettings.PrivateSubnet = params.PrivateSubnet
+	clusterSettings.TagsMap = params.TagsMap()
+
+
 	dynamoDb := DynamoDb{
-		ClusterName:     cluster.ClusterName(stackName),
+		ClusterName:     cluster.ClusterName(params.Name),
 		StackId:         stackId,
 	}
 	dynamoDb.Init()
-	err = cluster.EnsureResource(&dynamoDb, cliParams)
+	err = cluster.EnsureResource(&dynamoDb, clusterSettings)
 	if err != nil {
 		return err
 	}
 
-	stackInstances, err := GetStackInstancesInfo(stackName)
+	err = db.SaveCredentials(dynamoDb.ResourceName(), params.Username, params.Password)
 	if err != nil {
 		return err
 	}
-
-	defaultParams, err := importClusterParamsFromCF(stackInstances)
-	if err != nil {
-		return err
-	}
-	defaultParams.TagsMap = cliParams.TagsMap
-
-	err = db.SaveCredentials(dynamoDb.ResourceName(), username, password)
-	if err != nil {
-		return err
-	}
-	if err = db.SaveClusterSettings(dynamoDb.ResourceName(), cliParams); err != nil {
+	if err = db.SaveClusterSettings(dynamoDb.ResourceName(), clusterSettings); err != nil {
 		return err
 	}
 
@@ -204,9 +207,9 @@ func ImportCluster(stackName, username, password string, cliParams db.ClusterSet
 		return errs[0]
 	}
 
-	awsCluster := generateAWSCluster(stackId, stackName, dynamoDb.ResourceName(), defaultParams)
+	awsCluster := generateAWSCluster(stackId, params.Name, dynamoDb.ResourceName(), clusterSettings)
 	awsCluster.Init()
-	err = cluster.EnsureResource(&awsCluster, cliParams)
+	err = cluster.EnsureResource(&awsCluster, clusterSettings)
 	if err != nil {
 		return err
 	}

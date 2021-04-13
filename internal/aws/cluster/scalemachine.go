@@ -102,7 +102,7 @@ func (s *ScaleMachine) Delete() error {
 	return scalemachine.DeleteStateMachine(s.ResourceName())
 }
 
-func (s *ScaleMachine) Create(tags cluster.Tags, PrivateSubnet bool) (err error) {
+func (s *ScaleMachine) Create(tags cluster.Tags) (err error) {
 	stateMachineLambdasArn := scalemachine.StateMachineLambdasArn{
 		Fetch:     s.fetch.Arn,
 		Scale:     s.scale.Arn,

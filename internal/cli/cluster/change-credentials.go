@@ -11,14 +11,20 @@ import (
 	"wekactl/internal/logging"
 )
 
+var changeCredsParams struct {
+	Name     string
+	Username string
+	Password string
+}
+
 var changeCredentialsCmd = &cobra.Command{
 	Use:   "change-credentials [flags]",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			tableNAme := common.GenerateResourceName(cluster.ClusterName(importParams.name), "")
-			err := db.ChangeCredentials(tableNAme, importParams.username, importParams.password)
+			tableNAme := common.GenerateResourceName(cluster.ClusterName(changeCredsParams.Name), "")
+			err := db.ChangeCredentials(tableNAme, changeCredsParams.Username, changeCredsParams.Password)
 			if err != nil {
 				logging.UserFailure("Credentials change failed!")
 				return err
@@ -34,9 +40,9 @@ var changeCredentialsCmd = &cobra.Command{
 }
 
 func init() {
-	changeCredentialsCmd.Flags().StringVarP(&importParams.name, "name", "n", "", "EKS cluster name")
-	changeCredentialsCmd.Flags().StringVarP(&importParams.username, "username", "u", "", "Cluster username")
-	changeCredentialsCmd.Flags().StringVarP(&importParams.password, "password", "p", "", "Cluster password")
+	changeCredentialsCmd.Flags().StringVarP(&changeCredsParams.Name, "name", "n", "", "weka cluster name")
+	changeCredentialsCmd.Flags().StringVarP(&changeCredsParams.Username, "username", "u", "", "Cluster username")
+	changeCredentialsCmd.Flags().StringVarP(&changeCredsParams.Password, "password", "p", "", "Cluster password")
 	_ = changeCredentialsCmd.MarkFlagRequired("name")
 	_ = changeCredentialsCmd.MarkFlagRequired("username")
 	_ = changeCredentialsCmd.MarkFlagRequired("password")

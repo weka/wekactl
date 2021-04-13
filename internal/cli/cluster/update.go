@@ -31,6 +31,6 @@ var updateCmd = &cobra.Command{
 }
 
 func init() {
-	updateCmd.Flags().StringVarP(&StackName, "name", "n", "", "EKS cluster name")
+	updateCmd.Flags().StringVarP(&StackName, "name", "n", "", "weka cluster name")
 	_ = updateCmd.MarkFlagRequired("name")
 }

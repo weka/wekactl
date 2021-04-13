@@ -3,6 +3,7 @@ package cluster
 import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 )
 
@@ -13,6 +14,7 @@ type HostGroup struct {
 	HostGroupParams  common.HostGroupParams
 	AutoscalingGroup AutoscalingGroup
 	TableName        string
+	ClusterSettings  db.ClusterSettings
 }
 
 func (h *HostGroup) Tags() cluster.Tags {
@@ -43,7 +45,7 @@ func (h *HostGroup) Delete() error {
 	return nil
 }
 
-func (h *HostGroup) Create(tags cluster.Tags, PrivateSubnet bool) error {
+func (h *HostGroup) Create(tags cluster.Tags) error {
 	return nil
 }
 
@@ -56,6 +58,7 @@ func (h *HostGroup) Init() {
 	h.AutoscalingGroup.HostGroupInfo = h.HostGroupInfo
 	h.AutoscalingGroup.HostGroupParams = h.HostGroupParams
 	h.AutoscalingGroup.TableName = h.TableName
+	h.AutoscalingGroup.ClusterSettings = h.ClusterSettings
 	h.AutoscalingGroup.Init()
 }
 

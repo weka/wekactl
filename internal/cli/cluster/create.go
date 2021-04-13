@@ -20,6 +20,6 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&createParams.name, "name", "n", "", "EKS cluster name")
+	createCmd.Flags().StringVarP(&createParams.name, "name", "n", "", "weka cluster name")
 	_ = createCmd.MarkFlagRequired("name")
 }
