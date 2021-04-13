@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/cluster"
+	cluster2 "wekactl/internal/cluster"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
 )
@@ -15,7 +16,7 @@ var updateCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			err := cluster.UpdateCluster(StackName)
+			err := cluster.UpdateCluster(cluster2.ClusterName(StackName))
 			if err != nil {
 				logging.UserFailure("Update failed!")
 				return err
