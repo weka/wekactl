@@ -49,7 +49,7 @@ var destroyCmd = &cobra.Command{
 
 			awsCluster := cluster2.AWSCluster{
 				Name:          clusterName,
-				DefaultParams: db.DefaultClusterParams{},
+				DefaultParams: db.ClusterSettings{},
 				CFStack: cluster2.Stack{
 					StackName: StackName,
 				},

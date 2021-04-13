@@ -12,12 +12,10 @@ const dbVersion = "v1"
 
 type DynamoDb struct {
 	ClusterName cluster.ClusterName
-	Username    string
-	Password    string
 	StackId     string
 	Version     string
 	KmsKey      KmsKey
-	ClusterSettings cluster.ClusterSettings
+	//ClusterSettings db.ClusterSettings
 }
 
 func (d *DynamoDb) Tags() cluster.Tags {
@@ -68,15 +66,7 @@ func (d *DynamoDb) Delete() error {
 }
 
 func (d *DynamoDb) Create(tags cluster.Tags) error {
-	err := db.CreateDb(d.ResourceName(), d.KmsKey.Key, tags)
-	if err != nil {
-		return err
-	}
-	err = db.SaveCredentials(d.ResourceName(), d.Username, d.Password)
-	if err != nil {
-		return err
-	}
-	return db.SaveClusterSettings(d.ResourceName(), d.ClusterSettings)
+	return db.CreateDb(d.ResourceName(), d.KmsKey.Key, tags)
 }
 
 func (d *DynamoDb) Update() error {

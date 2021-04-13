@@ -28,7 +28,7 @@ type Resource interface {
 	//UpdateTags(tags Tags) error
 }
 
-func EnsureResource(r Resource, clusterSettings ClusterSettings) error {
+func EnsureResource(r Resource, clusterSettings IClusterSettings) error {
 	for _, subresource := range r.SubResources() {
 		if err := EnsureResource(subresource, clusterSettings); err != nil {
 			return err
@@ -36,7 +36,7 @@ func EnsureResource(r Resource, clusterSettings ClusterSettings) error {
 	}
 
 	resourceType := strings.TrimLeft(reflect.TypeOf(r).String(), "*cluster.")
-	tags := r.Tags().Update(clusterSettings.Tags)
+	tags := r.Tags().Update(clusterSettings.Tags())
 
 	err := r.Fetch()
 	if err != nil {
