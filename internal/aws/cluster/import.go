@@ -128,7 +128,7 @@ func getVolumeInfo(instance *ec2.Instance, role common.InstanceRole) (volumeInfo
 	return
 }
 
-func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.DefaultClusterParams) AWSCluster {
+func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.ClusterSettings) AWSCluster {
 	clusterName := cluster.ClusterName(stackName)
 
 	backendsHostGroup := GenerateHostGroup(
@@ -160,7 +160,7 @@ func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.D
 	}
 }
 
-func ImportCluster(stackName, username, password string, clusterSettings cluster.ClusterSettings) error {
+func ImportCluster(stackName, username, password string, cliParams db.ClusterSettings) error {
 	stackId, err := GetStackId(stackName)
 	if err != nil {
 		return err
@@ -168,13 +168,10 @@ func ImportCluster(stackName, username, password string, clusterSettings cluster
 
 	dynamoDb := DynamoDb{
 		ClusterName:     cluster.ClusterName(stackName),
-		Username:        username,
-		Password:        password,
 		StackId:         stackId,
-		ClusterSettings: clusterSettings,
 	}
 	dynamoDb.Init()
-	err = cluster.EnsureResource(&dynamoDb, clusterSettings)
+	err = cluster.EnsureResource(&dynamoDb, cliParams)
 	if err != nil {
 		return err
 	}
@@ -184,20 +181,29 @@ func ImportCluster(stackName, username, password string, clusterSettings cluster
 		return err
 	}
 
+	defaultParams, err := importClusterParamsFromCF(stackInstances)
+	if err != nil {
+		return err
+	}
+	defaultParams.TagsMap = cliParams.TagsMap
+
+	err = db.SaveCredentials(dynamoDb.ResourceName(), username, password)
+	if err != nil {
+		return err
+	}
+	if err = db.SaveClusterSettings(dynamoDb.ResourceName(), cliParams); err != nil {
+		return err
+	}
+
 	instanceIds := common.GetInstancesIds(stackInstances.All())
 	_, errs := common.SetDisableInstancesApiTermination(instanceIds, true)
 	if len(errs) != 0 {
 		return errs[0]
 	}
 
-	defaultParams, err := importClusterParamsFromCF(stackInstances)
-	if err != nil {
-		return err
-	}
-
 	awsCluster := generateAWSCluster(stackId, stackName, dynamoDb.ResourceName(), defaultParams)
 	awsCluster.Init()
-	err = cluster.EnsureResource(&awsCluster, clusterSettings)
+	err = cluster.EnsureResource(&awsCluster, cliParams)
 	if err != nil {
 		return err
 	}
@@ -222,7 +228,7 @@ func ImportCluster(stackName, username, password string, clusterSettings cluster
 	return nil
 }
 
-func importClusterParamsFromCF(instances StackInstances) (defaultParams db.DefaultClusterParams, err error) {
+func importClusterParamsFromCF(instances StackInstances) (defaultParams db.ClusterSettings, err error) {
 	if len(instances.Backends) == 0 {
 		return defaultParams, errors.New("backend instances not found, can't proceed with import")
 	}

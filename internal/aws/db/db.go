@@ -106,7 +106,10 @@ func SaveCredentials(tableName string, username, password string) error {
 	return nil
 }
 
-func SaveClusterSettings(tableName string, clusterSettings cluster.ClusterSettings) error {
+func SaveClusterSettings(tableName string, clusterSettings ClusterSettings) error {
+	if clusterSettings.Key == "" {
+		clusterSettings.Key = ModelDefaultClusterParams
+	}
 	err := PutItem(tableName, clusterSettings)
 	if err != nil {
 		log.Debug().Msgf("error saving cluster settings to DB %v", err)
@@ -144,7 +147,7 @@ func ChangeCredentials(tableName string, username, password string) error {
 	return nil
 }
 
-func saveClusterParams(tableName string, params DefaultClusterParams) error {
+func saveClusterParams(tableName string, params ClusterSettings) error {
 	if params.Key == "" {
 		params.Key = ModelDefaultClusterParams
 	}
@@ -199,7 +202,7 @@ func GetDbVersion(tableName string) (version string, err error) {
 	return
 }
 
-func GetClusterSettings(tableName string) (clusterSettings cluster.ClusterSettings, err error){
+func GetClusterSettings(tableName string) (clusterSettings ClusterSettings, err error){
 	err = GetItem(tableName, ModelClusterSettings, &clusterSettings)
 	if err != nil {
 		return

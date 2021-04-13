@@ -14,7 +14,7 @@ var Region string
 var StackName string
 var Tags []string
 
-func generateClusterSettings(tagsList []string) (clusterSettings cluster2.ClusterSettings, err error){
+func generateClusterSettings(tagsList []string) (clusterSettings db.ClusterSettings, err error){
 	clusterSettings.Key = db.ModelClusterSettings
 	tags := make(cluster2.Tags)
 	if len(Tags) > 0 {
@@ -27,8 +27,7 @@ func generateClusterSettings(tagsList []string) (clusterSettings cluster2.Cluste
 			tags[keyVal[0]] = keyVal[1]
 		}
 	}
-	clusterSettings.Tags = tags
-
+	clusterSettings.TagsMap = tags
 	return
 }
 
