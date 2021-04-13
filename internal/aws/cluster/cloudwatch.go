@@ -72,7 +72,7 @@ func (c *CloudWatch) Delete() error {
 	return cloudwatch.DeleteCloudWatchEventRule(c.ResourceName())
 }
 
-func (c *CloudWatch) Create(tags cluster.Tags) (err error) {
+func (c *CloudWatch) Create(tags cluster.Tags, PrivateSubnet bool) (err error) {
 	return cloudwatch.CreateCloudWatchEventRule(tags.AsCloudWatch(), &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 }
 

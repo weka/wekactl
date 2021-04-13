@@ -60,7 +60,7 @@ func (l *LaunchTemplate) Delete() error {
 	return launchtemplate.DeleteLaunchTemplate(l.ResourceName())
 }
 
-func (l *LaunchTemplate) Create(tags cluster.Tags) error {
+func (l *LaunchTemplate) Create(tags cluster.Tags, PrivateSubnet bool) error {
 	return launchtemplate.CreateLaunchTemplate(tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
 }
 

@@ -13,8 +13,9 @@ import (
 var Region string
 var StackName string
 var Tags []string
+var PrivateSubnet bool
 
-func generateClusterSettings(tagsList []string) (clusterSettings db.ClusterSettings, err error){
+func generateClusterSettings(tagsList []string, privateSubnet bool) (clusterSettings db.ClusterSettings, err error){
 	clusterSettings.Key = db.ModelClusterSettings
 	tags := make(cluster2.Tags)
 	if len(Tags) > 0 {
@@ -27,6 +28,7 @@ func generateClusterSettings(tagsList []string) (clusterSettings db.ClusterSetti
 			tags[keyVal[0]] = keyVal[1]
 		}
 	}
+	clusterSettings.PrivateSubnet = privateSubnet
 	clusterSettings.TagsMap = tags
 	return
 }

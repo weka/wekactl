@@ -22,7 +22,7 @@ type Resource interface {
 	DeployedVersion() string
 	TargetVersion() string
 	Delete() error
-	Create(tags Tags) error
+	Create(tags Tags, PrivateSubnet bool) error
 	Update() error
 	Init()
 	//UpdateTags(tags Tags) error
@@ -45,7 +45,7 @@ func EnsureResource(r Resource, clusterSettings IClusterSettings) error {
 
 	if r.DeployedVersion() == "" {
 		log.Info().Msgf("creating resource %s %s ...", resourceType, r.ResourceName())
-		return r.Create(tags)
+		return r.Create(tags, clusterSettings.UsePrivateSubnet())
 	}
 
 	if r.DeployedVersion() != r.TargetVersion() {

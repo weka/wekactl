@@ -21,7 +21,7 @@ var importCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			clusterSettings, err := generateClusterSettings(Tags)
+			clusterSettings, err := generateClusterSettings(Tags, PrivateSubnet)
 			if err != nil {
 				return err
 			}
@@ -46,6 +46,7 @@ func init() {
 	importCmd.Flags().StringVarP(&importParams.username, "username", "u", "", "Cluster username")
 	importCmd.Flags().StringVarP(&importParams.password, "password", "p", "", "Cluster password")
 	importCmd.Flags().StringArrayVarP(&Tags, "tags", "t", []string{}, "Cluster tags, each tag should be passed in this pattern: '-t key=value'")
+	importCmd.Flags().BoolVarP(&PrivateSubnet, "private-subnet", "s", false, "Run on private subnet")
 	_ = importCmd.MarkFlagRequired("name")
 	_ = importCmd.MarkFlagRequired("username")
 	_ = importCmd.MarkFlagRequired("password")
