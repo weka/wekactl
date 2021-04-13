@@ -7,7 +7,6 @@ import (
 	"wekactl/internal/env"
 )
 
-
 var listAsgInstances = &cobra.Command{
 	Use:   "list-asg-instances",
 	Short: "",

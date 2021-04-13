@@ -1,6 +1,5 @@
 package scalemachine
 
-
 type NextState struct {
 	Type     string
 	Resource string

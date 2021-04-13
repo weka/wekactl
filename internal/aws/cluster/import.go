@@ -169,7 +169,6 @@ func ImportCluster(params cluster.ImportParams) error {
 		return err
 	}
 
-
 	stackInstances, err := GetStackInstancesInfo(params.Name)
 	if err != nil {
 		return err
@@ -182,10 +181,9 @@ func ImportCluster(params cluster.ImportParams) error {
 	clusterSettings.PrivateSubnet = params.PrivateSubnet
 	clusterSettings.TagsMap = params.TagsMap()
 
-
 	dynamoDb := DynamoDb{
-		ClusterName:     cluster.ClusterName(params.Name),
-		StackId:         stackId,
+		ClusterName: cluster.ClusterName(params.Name),
+		StackId:     stackId,
 	}
 	dynamoDb.Init()
 	err = cluster.EnsureResource(&dynamoDb, clusterSettings)

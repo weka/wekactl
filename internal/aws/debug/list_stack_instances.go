@@ -80,7 +80,6 @@ func RenderInstancesTable(stackName string) {
 	}
 }
 
-
 func RenderASGInstancesTable(asgName string) error {
 	fields := []string{
 		"instanceId",

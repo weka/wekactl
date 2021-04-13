@@ -53,4 +53,3 @@ func (c *Pool) Call(method weka.JrpcMethod, params, result interface{}) (err err
 	}
 	return nil
 }
-

@@ -21,7 +21,7 @@ import (
 type hostState int
 
 const unhealthyDeactivateTimeout = 120 * time.Minute
-const backendCleanupDelay = 5*time.Minute // Giving own HG chance to take care
+const backendCleanupDelay = 5 * time.Minute // Giving own HG chance to take care
 const downKickOutTimeout = 3 * time.Hour
 
 func (h hostState) String() string {
@@ -125,7 +125,6 @@ func (host hostInfo) managementTimedOut(timeout time.Duration) bool {
 	return false
 }
 
-
 func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response protocol.ScaleResponse, err error) {
 	/*
 		Code in here based on following logic:
@@ -213,7 +212,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 			if host.belongsToHgIpBased(info.Instances) {
 				inactiveHosts = append(inactiveHosts, host)
 			} else {
-				if info.Role == "backend" && time.Since(host.StateChangedTime) > backendCleanupDelay{
+				if info.Role == "backend" && time.Since(host.StateChangedTime) > backendCleanupDelay {
 					// Since terminate logic is mostly delta based, and remove might be transient errors
 					// We might have leftovers, that we are unable to recognize
 					// So decision is, to kick out whatever is inactive.

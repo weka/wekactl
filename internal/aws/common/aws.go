@@ -72,7 +72,6 @@ func SetDisableInstancesApiTermination(instanceIds []string, value bool) (update
 	return
 }
 
-
 func GetASGInstances(asgName string) ([]*autoscaling.Instance, error) {
 	svc := connectors.GetAWSSession().ASG
 	asgOutput, err := svc.DescribeAutoScalingGroups(
@@ -85,7 +84,6 @@ func GetASGInstances(asgName string) ([]*autoscaling.Instance, error) {
 	}
 	return asgOutput.AutoScalingGroups[0].Instances, nil
 }
-
 
 func GetAutoScalingGroupInstanceIds(asgName string) ([]*string, error) {
 	instances, err := GetASGInstances(asgName)
@@ -238,11 +236,10 @@ func GetBackendsPrivateIps(clusterName string) (ips []string, err error) {
 	return
 }
 
-
-func VpcBySubnet(subnetId string) (string, error){
+func VpcBySubnet(subnetId string) (string, error) {
 	svc := connectors.GetAWSSession().EC2
 	subnets, err := svc.DescribeSubnets(&ec2.DescribeSubnetsInput{
-		SubnetIds:  []*string{aws.String(subnetId)},
+		SubnetIds: []*string{aws.String(subnetId)},
 	})
 	if err != nil {
 		return "", err
