@@ -73,5 +73,6 @@ func (l *LaunchTemplate) Init() {
 	l.JoinApi.HostGroupInfo = l.HostGroupInfo
 	l.JoinApi.TableName = l.TableName
 	l.JoinApi.ASGName = l.ASGName
+	l.JoinApi.Subnet = l.HostGroupParams.Subnet
 	l.JoinApi.Init()
 }
