@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/rs/zerolog/log"
 	"strings"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/logging"
@@ -202,8 +203,12 @@ func GetDbVersion(tableName string) (version string, err error) {
 	return
 }
 
-func GetClusterSettings(tableName string) (clusterSettings ClusterSettings, err error) {
-	err = GetItem(tableName, ModelClusterSettings, &clusterSettings)
+func GetTableName(name cluster.ClusterName) string {
+	return common.GenerateResourceName(name, "")
+}
+
+func GetClusterSettings(name cluster.ClusterName) (clusterSettings ClusterSettings, err error) {
+	err = GetItem(GetTableName(name), ModelClusterSettings, &clusterSettings)
 	if err != nil {
 		return
 	}

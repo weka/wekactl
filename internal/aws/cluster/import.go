@@ -151,10 +151,6 @@ func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.C
 	return AWSCluster{
 		Name:            clusterName,
 		ClusterSettings: defaultParams,
-		CFStack: Stack{
-			StackId:   stackId,
-			StackName: stackName,
-		},
 		HostGroups: []HostGroup{
 			backendsHostGroup,
 			clientsHostGroup,

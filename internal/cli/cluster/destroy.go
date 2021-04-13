@@ -6,8 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/autoscaling"
 	cluster2 "wekactl/internal/aws/cluster"
-	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
@@ -24,52 +22,32 @@ var destroyCmd = &cobra.Command{
 
 			clusterName := cluster.ClusterName(StackName)
 
-			backendsHostGroup := cluster2.GenerateHostGroup(
-				clusterName,
-				common.HostGroupParams{},
-				common.RoleBackend,
-				"Backends",
-			)
-
-			clientsHostGroup := cluster2.GenerateHostGroup(
-				clusterName,
-				common.HostGroupParams{},
-				common.RoleClient,
-				"Clients",
-			)
-
-			dynamoDb := cluster2.DynamoDb{
-				ClusterName: clusterName,
-			}
-			dynamoDb.Init()
-			err := cluster.DestroyResource(&dynamoDb)
+			awsCluster, err := cluster2.GetCluster(clusterName)
 			if err != nil {
 				return err
 			}
 
-			awsCluster := cluster2.AWSCluster{
-				Name:            clusterName,
-				ClusterSettings: db.ClusterSettings{},
-				CFStack: cluster2.Stack{
-					StackName: StackName,
-				},
-				HostGroups: []cluster2.HostGroup{
-					backendsHostGroup,
-					clientsHostGroup,
-				},
-			}
 
 			if keepInstances {
+				// TODO: Evicting instances manually and then running destroy would be better, without hacks
 				autoscaling.KeepInstances = true
 			}
 
-			awsCluster.Init()
 			err = cluster.DestroyResource(&awsCluster)
 			if err != nil {
 				logging.UserFailure("Destroying failed!")
 				return err
 			}
 			logging.UserSuccess("Destroying finished successfully!")
+
+			dynamoDb := cluster2.DynamoDb{
+				ClusterName: clusterName,
+			}
+			dynamoDb.Init()
+			err = cluster.DestroyResource(&dynamoDb)
+			if err != nil {
+				return err
+			}
 		} else {
 			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
 			logging.UserFailure(err.Error())

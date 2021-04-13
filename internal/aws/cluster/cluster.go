@@ -13,7 +13,6 @@ type DynamoDBName string
 type AWSCluster struct {
 	Name            cluster.ClusterName
 	ClusterSettings db.ClusterSettings
-	CFStack         Stack
 	HostGroups      []HostGroup
 	TableName       string
 }

@@ -23,6 +23,7 @@ type ClusterSettings struct {
 	Subnet        string
 	TagsMap       cluster.Tags
 	PrivateSubnet bool
+	StackId 	  *string // != nil in case it is created from CF stack
 }
 
 func (c ClusterSettings) Tags() cluster.Tags {

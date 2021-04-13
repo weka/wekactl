@@ -4,7 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
@@ -59,49 +58,11 @@ func generateHostGroupFromLaunchTemplate(clusterName cluster.ClusterName, role c
 	return
 }
 
-func generateUpdateAWSCluster(stackName string) (awsCluster AWSCluster, err error) {
-	clusterName := cluster.ClusterName(stackName)
-
-	backendsHostGroup, err := generateHostGroupFromLaunchTemplate(
-		clusterName, common.RoleBackend, "Backends")
-	if err != nil {
-		return
-	}
-
-	clientsHostGroup, err := generateHostGroupFromLaunchTemplate(
-		clusterName, common.RoleClient, "Clients")
-	if err != nil {
-		return
-	}
-
-	awsCluster = AWSCluster{
-		Name:            clusterName,
-		ClusterSettings: db.ClusterSettings{},
-		CFStack: Stack{
-			StackName: stackName,
-		},
-		HostGroups: []HostGroup{
-			backendsHostGroup,
-			clientsHostGroup,
-		},
-	}
-	return
-}
-
-func UpdateCluster(stackName string) error {
-	dynamoDb := DynamoDb{
-		ClusterName: cluster.ClusterName(stackName),
-	}
-	dbClusterSettings, err := db.GetClusterSettings(dynamoDb.ResourceName())
+func UpdateCluster(name cluster.ClusterName) error {
+	awsCluster, err := GetCluster(name)
 	if err != nil {
 		return err
 	}
 
-	awsCluster, err := generateUpdateAWSCluster(stackName)
-	if err != nil {
-		return err
-	}
-
-	awsCluster.Init()
-	return cluster.EnsureResource(&awsCluster, dbClusterSettings)
+	return cluster.EnsureResource(&awsCluster, awsCluster.ClusterSettings)
 }
