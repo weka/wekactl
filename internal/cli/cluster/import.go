@@ -13,6 +13,7 @@ import (
 var importParams cluster2.ImportParams
 
 var importCmd = &cobra.Command{
+	Use:   "import [flags]",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -37,7 +38,7 @@ func init() {
 	importCmd.Flags().StringVarP(&importParams.Username, "username", "u", "", "cluster admin username")
 	importCmd.Flags().StringVarP(&importParams.Password, "password", "p", "", "cluster admin password")
 	importCmd.Flags().StringArrayVarP(&importParams.TagsList, "tags", "t", []string{}, "cloud resources tags, each tag should be passed in this pattern: '-t key=value'")
-	importCmd.Flags().BoolVarP(&importParams.PrivateSubnet, "private-subnet", "s", false, "Run on private subnet")
+	importCmd.Flags().BoolVarP(&importParams.PrivateSubnet, "private-subnet", "s", false, "cluster runs in private subnet, requires execute-api VPC endpoint to present on VPC")
 	_ = importCmd.MarkFlagRequired("name")
 	_ = importCmd.MarkFlagRequired("username")
 	_ = importCmd.MarkFlagRequired("password")
