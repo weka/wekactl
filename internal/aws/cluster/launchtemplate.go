@@ -4,6 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
 )
@@ -17,6 +18,7 @@ type LaunchTemplate struct {
 	TableName       string
 	Version         string
 	ASGName         string
+	ClusterSettings db.ClusterSettings
 }
 
 func (l *LaunchTemplate) Tags() cluster.Tags {
@@ -60,7 +62,7 @@ func (l *LaunchTemplate) Delete() error {
 	return launchtemplate.DeleteLaunchTemplate(l.ResourceName())
 }
 
-func (l *LaunchTemplate) Create(tags cluster.Tags, PrivateSubnet bool) error {
+func (l *LaunchTemplate) Create(tags cluster.Tags) error {
 	return launchtemplate.CreateLaunchTemplate(tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
 }
 
@@ -74,5 +76,6 @@ func (l *LaunchTemplate) Init() {
 	l.JoinApi.TableName = l.TableName
 	l.JoinApi.ASGName = l.ASGName
 	l.JoinApi.Subnet = l.HostGroupParams.Subnet
+	l.JoinApi.ClusterSettings = l.ClusterSettings
 	l.JoinApi.Init()
 }

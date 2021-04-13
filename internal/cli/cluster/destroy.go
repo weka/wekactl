@@ -48,8 +48,8 @@ var destroyCmd = &cobra.Command{
 			}
 
 			awsCluster := cluster2.AWSCluster{
-				Name:          clusterName,
-				DefaultParams: db.ClusterSettings{},
+				Name:            clusterName,
+				ClusterSettings: db.ClusterSettings{},
 				CFStack: cluster2.Stack{
 					StackName: StackName,
 				},
@@ -80,7 +80,7 @@ var destroyCmd = &cobra.Command{
 }
 
 func init() {
-	destroyCmd.Flags().StringVarP(&StackName, "name", "n", "", "EKS cluster name")
+	destroyCmd.Flags().StringVarP(&StackName, "name", "n", "", "weka cluster name")
 	destroyCmd.Flags().BoolVarP(&keepInstances, "keep-instances", "k", false, "Keep instances")
 	_ = destroyCmd.MarkFlagRequired("name")
 }

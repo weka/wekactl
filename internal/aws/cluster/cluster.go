@@ -11,11 +11,11 @@ import (
 type DynamoDBName string
 
 type AWSCluster struct {
-	Name          cluster.ClusterName
-	DefaultParams db.ClusterSettings
-	CFStack       Stack
-	HostGroups    []HostGroup
-	TableName     string
+	Name            cluster.ClusterName
+	ClusterSettings db.ClusterSettings
+	CFStack         Stack
+	HostGroups      []HostGroup
+	TableName       string
 }
 
 func (c *AWSCluster) Tags() cluster.Tags {
@@ -52,6 +52,7 @@ func (c *AWSCluster) Init() {
 
 	for i := range c.HostGroups {
 		c.HostGroups[i].TableName = c.TableName
+		c.HostGroups[i].ClusterSettings = c.ClusterSettings
 		c.HostGroups[i].Init()
 	}
 	return
@@ -69,7 +70,7 @@ func (c *AWSCluster) Delete() error {
 	return nil
 }
 
-func (c *AWSCluster) Create(tags cluster.Tags, PrivateSubnet bool) (err error) {
+func (c *AWSCluster) Create(tags cluster.Tags) (err error) {
 	return nil
 }
 

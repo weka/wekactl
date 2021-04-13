@@ -78,7 +78,7 @@ func (l *Lambda) Delete() error {
 	return lambdas.DeleteLambda(l.ResourceName())
 }
 
-func (l *Lambda) Create(tags cluster.Tags, PrivateSubnet bool) (err error) {
+func (l *Lambda) Create(tags cluster.Tags) (err error) {
 	functionConfiguration, err := lambdas.CreateLambda(
 		tags.AsStringRefs(), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo, l.VPCConfig)
 	if err != nil {

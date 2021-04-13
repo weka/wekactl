@@ -4,6 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/iam"
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/cluster"
@@ -14,6 +15,7 @@ const joinApiVersion = "v1"
 type ApiGateway struct {
 	RestApiGateway apigateway.RestApiGateway
 	HostGroupInfo  common.HostGroupInfo
+	ClusterSettings db.ClusterSettings
 	Backend        Lambda
 	TableName      string
 	Version        string
@@ -76,9 +78,10 @@ func (a *ApiGateway) Delete() error {
 	return apigateway.DeleteRestApiGateway(a.ResourceName())
 }
 
-func (a *ApiGateway) Create(tags cluster.Tags, privateSubnet bool) error {
+func (a *ApiGateway) Create(tags cluster.Tags) error {
 	vpcId := ""
-	if privateSubnet {
+	if a.ClusterSettings.PrivateSubnet {
+		// TODO: Save it in settings. Cluster update will need to validate that settings have the information and fetch/update one-time in case it's missing, for back compatibility
 		subnetVpcId, err := common.VpcBySubnet(a.Subnet)
 		if err != nil {
 			return err
@@ -105,8 +108,7 @@ func (a *ApiGateway) Update() error {
 			return err
 		}
 		//TODO:implement fetch PrivateSubnet
-		privateSubnet := false
-		return a.Create(tags, privateSubnet)
+		return a.Create(tags)
 	}
 
 	panic("update not supported")
