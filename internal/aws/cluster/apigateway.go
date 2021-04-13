@@ -18,6 +18,7 @@ type ApiGateway struct {
 	TableName      string
 	Version        string
 	ASGName        string
+	Subnet         string
 }
 
 func (a *ApiGateway) Tags() cluster.Tags {
@@ -76,7 +77,11 @@ func (a *ApiGateway) Delete() error {
 }
 
 func (a *ApiGateway) Create(tags cluster.Tags) error {
-	restApiGateway, err := apigateway.CreateJoinApi(tags.AsStringRefs(), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName())
+	vpcId, err := common.VpcBySubnet(a.Subnet)
+	if err != nil {
+		return err
+	}
+	restApiGateway, err := apigateway.CreateJoinApi(tags.AsStringRefs(), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName(), vpcId)
 	if err != nil {
 		return err
 	}

@@ -77,6 +77,9 @@ func GetStackInstancesInfo(stackName string) (stackInstances StackInstances, err
 
 	for _, reservation := range result.Reservations {
 		for _, instance := range reservation.Instances {
+			if *instance.State.Name == "terminated" {
+				continue
+			}
 			arn := *instance.IamInstanceProfile.Arn
 			if strings.Contains(arn, "InstanceProfileBackend") {
 				stackInstances.Backends = append(stackInstances.Backends, instance)

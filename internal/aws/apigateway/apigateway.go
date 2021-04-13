@@ -14,6 +14,30 @@ import (
 	"wekactl/internal/env"
 )
 
+
+const policyTemplate=`{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "execute-api:Invoke",
+            "Resource": "*",
+            "Condition": {
+                "StringNotEquals": {
+                    "aws:sourceVpc": "%s"
+                }
+            }
+        },
+        {
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "execute-api:Invoke",
+            "Resource": "*"
+        }
+    ]
+}`
+
 func getAccountId() (string, error) {
 	svc := connectors.GetAWSSession().STS
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
@@ -23,19 +47,23 @@ func getAccountId() (string, error) {
 	return *result.Account, nil
 }
 
-func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
+func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGatewayName string, vpcId string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 
-	createApiOutput, err := svc.CreateRestApi(&apigateway.CreateRestApiInput{
+	restApi, err := svc.CreateRestApi(&apigateway.CreateRestApiInput{
 		Name:         aws.String(apiGatewayName),
 		Tags:         tags,
 		Description:  aws.String("Wekactl host join info API"),
 		ApiKeySource: aws.String("HEADER"),
+		EndpointConfiguration: &apigateway.EndpointConfiguration{
+			Types:          []*string{aws.String("PRIVATE")},
+		},
+		Policy: aws.String(fmt.Sprintf(policyTemplate, vpcId)),
 	})
 	if err != nil {
 		return
 	}
-	restApiId := createApiOutput.Id
+	restApiId := restApi.Id
 	log.Debug().Msgf("rest api gateway id:%s for lambda:%s was created successfully!", *restApiId, apiGatewayName)
 
 	resources, err := svc.GetResources(&apigateway.GetResourcesInput{
@@ -46,6 +74,7 @@ func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGate
 	}
 
 	rootResource := resources.Items[0]
+
 	createResourceOutput, err := svc.CreateResource(&apigateway.CreateResourceInput{
 		ParentId:  rootResource.Id,
 		RestApiId: restApiId,
@@ -84,11 +113,15 @@ func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGate
 	}
 	log.Debug().Msgf("rest api %s method integration created successfully!", httpMethod)
 
+
 	stageName := "default"
 	_, err = svc.CreateDeployment(&apigateway.CreateDeploymentInput{
 		RestApiId: restApiId,
 		StageName: aws.String(stageName),
 	})
+	if err != nil {
+		return
+	}
 	log.Debug().Msgf("rest api gateway deployment for stage %s was created successfully!", stageName)
 
 	resourceName := apiGatewayName
@@ -154,13 +187,13 @@ func addLambdaInvokePermissions(lambdaName, restApiId, apiGatewayName string) er
 	return nil
 }
 
-func CreateJoinApi(tags cluster.TagsRefsValues, lambdaArn, lambdaName, apiGatewayName string) (restApiGateway RestApiGateway, err error) {
+func CreateJoinApi(tags cluster.TagsRefsValues, lambdaArn, lambdaName, apiGatewayName, vpcId string) (restApiGateway RestApiGateway, err error) {
 
 	lambdaUri := fmt.Sprintf(
 		"arn:aws:apigateway:%s:lambda:path/2015-03-31/functions/%s/invocations",
 		env.Config.Region, lambdaArn)
 
-	restApiGateway, err = createRestApiGateway(tags, lambdaUri, apiGatewayName)
+	restApiGateway, err = createRestApiGateway(tags, lambdaUri, apiGatewayName, vpcId)
 
 	if err != nil {
 		return

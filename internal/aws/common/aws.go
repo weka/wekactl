@@ -237,3 +237,16 @@ func GetBackendsPrivateIps(clusterName string) (ips []string, err error) {
 	log.Debug().Msgf("found %d backends private ips: %s", len(ips), ips)
 	return
 }
+
+
+func VpcBySubnet(subnetId string) (string, error){
+	svc := connectors.GetAWSSession().EC2
+	subnets, err := svc.DescribeSubnets(&ec2.DescribeSubnetsInput{
+		SubnetIds:  []*string{aws.String(subnetId)},
+	})
+	if err != nil {
+		return "", err
+	}
+	vpcId := subnets.Subnets[0].VpcId
+	return *vpcId, nil
+}
