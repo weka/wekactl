@@ -37,7 +37,7 @@ func CreateAutoScalingGroup(tags []*autoscaling.Tag, launchTemplateName string, 
 	log.Debug().Msgf("AutoScalingGroup: \"%s\" suspending ReplaceUnhealthy...", autoScalingGroupName)
 	_, err = svc.SuspendProcesses(&autoscaling.ScalingProcessQuery{
 		AutoScalingGroupName: &autoScalingGroupName,
-		ScalingProcesses : []*string{
+		ScalingProcesses: []*string{
 			aws.String("ReplaceUnhealthy"),
 		},
 	})
@@ -67,15 +67,14 @@ func AttachInstancesToASG(instancesIds []*string, autoScalingGroupsName string) 
 	return nil
 }
 
-
 func DetachInstancesFromASG(instancesIds []*string, autoScalingGroupsName string) error {
 	svc := connectors.GetAWSSession().ASG
 	limit := 20
 	for i := 0; i < len(instancesIds); i += limit {
 		batch := instancesIds[i:common.Min(i+limit, len(instancesIds))]
 		_, err := svc.DetachInstances(&autoscaling.DetachInstancesInput{
-			AutoScalingGroupName: &autoScalingGroupsName,
-			InstanceIds:          batch,
+			AutoScalingGroupName:           &autoScalingGroupsName,
+			InstanceIds:                    batch,
 			ShouldDecrementDesiredCapacity: aws.Bool(false),
 		})
 		if err != nil {
@@ -85,7 +84,6 @@ func DetachInstancesFromASG(instancesIds []*string, autoScalingGroupsName string
 	}
 	return nil
 }
-
 
 func getStackLoadBalancer(stackName string) (loadBalancerName *string, err error) {
 	svc := connectors.GetAWSSession().CF
@@ -217,7 +215,7 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 
 	_, err = svc.DeleteAutoScalingGroup(&autoscaling.DeleteAutoScalingGroupInput{
 		AutoScalingGroupName: &autoScalingGroupName,
-		ForceDelete: aws.Bool(true),
+		ForceDelete:          aws.Bool(true),
 	})
 	if err != nil {
 		return err

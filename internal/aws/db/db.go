@@ -202,7 +202,7 @@ func GetDbVersion(tableName string) (version string, err error) {
 	return
 }
 
-func GetClusterSettings(tableName string) (clusterSettings ClusterSettings, err error){
+func GetClusterSettings(tableName string) (clusterSettings ClusterSettings, err error) {
 	err = GetItem(tableName, ModelClusterSettings, &clusterSettings)
 	if err != nil {
 		return

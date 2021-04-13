@@ -17,7 +17,7 @@ type ImportParams struct {
 	Name          string
 	Username      string
 	Password      string
-	TagsList          []string
+	TagsList      []string
 	PrivateSubnet bool
 }
 

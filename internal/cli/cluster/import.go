@@ -10,7 +10,6 @@ import (
 	"wekactl/internal/logging"
 )
 
-
 var importParams cluster2.ImportParams
 
 var importCmd = &cobra.Command{

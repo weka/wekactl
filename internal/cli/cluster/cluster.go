@@ -8,7 +8,6 @@ import (
 var Region string
 var StackName string
 
-
 var Cluster = &cobra.Command{
 	Use:   "cluster [command] [flags]",
 	Short: "Cluster operations",

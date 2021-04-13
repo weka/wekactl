@@ -148,7 +148,7 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 
 	err = detachUnhealthyInstances(asgInstances, asgName)
 	if err != nil {
-		log.Error().Msgf("error detaching instances", err)
+		log.Error().Msgf("error detaching instances %s", err)
 		response.AddTransientError(err, "detach unhealthy")
 	}
 

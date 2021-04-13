@@ -13,14 +13,14 @@ import (
 const joinApiVersion = "v1"
 
 type ApiGateway struct {
-	RestApiGateway apigateway.RestApiGateway
-	HostGroupInfo  common.HostGroupInfo
+	RestApiGateway  apigateway.RestApiGateway
+	HostGroupInfo   common.HostGroupInfo
 	ClusterSettings db.ClusterSettings
-	Backend        Lambda
-	TableName      string
-	Version        string
-	ASGName        string
-	Subnet         string
+	Backend         Lambda
+	TableName       string
+	Version         string
+	ASGName         string
+	Subnet          string
 }
 
 func (a *ApiGateway) Tags() cluster.Tags {

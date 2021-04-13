@@ -7,5 +7,5 @@ var Config struct {
 
 var Version struct {
 	BuildVersion string
-	Commit    string
+	Commit       string
 }
