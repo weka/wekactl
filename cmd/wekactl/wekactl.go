@@ -98,10 +98,10 @@ func init() {
 	rootCmd.AddCommand(debug.Debug)
 	rootCmd.AddCommand(version.Version)
 
-	rootCmd.PersistentFlags().BoolP("help", "h", false, "help for this command")
+	//rootCmd.PersistentFlags().BoolP("help", "h", false, "help for this command")
 	rootCmd.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "c", "aws", "Cloud provider")
 	rootCmd.PersistentFlags().StringVarP(&env.Config.Region, "region", "r", "", "Region")
-	rootCmd.SetUsageFunc(Usage)
+	//rootCmd.SetUsageFunc(Usage)
 }
 
 func configureLogging() {
