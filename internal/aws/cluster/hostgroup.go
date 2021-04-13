@@ -43,7 +43,7 @@ func (h *HostGroup) Delete() error {
 	return nil
 }
 
-func (h *HostGroup) Create(tags cluster.Tags) error {
+func (h *HostGroup) Create(tags cluster.Tags, PrivateSubnet bool) error {
 	return nil
 }
 

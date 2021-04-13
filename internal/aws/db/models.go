@@ -29,6 +29,10 @@ func (c ClusterSettings) Tags() cluster.Tags {
 	return c.TagsMap
 }
 
+func (c ClusterSettings) UsePrivateSubnet() bool {
+	return c.PrivateSubnet
+}
+
 type ResourceVersion struct {
 	Key     string
 	Version string

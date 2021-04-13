@@ -5,4 +5,5 @@ type ClusterName string
 
 type IClusterSettings interface {
 	Tags() Tags
+	UsePrivateSubnet() bool
 }

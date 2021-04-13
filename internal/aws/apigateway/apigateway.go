@@ -14,8 +14,7 @@ import (
 	"wekactl/internal/env"
 )
 
-
-const policyTemplate=`{
+const policyTemplate = `{
     "Version": "2012-10-17",
     "Statement": [
         {
@@ -50,15 +49,23 @@ func getAccountId() (string, error) {
 func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGatewayName string, vpcId string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 
+	var endpointType, policy string
+	if vpcId != "" {
+		endpointType = "PRIVATE"
+		policy = fmt.Sprintf(policyTemplate, vpcId)
+	} else {
+		endpointType = "EDGE"
+	}
+
 	restApi, err := svc.CreateRestApi(&apigateway.CreateRestApiInput{
 		Name:         aws.String(apiGatewayName),
 		Tags:         tags,
 		Description:  aws.String("Wekactl host join info API"),
 		ApiKeySource: aws.String("HEADER"),
 		EndpointConfiguration: &apigateway.EndpointConfiguration{
-			Types:          []*string{aws.String("PRIVATE")},
+			Types: []*string{aws.String(endpointType)},
 		},
-		Policy: aws.String(fmt.Sprintf(policyTemplate, vpcId)),
+		Policy: aws.String(policy),
 	})
 	if err != nil {
 		return
@@ -112,7 +119,6 @@ func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGate
 		return
 	}
 	log.Debug().Msgf("rest api %s method integration created successfully!", httpMethod)
-
 
 	stageName := "default"
 	_, err = svc.CreateDeployment(&apigateway.CreateDeploymentInput{
@@ -283,8 +289,7 @@ func GetRestApiGatewayVersion(resourceName string) (version string, err error) {
 	return
 }
 
-
-func GetRestApi(resourceName string) (restApiResource *apigateway.RestApi, err error){
+func GetRestApi(resourceName string) (restApiResource *apigateway.RestApi, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 
 	restApisOutput, err := svc.GetRestApis(&apigateway.GetRestApisInput{})
@@ -301,12 +306,11 @@ func GetRestApi(resourceName string) (restApiResource *apigateway.RestApi, err e
 	return
 }
 
-
 func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
 
 	restApi, err := GetRestApi(resourceName)
-	if err!=nil{
+	if err != nil {
 		return
 	}
 	if restApi == nil {
@@ -335,9 +339,9 @@ func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err 
 	return
 }
 
-func GetRestApiGatewayTags(resourceName string) (tags cluster.Tags, err error ){
-	restApi, err :=GetRestApi(resourceName)
-	if err!=nil{
+func GetRestApiGatewayTags(resourceName string) (tags cluster.Tags, err error) {
+	restApi, err := GetRestApi(resourceName)
+	if err != nil {
 		return
 	}
 	tags = cluster.StringRefsMapToStrings(restApi.Tags)

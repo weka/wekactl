@@ -76,11 +76,16 @@ func (a *ApiGateway) Delete() error {
 	return apigateway.DeleteRestApiGateway(a.ResourceName())
 }
 
-func (a *ApiGateway) Create(tags cluster.Tags) error {
-	vpcId, err := common.VpcBySubnet(a.Subnet)
-	if err != nil {
-		return err
+func (a *ApiGateway) Create(tags cluster.Tags, privateSubnet bool) error {
+	vpcId := ""
+	if privateSubnet {
+		subnetVpcId, err := common.VpcBySubnet(a.Subnet)
+		if err != nil {
+			return err
+		}
+		vpcId = subnetVpcId
 	}
+
 	restApiGateway, err := apigateway.CreateJoinApi(tags.AsStringRefs(), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName(), vpcId)
 	if err != nil {
 		return err
@@ -99,7 +104,9 @@ func (a *ApiGateway) Update() error {
 		if err != nil {
 			return err
 		}
-		return a.Create(tags)
+		//TODO:implement fetch PrivateSubnet
+		privateSubnet := false
+		return a.Create(tags, privateSubnet)
 	}
 
 	panic("update not supported")

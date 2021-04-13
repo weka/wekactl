@@ -53,7 +53,7 @@ func (a *AutoscalingGroup) Delete() error {
 	return autoscaling.DeleteAutoScalingGroup(a.ResourceName())
 }
 
-func (a *AutoscalingGroup) Create(tags cluster.Tags) error {
+func (a *AutoscalingGroup) Create(tags cluster.Tags, PrivateSubnet bool) error {
 	return autoscaling.CreateAutoScalingGroup(
 		tags.AsAsg(), a.LaunchTemplate.ResourceName(), a.HostGroupParams.MaxSize, a.ResourceName())
 }

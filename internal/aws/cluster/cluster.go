@@ -69,7 +69,7 @@ func (c *AWSCluster) Delete() error {
 	return nil
 }
 
-func (c *AWSCluster) Create(tags cluster.Tags) (err error) {
+func (c *AWSCluster) Create(tags cluster.Tags, PrivateSubnet bool) (err error) {
 	return nil
 }
 

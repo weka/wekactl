@@ -64,7 +64,7 @@ func (i *IamProfile) Delete() error {
 	return iam.DeleteIamRole(i.resourceNameBase(), i.PolicyName)
 }
 
-func (i *IamProfile) Create(tags cluster.Tags) error {
+func (i *IamProfile) Create(tags cluster.Tags, PrivateSubnet bool) error {
 	arn, err := iam.CreateIamRole(tags.AsIam(), i.ResourceName(), i.PolicyName, i.AssumeRolePolicy, i.Policy)
 	if err != nil {
 		return err

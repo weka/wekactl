@@ -65,7 +65,7 @@ func (d *DynamoDb) Delete() error {
 	return db.DeleteDB(d.ResourceName())
 }
 
-func (d *DynamoDb) Create(tags cluster.Tags) error {
+func (d *DynamoDb) Create(tags cluster.Tags, PrivateSubnet bool) error {
 	return db.CreateDb(d.ResourceName(), d.KmsKey.Key, tags)
 }
 
