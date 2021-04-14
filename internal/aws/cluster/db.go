@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"github.com/rs/zerolog/log"
-	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/aws/kms"
 	"wekactl/internal/cluster"
@@ -28,7 +27,7 @@ func (d *DynamoDb) SubResources() []cluster.Resource {
 }
 
 func (d *DynamoDb) ResourceName() string {
-	return common.GenerateResourceName(d.ClusterName, "")
+	return db.GetTableName(d.ClusterName)
 }
 
 func (d *DynamoDb) Fetch() error {
