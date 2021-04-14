@@ -2,13 +2,10 @@ package cluster
 
 import (
 	"github.com/rs/zerolog/log"
-	"strings"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 )
-
-type DynamoDBName string
 
 type AWSCluster struct {
 	Name            cluster.ClusterName
@@ -31,10 +28,6 @@ func (c *AWSCluster) SubResources() []cluster.Resource {
 
 func (c *AWSCluster) ResourceName() string {
 	return common.GenerateResourceName(c.Name, "")
-}
-
-func (c *AWSCluster) GetDBName() DynamoDBName {
-	return DynamoDBName(strings.Join([]string{string(c.Name)}, "-"))
 }
 
 type Stack struct {
