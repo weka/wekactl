@@ -59,7 +59,7 @@ func getHostGroupsParams(clusterName cluster.ClusterName, role common.InstanceRo
 	return
 }
 
-func generateHostGroupFromLaunchTemplate(clusterName cluster.ClusterName, role common.InstanceRole, name common.HostGroupName) (hostGroups []HostGroup, err error) {
+func getHostGroups(clusterName cluster.ClusterName, role common.InstanceRole, name common.HostGroupName) (hostGroups []HostGroup, err error) {
 	hostGroupsParams, err := getHostGroupsParams(clusterName, role)
 	if err != nil {
 		return
