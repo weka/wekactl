@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rs/zerolog/log"
@@ -10,12 +12,16 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func getHostGroupsParams(clusterName cluster.ClusterName, role common.InstanceRole) (hostGroupsParams []common.HostGroupParams, err error) {
+type HostGroupsParamsMap map[common.InstanceRole][]common.HostGroupParams
+
+func getHostGroupsParams(clusterName cluster.ClusterName) (hostGroupsParamsMap HostGroupsParamsMap, err error) {
 	svcAsg := connectors.GetAWSSession().ASG
 	svcEc2 := connectors.GetAWSSession().EC2
 	var nextToken *string
 	var asgOutput *autoscaling.DescribeAutoScalingGroupsOutput
 	var launchTemplateVersionsOutput *ec2.DescribeLaunchTemplateVersionsOutput
+
+	hostGroupsParamsMap = make(HostGroupsParamsMap)
 
 	for asgOutput == nil || nextToken != nil {
 		asgOutput, err = svcAsg.DescribeAutoScalingGroups(
@@ -27,12 +33,23 @@ func getHostGroupsParams(clusterName cluster.ClusterName, role common.InstanceRo
 			return
 		}
 		for _, asg := range asgOutput.AutoScalingGroups {
+			var role common.InstanceRole
 			asgRole := autoscaling2.GetAsgTagValue(asg, RoleTagKey)
 			asgClusterName := autoscaling2.GetAsgTagValue(asg, cluster.ClusterNameTagKey)
-			if asgRole != string(role) || asgClusterName != string(clusterName) {
+			if asgClusterName != string(clusterName) || asgRole == "" {
 				continue
 			}
-			log.Debug().Msgf("Generating %s host group params ...", *asg.AutoScalingGroupName)
+
+			switch asgRole {
+			case string(common.RoleBackend):
+				role = common.RoleBackend
+			case string(common.RoleClient):
+				role = common.RoleClient
+			default:
+				err = errors.New(fmt.Sprintf("Non recognized role %s found", asgRole))
+			}
+
+			log.Debug().Msgf("Generating host group params using '%s' ASG ...", *asg.AutoScalingGroupName)
 			launchTemplateVersionsOutput, err = svcEc2.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
 				LaunchTemplateName: asg.LaunchTemplate.LaunchTemplateName,
 			})
@@ -40,7 +57,7 @@ func getHostGroupsParams(clusterName cluster.ClusterName, role common.InstanceRo
 				return
 			}
 			launchTemplateData := launchTemplateVersionsOutput.LaunchTemplateVersions[0].LaunchTemplateData
-			hostGroupsParams = append(hostGroupsParams,
+			hostGroupsParamsMap[role] = append(hostGroupsParamsMap[role],
 				common.HostGroupParams{
 					SecurityGroupsIds: launchTemplateData.SecurityGroupIds,
 					ImageID:           *launchTemplateData.ImageId,
@@ -59,13 +76,26 @@ func getHostGroupsParams(clusterName cluster.ClusterName, role common.InstanceRo
 	return
 }
 
-func getHostGroups(clusterName cluster.ClusterName, role common.InstanceRole, name common.HostGroupName) (hostGroups []HostGroup, err error) {
-	hostGroupsParams, err := getHostGroupsParams(clusterName, role)
+func roleToName(role common.InstanceRole) (name common.HostGroupName) {
+	switch role {
+	case "backend":
+		name = "Backends"
+	case "client":
+		name = "Clients"
+	}
+	return
+}
+
+func getHostGroups(clusterName cluster.ClusterName) (hostGroups []HostGroup, err error) {
+	hostGroupsParamsMap, err := getHostGroupsParams(clusterName)
 	if err != nil {
 		return
 	}
-	for _, hostGroupParams := range hostGroupsParams {
-		hostGroups = append(hostGroups, GenerateHostGroup(clusterName, hostGroupParams, role, name))
+
+	for role, hostGroupsParams := range hostGroupsParamsMap {
+		for _, hostGroupParams := range hostGroupsParams {
+			hostGroups = append(hostGroups, GenerateHostGroup(clusterName, hostGroupParams, role, roleToName(role)))
+		}
 	}
 	return
 }
