@@ -225,6 +225,16 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 	return nil
 }
 
+func GetAsgTagValue(asg *autoscaling.Group, key string) (value string) {
+	for _, tag := range asg.Tags {
+		if *tag.Key == key {
+			value = *tag.Value
+			return
+		}
+	}
+	return
+}
+
 func GetAutoScalingGroupVersion(autoScalingGroupName string) (version string, err error) {
 	svc := connectors.GetAWSSession().ASG
 
@@ -236,12 +246,7 @@ func GetAutoScalingGroupVersion(autoScalingGroupName string) (version string, er
 	}
 
 	for _, asg := range asgOutput.AutoScalingGroups {
-		for _, tag := range asg.Tags {
-			if *tag.Key == cluster.VersionTagKey {
-				version = *tag.Value
-				return
-			}
-		}
+		version = GetAsgTagValue(asg, cluster.VersionTagKey)
 	}
 	return
 }
