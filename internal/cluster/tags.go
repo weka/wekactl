@@ -15,6 +15,7 @@ type Tags map[string]string
 type TagsRefsValues map[string]*string
 
 const VersionTagKey = "wekactl.io/version"
+const ClusterNameTagKey = "wekactl.io/cluster_name"
 
 func (t Tags) ToDynamoDb() (ret []*dynamodb.Tag) {
 	for k, v := range t {
@@ -132,10 +133,10 @@ func GetResourceVersionTag(version string) Tags {
 
 func GetCommonResourceTags(clusterName ClusterName, version string) Tags {
 	tags := Tags{
-		"wekactl.io/managed":      "true",
-		"wekactl.io/api_version":  "v1",
-		VersionTagKey:             version,
-		"wekactl.io/cluster_name": string(clusterName),
+		"wekactl.io/managed":     "true",
+		"wekactl.io/api_version": "v1",
+		VersionTagKey:            version,
+		ClusterNameTagKey:        string(clusterName),
 	}
 	return tags
 }
