@@ -34,19 +34,19 @@ func GetCluster(name cluster.ClusterName) (awsCluster AWSCluster, err error) {
 		return
 	}
 
-	backendsHostGroup, err := generateHostGroupFromLaunchTemplate(
+	backendsHostGroups, err := getHostGroups(
 		name, common.RoleBackend, "Backends")
 	if err != nil {
 		return
 	}
 
-	clientsHostGroup, err := generateHostGroupFromLaunchTemplate(
+	clientsHostGroups, err := getHostGroups(
 		name, common.RoleClient, "Clients")
 	if err != nil {
 		return
 	}
 
-	hostGroups := append(backendsHostGroup, clientsHostGroup...)
+	hostGroups := append(backendsHostGroups, clientsHostGroups...)
 
 	awsCluster = AWSCluster{
 		Name:            name,
