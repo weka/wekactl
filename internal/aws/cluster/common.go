@@ -25,7 +25,7 @@ func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams common.H
 	return hostGroup
 }
 
-func GetCluster(name cluster.ClusterName) (awsCluster AWSCluster, err error) {
+func GetCluster(name cluster.ClusterName, fetchHotGroupParams bool) (awsCluster AWSCluster, err error) {
 	dbClusterSettings, err := db.GetClusterSettings(name)
 	if err != nil {
 		if _, ok := err.(*dynamodb.ResourceNotFoundException); ok {
@@ -34,7 +34,7 @@ func GetCluster(name cluster.ClusterName) (awsCluster AWSCluster, err error) {
 		return
 	}
 
-	hostGroups, err := getHostGroups(name)
+	hostGroups, err := getHostGroups(name, fetchHotGroupParams)
 	if err != nil {
 		return
 	}

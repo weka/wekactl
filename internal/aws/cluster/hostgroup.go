@@ -9,6 +9,7 @@ import (
 
 const hostGroupVersion = "v1"
 const RoleTagKey = "wekactl.io/hostgroup_type"
+const HostGroupNameTagKey = "wekactl.io/hostgroup_name"
 
 type HostGroup struct {
 	HostGroupInfo    common.HostGroupInfo
@@ -66,7 +67,7 @@ func (h *HostGroup) Init() {
 func GetHostGroupResourceTags(hostGroup common.HostGroupInfo, version string) cluster.Tags {
 	tags := cluster.GetCommonResourceTags(hostGroup.ClusterName, version)
 	return tags.Update(cluster.Tags{
-		"wekactl.io/hostgroup_name": string(hostGroup.Name),
-		RoleTagKey:                  string(hostGroup.Role),
+		HostGroupNameTagKey: string(hostGroup.Name),
+		RoleTagKey:          string(hostGroup.Role),
 	})
 }
