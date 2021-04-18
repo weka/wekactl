@@ -27,7 +27,6 @@ var destroyCmd = &cobra.Command{
 				return err
 			}
 
-
 			if keepInstances {
 				// TODO: Evicting instances manually and then running destroy would be better, without hacks
 				autoscaling.KeepInstances = true
@@ -38,7 +37,6 @@ var destroyCmd = &cobra.Command{
 				logging.UserFailure("Destroying failed!")
 				return err
 			}
-			logging.UserSuccess("Destroying finished successfully!")
 
 			dynamoDb := cluster2.DynamoDb{
 				ClusterName: clusterName,
@@ -48,6 +46,8 @@ var destroyCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
+
+			logging.UserSuccess("Destroying finished successfully!")
 		} else {
 			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
 			logging.UserFailure(err.Error())
