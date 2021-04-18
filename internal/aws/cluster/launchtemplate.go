@@ -63,7 +63,7 @@ func (l *LaunchTemplate) Delete() error {
 }
 
 func (l *LaunchTemplate) Create(tags cluster.Tags) error {
-	return launchtemplate.CreateLaunchTemplate(tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName())
+	return launchtemplate.CreateLaunchTemplate(tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName(), !l.ClusterSettings.PrivateSubnet)
 }
 
 func (l *LaunchTemplate) Update() error {
