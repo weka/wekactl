@@ -30,7 +30,7 @@ func generateBlockDeviceMappingRequest(name common.HostGroupName, volumeInfo Vol
 	}
 }
 
-func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, hostGroupParams common.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string) (err error) {
+func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, hostGroupParams common.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string, associatePublicIpAddress bool) (err error) {
 	svc := connectors.GetAWSSession().EC2
 	userDataTemplate := `
 	#!/usr/bin/env bash
@@ -64,7 +64,7 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 			},
 			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 				{
-					AssociatePublicIpAddress: aws.Bool(true),
+					AssociatePublicIpAddress: aws.Bool(associatePublicIpAddress),
 					DeviceIndex:              aws.Int64(0),
 					Ipv6AddressCount:         aws.Int64(0),
 					SubnetId:                 &hostGroupParams.Subnet,
