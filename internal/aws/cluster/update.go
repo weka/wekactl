@@ -12,16 +12,43 @@ import (
 	"wekactl/internal/connectors"
 )
 
-type HostGroupsParamsMap map[common.InstanceRole][]common.HostGroupParams
+type hostGroupGenerationInfo struct {
+	params common.HostGroupParams
+	name   common.HostGroupName
+	role   common.InstanceRole
+}
 
-func getHostGroupsParams(clusterName cluster.ClusterName) (hostGroupsParamsMap HostGroupsParamsMap, err error) {
-	svcAsg := connectors.GetAWSSession().ASG
+func fetchHostGroupParams(asg *autoscaling.Group) (hostGroupParams common.HostGroupParams, err error) {
 	svcEc2 := connectors.GetAWSSession().EC2
+
+	launchTemplateVersionsOutput, err := svcEc2.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
+		LaunchTemplateName: asg.LaunchTemplate.LaunchTemplateName,
+	})
+	if err != nil {
+		return
+	}
+
+	launchTemplateData := launchTemplateVersionsOutput.LaunchTemplateVersions[0].LaunchTemplateData
+
+	hostGroupParams = common.HostGroupParams{
+		SecurityGroupsIds: launchTemplateData.SecurityGroupIds,
+		ImageID:           *launchTemplateData.ImageId,
+		KeyName:           *launchTemplateData.KeyName,
+		IamArn:            *launchTemplateData.IamInstanceProfile.Arn,
+		InstanceType:      *launchTemplateData.InstanceType,
+		Subnet:            *launchTemplateData.NetworkInterfaces[0].SubnetId,
+		VolumeName:        *launchTemplateData.BlockDeviceMappings[0].DeviceName,
+		VolumeType:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType,
+		VolumeSize:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize,
+		MaxSize:           *asg.MaxSize,
+	}
+	return
+}
+
+func getHostGroupsGenerationInfo(clusterName cluster.ClusterName, fetchHotGroupParams bool) (hostGroupsGenerationInfo []hostGroupGenerationInfo, err error) {
+	svcAsg := connectors.GetAWSSession().ASG
 	var nextToken *string
 	var asgOutput *autoscaling.DescribeAutoScalingGroupsOutput
-	var launchTemplateVersionsOutput *ec2.DescribeLaunchTemplateVersionsOutput
-
-	hostGroupsParamsMap = make(HostGroupsParamsMap)
 
 	for asgOutput == nil || nextToken != nil {
 		asgOutput, err = svcAsg.DescribeAutoScalingGroups(
@@ -36,6 +63,7 @@ func getHostGroupsParams(clusterName cluster.ClusterName) (hostGroupsParamsMap H
 			var role common.InstanceRole
 			asgRole := autoscaling2.GetAsgTagValue(asg, RoleTagKey)
 			asgClusterName := autoscaling2.GetAsgTagValue(asg, cluster.ClusterNameTagKey)
+			hostGroupName := autoscaling2.GetAsgTagValue(asg, HostGroupNameTagKey)
 			if asgClusterName != string(clusterName) || asgRole == "" {
 				continue
 			}
@@ -50,58 +78,43 @@ func getHostGroupsParams(clusterName cluster.ClusterName) (hostGroupsParamsMap H
 			}
 
 			log.Debug().Msgf("Generating host group params using '%s' ASG ...", *asg.AutoScalingGroupName)
-			launchTemplateVersionsOutput, err = svcEc2.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
-				LaunchTemplateName: asg.LaunchTemplate.LaunchTemplateName,
-			})
-			if err != nil {
-				return
+
+			params := common.HostGroupParams{}
+			if fetchHotGroupParams {
+				params, err = fetchHostGroupParams(asg)
+				if err != nil {
+					return
+				}
 			}
-			launchTemplateData := launchTemplateVersionsOutput.LaunchTemplateVersions[0].LaunchTemplateData
-			hostGroupsParamsMap[role] = append(hostGroupsParamsMap[role],
-				common.HostGroupParams{
-					SecurityGroupsIds: launchTemplateData.SecurityGroupIds,
-					ImageID:           *launchTemplateData.ImageId,
-					KeyName:           *launchTemplateData.KeyName,
-					IamArn:            *launchTemplateData.IamInstanceProfile.Arn,
-					InstanceType:      *launchTemplateData.InstanceType,
-					Subnet:            *launchTemplateData.NetworkInterfaces[0].SubnetId,
-					VolumeName:        *launchTemplateData.BlockDeviceMappings[0].DeviceName,
-					VolumeType:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType,
-					VolumeSize:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize,
-					MaxSize:           *asg.MaxSize,
-				})
+
+			hostGroupsGenerationInfo = append(hostGroupsGenerationInfo,
+				hostGroupGenerationInfo{
+					params: params,
+					name:   common.HostGroupName(hostGroupName),
+					role:   role,
+				},
+			)
 		}
 		nextToken = asgOutput.NextToken
 	}
 	return
 }
 
-func roleToName(role common.InstanceRole) (name common.HostGroupName) {
-	switch role {
-	case "backend":
-		name = "Backends"
-	case "client":
-		name = "Clients"
-	}
-	return
-}
-
-func getHostGroups(clusterName cluster.ClusterName) (hostGroups []HostGroup, err error) {
-	hostGroupsParamsMap, err := getHostGroupsParams(clusterName)
+func getHostGroups(clusterName cluster.ClusterName, fetchHotGroupParams bool) (hostGroups []HostGroup, err error) {
+	hostGroupsGenerationInfo, err := getHostGroupsGenerationInfo(clusterName, fetchHotGroupParams)
 	if err != nil {
 		return
 	}
 
-	for role, hostGroupsParams := range hostGroupsParamsMap {
-		for _, hostGroupParams := range hostGroupsParams {
-			hostGroups = append(hostGroups, GenerateHostGroup(clusterName, hostGroupParams, role, roleToName(role)))
-		}
+	for _, generationInfo := range hostGroupsGenerationInfo {
+		hostGroups = append(hostGroups, GenerateHostGroup(
+			clusterName, generationInfo.params, generationInfo.role, generationInfo.name))
 	}
 	return
 }
 
 func UpdateCluster(name cluster.ClusterName) error {
-	awsCluster, err := GetCluster(name)
+	awsCluster, err := GetCluster(name, true)
 	if err != nil {
 		return err
 	}

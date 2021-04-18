@@ -22,7 +22,7 @@ var destroyCmd = &cobra.Command{
 
 			clusterName := cluster.ClusterName(StackName)
 
-			awsCluster, err := cluster2.GetCluster(clusterName)
+			awsCluster, err := cluster2.GetCluster(clusterName, false)
 			if err != nil {
 				return err
 			}
