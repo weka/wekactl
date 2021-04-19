@@ -184,9 +184,18 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string) error {
 	toDetach := []*string{}
 	for _, instance := range instances {
-		if *instance.HealthStatus == "Unhealthy" && !*instance.ProtectedFromScaleIn {
-			log.Info().Msgf("detaching %s", *instance.InstanceId)
-			toDetach = append(toDetach, instance.InstanceId)
+		if *instance.HealthStatus == "Unhealthy" {
+			toDelete := false
+			if !*instance.ProtectedFromScaleIn {
+				toDelete = true
+			}
+			if *instance.LifecycleState == "Terminated" {
+				toDelete = true
+			}
+			if toDelete {
+				log.Info().Msgf("detaching %s", *instance.InstanceId)
+				toDetach = append(toDetach, instance.InstanceId)
+			}
 		}
 	}
 
