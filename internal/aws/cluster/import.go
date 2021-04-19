@@ -131,31 +131,32 @@ func getVolumeInfo(instance *ec2.Instance, role common.InstanceRole) (volumeInfo
 	return
 }
 
-func generateAWSCluster(stackId, stackName, tableName string, defaultParams db.ClusterSettings) AWSCluster {
+func generateAWSCluster(stackName, tableName string, defaultParams db.ClusterSettings, clientsExist bool) AWSCluster {
 	clusterName := cluster.ClusterName(stackName)
 
-	backendsHostGroup := GenerateHostGroup(
-		clusterName,
-		defaultParams.Backends,
-		common.RoleBackend,
-		"Backends",
-	)
+	hostGroups := []HostGroup{
+		GenerateHostGroup(
+			clusterName,
+			defaultParams.Backends,
+			common.RoleBackend,
+			"Backends",
+		),
+	}
 
-	clientsHostGroup := GenerateHostGroup(
-		clusterName,
-		defaultParams.Clients,
-		common.RoleClient,
-		"Clients",
-	)
+	if clientsExist {
+		hostGroups = append(hostGroups, GenerateHostGroup(
+			clusterName,
+			defaultParams.Clients,
+			common.RoleClient,
+			"Clients",
+		))
+	}
 
 	return AWSCluster{
 		Name:            clusterName,
 		ClusterSettings: defaultParams,
-		HostGroups: []HostGroup{
-			backendsHostGroup,
-			clientsHostGroup,
-		},
-		TableName: tableName,
+		HostGroups:      hostGroups,
+		TableName:       tableName,
 	}
 }
 
@@ -201,7 +202,8 @@ func ImportCluster(params cluster.ImportParams) error {
 		return errs[0]
 	}
 
-	awsCluster := generateAWSCluster(stackId, params.Name, dynamoDb.ResourceName(), clusterSettings)
+	clientsExist := len(stackInstances.Clients) > 0
+	awsCluster := generateAWSCluster(params.Name, dynamoDb.ResourceName(), clusterSettings, clientsExist)
 	awsCluster.Init()
 	err = cluster.EnsureResource(&awsCluster, clusterSettings)
 	if err != nil {
@@ -229,8 +231,12 @@ func ImportCluster(params cluster.ImportParams) error {
 }
 
 func importClusterParamsFromCF(instances StackInstances) (defaultParams db.ClusterSettings, err error) {
-	if len(instances.Backends) == 0 {
-		return defaultParams, errors.New("backend instances not found, can't proceed with import")
+	minBackendsNumber := 5
+	if len(instances.Backends) < minBackendsNumber {
+		return defaultParams, errors.New(fmt.Sprintf(
+			"%d backend instances found, minimum is: %d, can't proceed with import",
+			len(instances.Backends),
+			minBackendsNumber))
 	}
 
 	err = importRoleParams(&defaultParams.Backends, instances.Backends, common.RoleBackend)
