@@ -60,5 +60,6 @@ var destroyCmd = &cobra.Command{
 func init() {
 	destroyCmd.Flags().StringVarP(&StackName, "name", "n", "", "weka cluster name")
 	destroyCmd.Flags().BoolVarP(&keepInstances, "keep-instances", "k", false, "Keep instances")
+	destroyCmd.Flags().MarkHidden("keep-instances")
 	_ = destroyCmd.MarkFlagRequired("name")
 }
