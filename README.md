@@ -10,7 +10,12 @@ Once deployed, you can control the number of instances by either changing the de
 
 - For initial setup, the user running the wekactl utility should have AWS admin credentials.
 - All the resources created by the utility are made on the AWS account that contains a Weka cluster.
-- Only clusters with internet connectivity or those explicitly configured to communicate with an API gateway via a proxy are supported. For new instances to join the Weka cluster, they need to communicate with an API gateway to fetch the cluster information.
+
+### VPC Network
+- By default, clusters expected to be connected to the internet
+- `--private-subnet` instructs wekactl to create resources in private subnet, i.e without allocating public IP addresses and deploying API gateway inside VPC
+    - For this mode to work VPC of cluster should have VPC endpoint to `execute-api`
+    - VPC endpoint should be open via security group to cluster security groups or whole VPC
 
 ## Basic Usage
 
