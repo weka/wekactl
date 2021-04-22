@@ -1,10 +1,14 @@
 package cluster
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/rs/zerolog/log"
+	"wekactl/internal/aws/alb"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
+	"wekactl/internal/connectors"
 )
 
 const hostGroupVersion = "v1"
@@ -47,8 +51,24 @@ func (h *HostGroup) Delete() error {
 	return nil
 }
 
-func (h *HostGroup) Create(tags cluster.Tags) error {
-	return nil
+func (h *HostGroup) Create(tags cluster.Tags) (err error) {
+	if h.HostGroupInfo.Role != common.RoleBackend {
+		return
+	}
+
+	arn, err := alb.GetTargetGroupArn(h.HostGroupInfo.ClusterName)
+	if err != nil {
+		return err
+	}
+	svc := connectors.GetAWSSession().ASG
+	_, err = svc.AttachLoadBalancerTargetGroups(&autoscaling.AttachLoadBalancerTargetGroupsInput{
+		TargetGroupARNs: []*string{
+			aws.String(arn),
+		},
+		AutoScalingGroupName: aws.String(h.AutoscalingGroup.ResourceName()),
+	})
+
+	return
 }
 
 func (h *HostGroup) Update() error {

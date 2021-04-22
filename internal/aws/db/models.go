@@ -17,13 +17,15 @@ type ClusterCreds struct {
 const ModelDefaultClusterParams = "default-cluster-params"
 
 type ClusterSettings struct {
-	Key           string
-	Backends      common.HostGroupParams
-	Clients       common.HostGroupParams
-	Subnet        string
-	TagsMap       cluster.Tags
-	PrivateSubnet bool
-	StackId 	  *string // != nil in case it is created from CF stack
+	Key              string
+	Backends         common.HostGroupParams
+	Clients          common.HostGroupParams
+	Subnet           string
+	AdditionalSubnet string
+	VpcId            string
+	TagsMap          cluster.Tags
+	PrivateSubnet    bool
+	StackId          *string // != nil in case it is created from CF stack
 }
 
 func (c ClusterSettings) Tags() cluster.Tags {
