@@ -247,3 +247,89 @@ func VpcBySubnet(subnetId string) (string, error) {
 	vpcId := subnets.Subnets[0].VpcId
 	return *vpcId, nil
 }
+
+func getSubnetsRouteTable(vpcId string, subnetsRouteTable map[string]*ec2.RouteTable, nextToken *string) (err error) {
+	svc := connectors.GetAWSSession().EC2
+
+	routeTablesOutput, err := svc.DescribeRouteTables(&ec2.DescribeRouteTablesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("vpc-id"),
+				Values: []*string{
+					&vpcId,
+				},
+			},
+		},
+		NextToken: nextToken,
+	})
+
+	if err != nil {
+		return
+	}
+
+	for _, routeTable := range routeTablesOutput.RouteTables {
+		for _, association := range routeTable.Associations {
+			if association.SubnetId != nil {
+				subnetsRouteTable[*association.SubnetId] = routeTable
+				break
+			}
+		}
+	}
+
+	if routeTablesOutput.NextToken != nil {
+		return getSubnetsRouteTable(vpcId, subnetsRouteTable, routeTablesOutput.NextToken)
+	}
+
+	return
+}
+
+func getSubnetWithIdenticalRouteTable(vpcId, subnetId string, subnetsRouteTable map[string]*ec2.RouteTable, nextToken *string) (additionalVpcSubnet string, err error) {
+	svc := connectors.GetAWSSession().EC2
+
+	subnetsOutput, err := svc.DescribeSubnets(&ec2.DescribeSubnetsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("vpc-id"),
+				Values: []*string{
+					&vpcId,
+				},
+			},
+		},
+		NextToken: nextToken,
+	})
+
+	if err != nil {
+		return
+	}
+
+	for _, subnet := range subnetsOutput.Subnets {
+		if *subnet.SubnetId == subnetId {
+			continue
+		}
+		if subnetsRouteTable[*subnet.SubnetId] == subnetsRouteTable[subnetId] {
+			additionalVpcSubnet = *subnet.SubnetId
+			return
+		}
+	}
+
+	if subnetsOutput.NextToken != nil {
+		return getSubnetWithIdenticalRouteTable(vpcId, subnetId, subnetsRouteTable, subnetsOutput.NextToken)
+	}
+	return
+}
+
+func GetAdditionalVpcSubnet(vpcId, subnetId string) (additionalVpcSubnet string, err error) {
+	subnetsRouteTable := make(map[string]*ec2.RouteTable)
+
+	err = getSubnetsRouteTable(vpcId, subnetsRouteTable, nil)
+	if err != nil {
+		return
+	}
+
+	additionalVpcSubnet, err = getSubnetWithIdenticalRouteTable(vpcId, subnetId, subnetsRouteTable, nil)
+	if err != nil {
+		return
+	}
+
+	return
+}

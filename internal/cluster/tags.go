@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudwatchevents"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/sfn"
@@ -115,6 +116,17 @@ func (t Tags) AsSfn() []*sfn.Tag {
 		})
 	}
 	return sfnTags
+}
+
+func (t Tags) AsAlb() []*elbv2.Tag {
+	var albTags []*elbv2.Tag
+	for key, value := range t {
+		albTags = append(albTags, &elbv2.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	return albTags
 }
 
 func StringRefsMapToStrings(tagsRefs TagsRefsValues) Tags {

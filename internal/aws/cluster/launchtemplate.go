@@ -71,7 +71,7 @@ func (l *LaunchTemplate) Update() error {
 }
 
 func (l *LaunchTemplate) Init() {
-	log.Debug().Msgf("Initializing hostgroup %s autoscaling group ...", string(l.HostGroupInfo.Name))
+	log.Debug().Msgf("Initializing hostgroup %s launch template ...", string(l.HostGroupInfo.Name))
 	l.JoinApi.HostGroupInfo = l.HostGroupInfo
 	l.JoinApi.TableName = l.TableName
 	l.JoinApi.ASGName = l.ASGName

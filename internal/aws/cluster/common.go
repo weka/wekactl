@@ -39,6 +39,7 @@ func GetCluster(name cluster.ClusterName, fetchHotGroupParams bool) (awsCluster 
 		return
 	}
 
+
 	awsCluster = AWSCluster{
 		Name:            name,
 		ClusterSettings: dbClusterSettings,

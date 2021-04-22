@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elb"
+	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -35,6 +36,7 @@ type SAwsSession struct {
 	SFN              *sfn.SFN
 	CloudWatchEvents *cloudwatchevents.CloudWatchEvents
 	ELB              *elb.ELB
+	ELBV2            *elbv2.ELBV2
 }
 
 var awsSession SAwsSession
@@ -59,6 +61,7 @@ func GetAWSSession() *SAwsSession {
 		awsSession.SFN = sfn.New(awsSession.Session)
 		awsSession.CloudWatchEvents = cloudwatchevents.New(awsSession.Session)
 		awsSession.ELB = elb.New(awsSession.Session)
+		awsSession.ELBV2 = elbv2.New(awsSession.Session)
 	}
 	return &awsSession
 }

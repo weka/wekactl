@@ -12,6 +12,7 @@ type AWSCluster struct {
 	ClusterSettings db.ClusterSettings
 	HostGroups      []HostGroup
 	TableName       string
+	ALB             ApplicationLoadBalancer
 }
 
 func (c *AWSCluster) Tags() cluster.Tags {
@@ -19,7 +20,9 @@ func (c *AWSCluster) Tags() cluster.Tags {
 }
 
 func (c *AWSCluster) SubResources() []cluster.Resource {
-	var resources []cluster.Resource
+	resources := []cluster.Resource{
+		&c.ALB,
+	}
 	for i := range c.HostGroups {
 		resources = append(resources, &c.HostGroups[i])
 	}
@@ -47,6 +50,11 @@ func (c *AWSCluster) Init() {
 		c.HostGroups[i].ClusterSettings = c.ClusterSettings
 		c.HostGroups[i].Init()
 	}
+
+	c.ALB.ClusterName = c.Name
+	c.ALB.VpcSubnets = []string{c.ClusterSettings.Subnet, c.ClusterSettings.AdditionalSubnet}
+	c.ALB.VpcId = c.ClusterSettings.VpcId
+	c.ALB.SecurityGroupsIds = c.ClusterSettings.Backends.SecurityGroupsIds
 	return
 }
 

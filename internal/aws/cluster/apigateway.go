@@ -82,11 +82,7 @@ func (a *ApiGateway) Create(tags cluster.Tags) error {
 	vpcId := ""
 	if a.ClusterSettings.PrivateSubnet {
 		// TODO: Save it in settings. Cluster update will need to validate that settings have the information and fetch/update one-time in case it's missing, for back compatibility
-		subnetVpcId, err := common.VpcBySubnet(a.Subnet)
-		if err != nil {
-			return err
-		}
-		vpcId = subnetVpcId
+		vpcId = a.ClusterSettings.VpcId
 	}
 
 	restApiGateway, err := apigateway.CreateJoinApi(tags.AsStringRefs(), a.Backend.Arn, a.Backend.ResourceName(), a.ResourceName(), vpcId)

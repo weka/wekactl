@@ -13,11 +13,12 @@ type IClusterSettings interface {
 }
 
 type ImportParams struct {
-	Name          string
-	Username      string
-	Password      string
-	TagsList      []string
-	PrivateSubnet bool
+	Name                string
+	Username            string
+	Password            string
+	TagsList            []string
+	PrivateSubnet       bool
+	AdditionalAlbSubnet string
 }
 
 func (params ImportParams) TagsMap() Tags {

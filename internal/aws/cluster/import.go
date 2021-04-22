@@ -175,6 +175,21 @@ func ImportCluster(params cluster.ImportParams) error {
 	if err != nil {
 		return err
 	}
+
+	vpcId, err := common.VpcBySubnet(clusterSettings.Subnet)
+	if err != nil {
+		return err
+	}
+	clusterSettings.VpcId = vpcId
+
+	if clusterSettings.AdditionalSubnet == "" {
+		additionalSubnet, err := common.GetAdditionalVpcSubnet(vpcId, clusterSettings.Subnet)
+		if err != nil {
+			return err
+		}
+		clusterSettings.AdditionalSubnet = additionalSubnet
+	}
+
 	clusterSettings.PrivateSubnet = params.PrivateSubnet
 	clusterSettings.TagsMap = params.TagsMap()
 
