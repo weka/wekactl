@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	errors2 "github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/autoscaling"
@@ -185,6 +186,9 @@ func ImportCluster(params cluster.ImportParams) error {
 	if clusterSettings.AdditionalSubnet == "" {
 		additionalSubnet, err := common.GetAdditionalVpcSubnet(vpcId, clusterSettings.Subnet)
 		if err != nil {
+			if err == common.NoAdditionalSubnet {
+				return errors2.Wrap(err, "supply additional ALB subnet via --additional-alb-subnet")
+			}
 			return err
 		}
 		clusterSettings.AdditionalSubnet = additionalSubnet
