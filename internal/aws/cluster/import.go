@@ -267,7 +267,9 @@ func importRoleParams(hostGroupParams *common.HostGroupParams, instances []*ec2.
 	}
 	hostGroupParams.SecurityGroupsIds = GetInstanceSecurityGroupsId(instance)
 	hostGroupParams.ImageID = *instance.ImageId
-	hostGroupParams.KeyName = *instance.KeyName
+	if instance.KeyName != nil {
+		hostGroupParams.KeyName = *instance.KeyName
+	}
 	hostGroupParams.IamArn = *instance.IamInstanceProfile.Arn
 	hostGroupParams.InstanceType = *instance.InstanceType
 	hostGroupParams.Subnet = *instance.SubnetId
