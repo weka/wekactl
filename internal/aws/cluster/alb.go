@@ -99,43 +99,32 @@ func (a *ApplicationLoadBalancer) Create(tags cluster.Tags) (err error) {
 	return alb.CreateListener(tags.Update(cluster.Tags{alb.ListenerTypeTagKey: "api"}).AsAlb(), albArn, targetArn)
 }
 
-func (a *ApplicationLoadBalancer) Update() error {
+func (a *ApplicationLoadBalancer) Update() (err error) {
+	// currently we will enter here only if Create failed at some point (during import).
+	// the only case we need to support is when for some reason alb/targetGroup/listener where not created
 	var albArn, targetArn string
-	err := alb.DeleteListener(a.ResourceName())
-	if err != nil {
-		return err
-	}
 
-	if a.TargetVersion() != a.TargetGroupVersion {
-		err = alb.DeleteTargetGroup(a.ClusterName)
-		if err != nil {
-			return err
-		}
+	if a.TargetGroupVersion == "" {
 		targetArn, err = alb.CreateTargetGroup(a.Tags().AsAlb(), alb.GetTargetGroupName(a.ClusterName), a.VpcId)
 		if err != nil {
-			return err
+			return
 		}
 	} else {
 		targetArn, err = alb.GetTargetGroupArn(a.ClusterName)
 		if err != nil {
-			return err
+			return
 		}
 	}
 
-	if a.TargetVersion() != a.Version {
-		err = alb.DeleteApplicationLoadBalancer(a.ResourceName())
-		if err != nil {
-			return err
-		}
-
+	if a.Version == "" {
 		albArn, err = alb.CreateApplicationLoadBalancer(a.Tags().AsAlb(), a.ResourceName(), strings.ListToRefList(a.VpcSubnets), a.SecurityGroupsIds)
 		if err != nil {
-			return err
+			return
 		}
 	} else {
 		albArn, err = alb.GetApplicationLoadBalancerArn(a.ResourceName())
 		if err != nil {
-			return err
+			return
 		}
 	}
 
