@@ -236,18 +236,6 @@ func GetBackendsPrivateIps(clusterName string) (ips []string, err error) {
 	return
 }
 
-func VpcBySubnet(subnetId string) (string, error) {
-	svc := connectors.GetAWSSession().EC2
-	subnets, err := svc.DescribeSubnets(&ec2.DescribeSubnetsInput{
-		SubnetIds: []*string{aws.String(subnetId)},
-	})
-	if err != nil {
-		return "", err
-	}
-	vpcId := subnets.Subnets[0].VpcId
-	return *vpcId, nil
-}
-
 func getSubnetsRouteTable(vpcId string, subnetsRouteTable map[string]*ec2.RouteTable, nextToken *string) (err error) {
 	svc := connectors.GetAWSSession().EC2
 
@@ -318,18 +306,53 @@ func getSubnetWithIdenticalRouteTable(vpcId, subnetId string, subnetsRouteTable 
 	return
 }
 
+var NoAdditionalSubnet = errors.New("no subnet with same route table was found")
+
 func GetAdditionalVpcSubnet(vpcId, subnetId string) (additionalVpcSubnet string, err error) {
-	subnetsRouteTable := make(map[string]*ec2.RouteTable)
-
-	err = getSubnetsRouteTable(vpcId, subnetsRouteTable, nil)
+	routeMap, err := getSubnetsRouteMap(vpcId)
 	if err != nil {
 		return
 	}
 
-	additionalVpcSubnet, err = getSubnetWithIdenticalRouteTable(vpcId, subnetId, subnetsRouteTable, nil)
+	for subnet, route := range routeMap {
+		if route == routeMap[subnetId] && subnet != subnetId {
+			return subnet, nil
+		}
+	}
+	return "", NoAdditionalSubnet
+}
+
+func getSubnetsRouteMap(vpcId string) (routeMap map[string]string, err error) {
+	routeMap = map[string]string{}
+
+	subnets, err := GetVpcSubnets(vpcId)
+	if err != nil {
+		return
+	}
+	tables, err := GetRouteTables(vpcId)
 	if err != nil {
 		return
 	}
 
+	for _, s := range subnets {
+		var main string
+		subnetId := *s.SubnetId
+	TABLES:
+		for _, r := range tables {
+			for _, a := range r.Associations {
+				if *a.Main {
+					main = *r.RouteTableId
+				}
+				if a.SubnetId == nil {
+					continue
+				}
+				if *a.SubnetId == *s.SubnetId {
+					routeMap[subnetId] = *r.RouteTableId
+					break TABLES
+				}
+			}
+		}
+		routeMap[subnetId] = main
+	}
 	return
 }
