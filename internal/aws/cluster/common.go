@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
@@ -25,12 +26,44 @@ func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams common.H
 	return hostGroup
 }
 
+func migrateSettings(clusterName cluster.ClusterName, dbClusterSettings db.ClusterSettings) error {
+	// this function is for updating old clusters that might be missing some settings in db
+
+	log.Debug().Msg("Checking if settings migration is needed ...")
+	migrateRequired := false
+
+	if dbClusterSettings.VpcId == "" {
+		vpcId, err := common.VpcBySubnet(dbClusterSettings.Subnet)
+		if err != nil {
+			return err
+		}
+		dbClusterSettings.VpcId = vpcId
+		migrateRequired = true
+	}
+
+	if !migrateRequired {
+		return nil
+	}
+
+	log.Debug().Msg("Settings migration is needed, saving to DB ...")
+	if err := db.SaveClusterSettings(db.GetTableName(clusterName), dbClusterSettings); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func GetCluster(name cluster.ClusterName, fetchHotGroupParams bool) (awsCluster AWSCluster, err error) {
 	dbClusterSettings, err := db.GetClusterSettings(name)
 	if err != nil {
 		if _, ok := err.(*dynamodb.ResourceNotFoundException); ok {
 			err = errors.New(fmt.Sprintf("Cluster doesn't exist in %s", env.Config.Region))
 		}
+		return
+	}
+
+	err = migrateSettings(name, dbClusterSettings)
+	if err != nil {
 		return
 	}
 
