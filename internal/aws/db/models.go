@@ -14,8 +14,6 @@ type ClusterCreds struct {
 	Password string
 }
 
-const ModelDefaultClusterParams = "default-cluster-params"
-
 type ClusterSettings struct {
 	Key              string
 	Backends         common.HostGroupParams
