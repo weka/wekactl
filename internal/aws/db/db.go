@@ -109,7 +109,7 @@ func SaveCredentials(tableName string, username, password string) error {
 
 func SaveClusterSettings(tableName string, clusterSettings ClusterSettings) error {
 	if clusterSettings.Key == "" {
-		clusterSettings.Key = ModelDefaultClusterParams
+		clusterSettings.Key = ModelClusterSettings
 	}
 	err := PutItem(tableName, clusterSettings)
 	if err != nil {
@@ -150,7 +150,7 @@ func ChangeCredentials(tableName string, username, password string) error {
 
 func saveClusterParams(tableName string, params ClusterSettings) error {
 	if params.Key == "" {
-		params.Key = ModelDefaultClusterParams
+		params.Key = ModelClusterSettings
 	}
 	err := PutItem(tableName, params)
 	if err != nil {
