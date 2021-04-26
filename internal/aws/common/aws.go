@@ -236,91 +236,7 @@ func GetBackendsPrivateIps(clusterName string) (ips []string, err error) {
 	return
 }
 
-func getSubnetsRouteTable(vpcId string, subnetsRouteTable map[string]*ec2.RouteTable, nextToken *string) (err error) {
-	svc := connectors.GetAWSSession().EC2
-
-	routeTablesOutput, err := svc.DescribeRouteTables(&ec2.DescribeRouteTablesInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("vpc-id"),
-				Values: []*string{
-					&vpcId,
-				},
-			},
-		},
-		NextToken: nextToken,
-	})
-
-	if err != nil {
-		return
-	}
-
-	for _, routeTable := range routeTablesOutput.RouteTables {
-		for _, association := range routeTable.Associations {
-			if association.SubnetId != nil {
-				subnetsRouteTable[*association.SubnetId] = routeTable
-				break
-			}
-		}
-	}
-
-	if routeTablesOutput.NextToken != nil {
-		return getSubnetsRouteTable(vpcId, subnetsRouteTable, routeTablesOutput.NextToken)
-	}
-
-	return
-}
-
-func getSubnetWithIdenticalRouteTable(vpcId, subnetId string, subnetsRouteTable map[string]*ec2.RouteTable, nextToken *string) (additionalVpcSubnet string, err error) {
-	svc := connectors.GetAWSSession().EC2
-
-	subnetsOutput, err := svc.DescribeSubnets(&ec2.DescribeSubnetsInput{
-		Filters: []*ec2.Filter{
-			{
-				Name: aws.String("vpc-id"),
-				Values: []*string{
-					&vpcId,
-				},
-			},
-		},
-		NextToken: nextToken,
-	})
-
-	if err != nil {
-		return
-	}
-
-	for _, subnet := range subnetsOutput.Subnets {
-		if *subnet.SubnetId == subnetId {
-			continue
-		}
-		if subnetsRouteTable[*subnet.SubnetId] == subnetsRouteTable[subnetId] {
-			additionalVpcSubnet = *subnet.SubnetId
-			return
-		}
-	}
-
-	if subnetsOutput.NextToken != nil {
-		return getSubnetWithIdenticalRouteTable(vpcId, subnetId, subnetsRouteTable, subnetsOutput.NextToken)
-	}
-	return
-}
-
 var NoAdditionalSubnet = errors.New("no subnet with same route table was found")
-
-func GetAdditionalVpcSubnet(vpcId, subnetId string) (additionalVpcSubnet string, err error) {
-	routeMap, err := getSubnetsRouteMap(vpcId)
-	if err != nil {
-		return
-	}
-
-	for subnet, route := range routeMap {
-		if route == routeMap[subnetId] && subnet != subnetId {
-			return subnet, nil
-		}
-	}
-	return "", NoAdditionalSubnet
-}
 
 func getSubnetsRouteMap(vpcId string) (routeMap map[string]string, err error) {
 	routeMap = map[string]string{}
@@ -355,4 +271,18 @@ func getSubnetsRouteMap(vpcId string) (routeMap map[string]string, err error) {
 		routeMap[subnetId] = main
 	}
 	return
+}
+
+func GetAdditionalVpcSubnet(vpcId, subnetId string) (additionalVpcSubnet string, err error) {
+	routeMap, err := getSubnetsRouteMap(vpcId)
+	if err != nil {
+		return
+	}
+
+	for subnet, route := range routeMap {
+		if route == routeMap[subnetId] && subnet != subnetId {
+			return subnet, nil
+		}
+	}
+	return "", NoAdditionalSubnet
 }
