@@ -9,12 +9,13 @@ import (
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	strings2 "wekactl/internal/lib/strings"
 )
 
 const ListenerTypeTagKey = "wekactl.io/listener_type"
 
 func GetApplicationLoadBalancerName(clusterName cluster.ClusterName) string {
-	return common.GenerateResourceName(clusterName, "")
+	return strings2.ElfHashSuffixed(common.GenerateResourceName(clusterName, ""), 32)
 }
 
 func CreateApplicationLoadBalancer(tags []*elbv2.Tag, albName string, subnets []*string, securityGroupsIds []*string) (arn string, err error) {
@@ -101,7 +102,8 @@ func DeleteApplicationLoadBalancer(albName string) (err error) {
 }
 
 func GetTargetGroupName(clusterName cluster.ClusterName) string {
-	return fmt.Sprintf("%s-backends-api", common.GenerateResourceName(clusterName, ""))
+	return strings2.ElfHashSuffixed(
+		fmt.Sprintf("%s-api", common.GenerateResourceName(clusterName, "")), 32)
 }
 
 func CreateTargetGroup(tags []*elbv2.Tag, targetName, vpcId string) (arn string, err error) {
