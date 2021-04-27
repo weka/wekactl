@@ -1,12 +1,15 @@
 package db
 
 import (
+	"errors"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 )
 
 const ModelClusterCreds = "cluster-creds"
 const ModelClusterSettings = "cluster-settings"
+
+var NoItemFound = errors.New("no item found in db")
 
 type ClusterCreds struct {
 	Key      string
