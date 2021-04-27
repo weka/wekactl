@@ -5,12 +5,17 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/lithammer/dedent"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
 
 const ListenerTypeTagKey = "wekactl.io/listener_type"
+
+func GetApplicationLoadBalancerName(clusterName cluster.ClusterName) string {
+	return common.GenerateResourceName(clusterName, "")
+}
 
 func CreateApplicationLoadBalancer(tags []*elbv2.Tag, albName string, subnets []*string, securityGroupsIds []*string) (arn string, err error) {
 	svc := connectors.GetAWSSession().ELBV2
@@ -281,5 +286,43 @@ func GetListenerVersion(albName, requestedListenerType string) (version string, 
 		}
 	}
 
+	return
+}
+
+func GetApplicationLoadBalancerDns(clusterName cluster.ClusterName) (dns string, err error) {
+	svc := connectors.GetAWSSession().ELBV2
+
+	loadBalancerOutput, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{
+		Names: []*string{
+			aws.String(GetApplicationLoadBalancerName(clusterName)),
+		},
+	})
+	if err != nil {
+		return
+	}
+	dns = *loadBalancerOutput.LoadBalancers[0].DNSName
+	return
+}
+
+func PrintStatelessClientsJoinScript(clusterName cluster.ClusterName) (err error) {
+	dns, err := GetApplicationLoadBalancerDns(clusterName)
+	if err != nil {
+		return
+	}
+
+	bashScriptTemplate := `
+	"""
+	#!/bin/bash
+
+	curl %s:14000/dist/v1/install | sh
+	mkdir -p /mnt/weka
+
+	filesystem_name=default # replace with different filesystem, if not using default one
+	mount -t wekafs %s/"$filesystem_name" /mnt/weka
+	"""`
+
+	fmt.Println(fmt.Sprintf(
+		"Script for mounting stateless clients:\n%s",
+		dedent.Dedent(fmt.Sprintf(bashScriptTemplate, dns, dns)[1:])))
 	return
 }
