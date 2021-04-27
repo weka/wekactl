@@ -40,6 +40,10 @@ func GetItem(tableName string, key string, item interface{}) error {
 		return err
 	}
 
+	if len(result.Item) == 0 {
+		return NoItemFound
+	}
+
 	err = dynamodbattribute.UnmarshalMap(result.Item, &item)
 	if err != nil {
 		return err
