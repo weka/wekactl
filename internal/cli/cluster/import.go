@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"wekactl/internal/aws/alb"
 	"wekactl/internal/aws/cluster"
 	cluster2 "wekactl/internal/cluster"
 	"wekactl/internal/env"
@@ -24,6 +25,12 @@ var importCmd = &cobra.Command{
 				return err
 			}
 			logging.UserSuccess("Import finished successfully!")
+
+			err = alb.PrintStatelessClientsJoinScript(cluster2.ClusterName(StackName))
+			if err != nil {
+				return err
+			}
+
 		} else {
 			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
 			logging.UserFailure(err.Error())

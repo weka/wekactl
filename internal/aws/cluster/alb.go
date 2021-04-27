@@ -3,7 +3,6 @@ package cluster
 import (
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/alb"
-	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/lib/strings"
 )
@@ -29,7 +28,7 @@ func (a *ApplicationLoadBalancer) SubResources() []cluster.Resource {
 }
 
 func (a *ApplicationLoadBalancer) ResourceName() string {
-	return common.GenerateResourceName(a.ClusterName, "")
+	return alb.GetApplicationLoadBalancerName(a.ClusterName)
 }
 
 func (a *ApplicationLoadBalancer) Fetch() error {
