@@ -26,7 +26,7 @@ var importCmd = &cobra.Command{
 			}
 			logging.UserSuccess("Import finished successfully!")
 
-			err = alb.PrintStatelessClientsJoinScript(cluster2.ClusterName(StackName))
+			err = alb.PrintStatelessClientsJoinScript(cluster2.ClusterName(importParams.Name))
 			if err != nil {
 				return err
 			}
