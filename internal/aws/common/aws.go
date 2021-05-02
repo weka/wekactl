@@ -236,15 +236,40 @@ func GetBackendsPrivateIps(clusterName string) (ips []string, err error) {
 	return
 }
 
-var NoAdditionalSubnet = errors.New("no subnet with same route table was found")
+var NoAdditionalSubnet = errors.New("no subnet with same route table in different availability zone was found")
 
-func getSubnetsRouteMap(vpcId string) (routeMap map[string]string, err error) {
+func filterOutSameAvailabilityZoneAdditionalSubnets(subnetId string, subnets []*ec2.Subnet) (filteredSubnets []*ec2.Subnet){
+	var availabilityZone string
+
+	// adding the requested subnetId subnet to the filtered list
+	for _, subnet := range subnets {
+		if *subnet.SubnetId == subnetId {
+			availabilityZone = *subnet.AvailabilityZone
+			filteredSubnets = append(filteredSubnets, subnet)
+			break
+		}
+	}
+
+	// adding all different availability zone subnets
+	for _, subnet := range subnets {
+		if *subnet.AvailabilityZone != availabilityZone {
+			filteredSubnets = append(filteredSubnets, subnet)
+		}
+	}
+
+	return
+}
+
+func getSubnetsRouteMap(vpcId, subnetId string) (routeMap map[string]string, err error) {
 	routeMap = map[string]string{}
 
 	subnets, err := GetVpcSubnets(vpcId)
 	if err != nil {
 		return
 	}
+
+	subnets = filterOutSameAvailabilityZoneAdditionalSubnets(subnetId, subnets)
+
 	tables, err := GetRouteTables(vpcId)
 	if err != nil {
 		return
@@ -274,7 +299,7 @@ func getSubnetsRouteMap(vpcId string) (routeMap map[string]string, err error) {
 }
 
 func GetAdditionalVpcSubnet(vpcId, subnetId string) (additionalVpcSubnet string, err error) {
-	routeMap, err := getSubnetsRouteMap(vpcId)
+	routeMap, err := getSubnetsRouteMap(vpcId, subnetId)
 	if err != nil {
 		return
 	}
