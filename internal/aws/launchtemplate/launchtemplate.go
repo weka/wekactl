@@ -41,11 +41,18 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 	`
 
 	userData := fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.Url(), restApiGateway.ApiKey)
+
+	var keyName *string
+	if hostGroupParams.KeyName == "" {
+		keyName = nil
+	} else {
+		keyName = &hostGroupParams.KeyName
+	}
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			ImageId:               &hostGroupParams.ImageID,
 			InstanceType:          &hostGroupParams.InstanceType,
-			KeyName:               &hostGroupParams.KeyName,
+			KeyName:               keyName,
 			UserData:              aws.String(base64.StdEncoding.EncodeToString([]byte(userData))),
 			DisableApiTermination: aws.Bool(true),
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
