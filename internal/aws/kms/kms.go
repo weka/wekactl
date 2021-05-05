@@ -4,9 +4,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/rs/zerolog/log"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
+
+func GetKmsAliasName(clusterName cluster.ClusterName) string {
+	return common.GenerateResourceName(clusterName, "")
+}
 
 func CreateKMSKey(tags []*kms.Tag, resourceName string) (string, error) {
 	svc := connectors.GetAWSSession().KMS
@@ -132,4 +137,48 @@ func GetKMSKeyId(clusterName cluster.ClusterName) (arn string, err error) {
 	}
 	arn = *kmsKey.KeyId
 	return
+}
+
+func GetClusterKMSKey(clusterName cluster.ClusterName) (kmsKey *kms.KeyListEntry, err error) {
+	svc := connectors.GetAWSSession().KMS
+
+	kmsKeysOutput, err := svc.ListKeys(&kms.ListKeysInput{})
+	if err != nil {
+		return
+	}
+
+	var keyKeyInfo *kms.DescribeKeyOutput
+	var tags *kms.ListResourceTagsOutput
+	for _, key := range kmsKeysOutput.Keys {
+		keyKeyInfo, err = svc.DescribeKey(&kms.DescribeKeyInput{KeyId: key.KeyId})
+		if err != nil {
+			return
+		}
+		if *keyKeyInfo.KeyMetadata.KeyState == kms.KeyStatePendingDeletion || *keyKeyInfo.KeyMetadata.KeyManager == kms.KeyManagerTypeAws {
+			continue
+		}
+
+		tags, err = svc.ListResourceTags(&kms.ListResourceTagsInput{KeyId: key.KeyId})
+		if err != nil {
+			return
+		}
+
+		for _, tag := range tags.Tags {
+			if *tag.TagKey == cluster.ClusterNameTagKey && *tag.TagValue == string(clusterName) {
+				return key, nil
+			}
+		}
+
+	}
+	return
+}
+
+func DeleteKmsKey(kmsKey *kms.KeyListEntry, clusterName cluster.ClusterName) error {
+	if kmsKey != nil {
+		err := DeleteKMSKey(GetKmsAliasName(clusterName), clusterName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

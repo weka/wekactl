@@ -187,3 +187,68 @@ func UpdateLambdaHandler(lambdaName string, versionTag cluster.TagsRefsValues) e
 
 	return err
 }
+
+func getLambdaConfigurations() (lambdaConfigurations []*lambda.FunctionConfiguration, err error) {
+	var marker *string
+	isFirst := true
+	var lambdasOutput *lambda.ListFunctionsOutput
+
+	log.Debug().Msg("fetching all lambdas ...")
+
+	svc := connectors.GetAWSSession().Lambda
+
+	for isFirst || marker != nil {
+		lambdasOutput, err = svc.ListFunctions(&lambda.ListFunctionsInput{
+			Marker: marker,
+		})
+		if err != nil {
+			return
+		}
+
+		for _, lambda := range lambdasOutput.Functions {
+			lambdaConfigurations = append(lambdaConfigurations, lambda)
+		}
+		isFirst = false
+		marker = lambdasOutput.NextMarker
+	}
+
+	return
+}
+
+func GetClusterLambdas(clusterName cluster.ClusterName) (lambdaConfigurations []*lambda.FunctionConfiguration, err error) {
+	allLambdaConfigurations, err := getLambdaConfigurations()
+	if err != nil {
+		return
+	}
+
+	log.Debug().Msgf("searching for cluster %s lambdas ...", clusterName)
+
+	svc := connectors.GetAWSSession().Lambda
+	for _, lambdaConfiguration := range allLambdaConfigurations {
+		tagsOutput, tagsErr := svc.ListTags(&lambda.ListTagsInput{
+			Resource: lambdaConfiguration.FunctionArn,
+		})
+		if tagsErr != nil {
+			log.Error().Err(tagsErr)
+			log.Error().Msgf("failed to get lambda %s tags", *lambdaConfiguration.FunctionName)
+		}
+		for key, value := range tagsOutput.Tags {
+			if key == cluster.ClusterNameTagKey && *value == string(clusterName) {
+				lambdaConfigurations = append(lambdaConfigurations, lambdaConfiguration)
+				break
+			}
+		}
+	}
+
+	return
+}
+
+func DeleteLambdas(lambdaConfigurations []*lambda.FunctionConfiguration) error {
+	for _, lambdaConfiguration := range lambdaConfigurations {
+		err := DeleteLambda(*lambdaConfiguration.FunctionName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

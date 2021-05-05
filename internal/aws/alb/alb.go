@@ -328,3 +328,96 @@ func PrintStatelessClientsJoinScript(clusterName cluster.ClusterName) (err error
 		dedent.Dedent(fmt.Sprintf(bashScriptTemplate, dns, dns)[1:])))
 	return
 }
+
+func GetClusterApplicationLoadBalancer(clusterName cluster.ClusterName) (applicationLoadBalancer *elbv2.LoadBalancer, err error) {
+	svc := connectors.GetAWSSession().ELBV2
+
+	loadBalancersOutput, err := svc.DescribeLoadBalancers(&elbv2.DescribeLoadBalancersInput{})
+	if err != nil {
+		return
+	}
+
+	var loadBalancerName string
+	for _, loadBalancer := range loadBalancersOutput.LoadBalancers {
+		loadBalancerName, err = getResourceTagValue(*loadBalancer.LoadBalancerArn, cluster.ClusterNameTagKey)
+		if err != nil {
+			return
+		}
+		if loadBalancerName == string(clusterName) {
+			applicationLoadBalancer = loadBalancer
+			return
+		}
+	}
+	return
+}
+
+func GetClusterTargetGroup(clusterName cluster.ClusterName) (albTargetGroup *elbv2.TargetGroup, err error) {
+	svc := connectors.GetAWSSession().ELBV2
+
+	targetGroupsOutput, err := svc.DescribeTargetGroups(&elbv2.DescribeTargetGroupsInput{})
+	if err != nil {
+		return
+	}
+
+	var targetGroupName string
+	for _, targetGroup := range targetGroupsOutput.TargetGroups {
+		targetGroupName, err = getResourceTagValue(*targetGroup.TargetGroupArn, cluster.ClusterNameTagKey)
+		if err != nil {
+			return
+		}
+		if targetGroupName == string(clusterName) {
+			albTargetGroup = targetGroup
+			return
+		}
+	}
+	return
+}
+
+func GetClusterListener(clusterName cluster.ClusterName, loadBalancerArn string) (albListener *elbv2.Listener, err error) {
+	svc := connectors.GetAWSSession().ELBV2
+
+	listenersOutput, err := svc.DescribeListeners(&elbv2.DescribeListenersInput{
+		LoadBalancerArn: &loadBalancerArn,
+	})
+	if err != nil {
+		return
+	}
+
+	var listenerName string
+	for _, listener := range listenersOutput.Listeners {
+		listenerName, err = getResourceTagValue(*listener.ListenerArn, cluster.ClusterNameTagKey)
+		if err != nil {
+			return
+		}
+		if listenerName == string(clusterName) {
+			albListener = listener
+			return
+		}
+	}
+	return
+}
+
+func DeleteAlb(applicationLoadBalancer *elbv2.LoadBalancer, listener *elbv2.Listener, targetGroup *elbv2.TargetGroup, clusterName cluster.ClusterName) (err error) {
+	if listener != nil {
+		err = DeleteListener(*applicationLoadBalancer.LoadBalancerName)
+		if err != nil {
+			return
+		}
+	}
+
+	if applicationLoadBalancer != nil {
+		err = DeleteApplicationLoadBalancer(*applicationLoadBalancer.LoadBalancerName)
+		if err != nil {
+			return
+		}
+	}
+
+	if targetGroup != nil {
+		err = DeleteTargetGroup(clusterName)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}

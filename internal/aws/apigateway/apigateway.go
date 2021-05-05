@@ -350,3 +350,32 @@ func GetRestApiGatewayTags(resourceName string) (tags cluster.Tags, err error) {
 	tags = cluster.StringRefsMapToStrings(restApi.Tags)
 	return
 }
+
+func GetClusterApiGateways(clusterName cluster.ClusterName) (restApis []*apigateway.RestApi, err error) {
+	svc := connectors.GetAWSSession().ApiGateway
+
+	restApisOutput, err := svc.GetRestApis(&apigateway.GetRestApisInput{})
+	if err != nil {
+		return
+	}
+	for _, restApi := range restApisOutput.Items {
+
+		for key, value := range restApi.Tags {
+			if key == cluster.ClusterNameTagKey && *value == string(clusterName) {
+				restApis = append(restApis, restApi)
+				break
+			}
+		}
+	}
+	return
+}
+
+func DeleteApiGateways(restApis []*apigateway.RestApi) error {
+	for _, restApi := range restApis {
+		err := DeleteRestApiGateway(*restApi.Name)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
