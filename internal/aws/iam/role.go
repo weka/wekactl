@@ -1,10 +1,13 @@
 package iam
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/semaphore"
 	"strings"
+	"sync"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
@@ -201,4 +204,104 @@ func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument, ve
 		Tags:     versionTag,
 	})
 	return err
+}
+
+func getRoles() (roles []*iam.Role, err error) {
+	var marker *string
+	isTruncated := true
+	var rolesOutput *iam.ListRolesOutput
+
+	log.Debug().Msg("fetching all iam roles ...")
+
+	svc := connectors.GetAWSSession().IAM
+	for isTruncated {
+		rolesOutput, err = svc.ListRoles(&iam.ListRolesInput{
+			Marker: marker,
+		})
+		if err != nil {
+			return
+		}
+		roles = append(roles, rolesOutput.Roles...)
+		isTruncated = *rolesOutput.IsTruncated
+		marker = rolesOutput.Marker
+	}
+
+	return
+
+}
+
+func isClusterRole(role *iam.Role, clusterName cluster.ClusterName) (result bool, err error) {
+	svc := connectors.GetAWSSession().IAM
+	tagsOutput, err := svc.ListRoleTags(&iam.ListRoleTagsInput{RoleName: role.RoleName})
+	if err != nil {
+		return
+	}
+	for _, tag := range tagsOutput.Tags {
+		if *tag.Key == cluster.ClusterNameTagKey && *tag.Value == string(clusterName) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+var tagsSemaphore *semaphore.Weighted
+
+func init() {
+	tagsSemaphore = semaphore.NewWeighted(20)
+}
+
+func GetClusterRoles(clusterName cluster.ClusterName) (clusterRoles []*iam.Role, err error) {
+	var wg sync.WaitGroup
+	var responseLock sync.Mutex
+
+	roles, err := getRoles()
+	if err != nil {
+		return
+	}
+
+	log.Debug().Msgf("searching for cluster %s roles ...", clusterName)
+
+	wg.Add(len(roles))
+	for _, role := range roles {
+		go func(role *iam.Role) {
+			_ = tagsSemaphore.Acquire(context.Background(), 1)
+			defer tagsSemaphore.Release(1)
+			defer wg.Done()
+
+			responseLock.Lock()
+			defer responseLock.Unlock()
+			result, tagsErr := isClusterRole(role, clusterName)
+			if tagsErr != nil {
+				log.Error().Err(tagsErr)
+				log.Error().Msgf("failed to get role %s tags", *role.RoleName)
+			}
+
+			if result {
+				clusterRoles = append(clusterRoles, role)
+			}
+
+		}(role)
+	}
+	wg.Wait()
+
+	return
+}
+
+func DeleteRolesAndPolicies(roles []*iam.Role, rolesPolicies map[string][]*iam.AttachedPolicy) error {
+	for _, role := range roles {
+		for _, policy := range rolesPolicies[*role.RoleName] {
+			err := DeleteIamRole(*role.RoleName, *policy.PolicyName)
+			if err != nil {
+				return err
+			}
+		}
+		if len(rolesPolicies[*role.RoleName]) == 0 {
+			err := DeleteIamRole(*role.RoleName, "")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

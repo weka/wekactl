@@ -36,6 +36,12 @@ func UserWarning(msg string, format ...interface{}) {
 	fmt.Println(Colorize(ColorWarning, msg))
 }
 
+// UserInfo prints no colorized info message
+func UserInfo(msg string, format ...interface{}) {
+	msg = fmt.Sprintf(msg, format...)
+	fmt.Println(msg)
+}
+
 // UserProgress prints a colorized progress message
 func UserProgress(msg string, format ...interface{}) {
 	msg = fmt.Sprintf(msg, format...)

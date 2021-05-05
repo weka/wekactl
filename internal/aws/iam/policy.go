@@ -31,3 +31,20 @@ func deleteIamPolicy(policyArn *string) error {
 
 	return err
 }
+
+func GetRolesPolicies(roles []*iam.Role) (rolePolicies map[string][]*iam.AttachedPolicy, err error) {
+	var policiesOutput *iam.ListAttachedRolePoliciesOutput
+	rolePolicies = make(map[string][]*iam.AttachedPolicy)
+	svc := connectors.GetAWSSession().IAM
+	log.Debug().Msg("fetching cluster policies ...")
+	for _, role := range roles {
+		policiesOutput, err = svc.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
+			RoleName: role.RoleName,
+		})
+		if err != nil {
+			return
+		}
+		rolePolicies[*role.RoleName] = policiesOutput.AttachedPolicies
+	}
+	return
+}

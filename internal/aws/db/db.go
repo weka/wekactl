@@ -218,3 +218,51 @@ func GetClusterSettings(name cluster.ClusterName) (clusterSettings ClusterSettin
 	}
 	return
 }
+
+func GetClusterDb(clusterName cluster.ClusterName) (table *dynamodb.TableDescription, err error) {
+	svc := connectors.GetAWSSession().DynamoDB
+
+	tablesList, err := svc.ListTables(&dynamodb.ListTablesInput{})
+	if err != nil {
+		return
+	}
+
+	var tableOutput *dynamodb.DescribeTableOutput
+	var tagsOutput *dynamodb.ListTagsOfResourceOutput
+
+	for _, tableName := range tablesList.TableNames {
+		tableOutput, err = svc.DescribeTable(&dynamodb.DescribeTableInput{
+			TableName: tableName,
+		})
+
+		if err != nil {
+			return
+		}
+
+		tagsOutput, err = svc.ListTagsOfResource(&dynamodb.ListTagsOfResourceInput{
+			ResourceArn: tableOutput.Table.TableArn,
+		})
+		if err != nil {
+			return
+		}
+
+		for _, tag := range tagsOutput.Tags {
+			if *tag.Key == cluster.ClusterNameTagKey && *tag.Value == string(clusterName) {
+				table = tableOutput.Table
+				return
+			}
+		}
+	}
+
+	return
+}
+
+func DeleteTable(table *dynamodb.TableDescription, clusterName cluster.ClusterName) error {
+	if table != nil {
+		err := DeleteDB(GetTableName(clusterName))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

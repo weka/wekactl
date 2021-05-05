@@ -140,3 +140,32 @@ func GetLaunchTemplateVersion(launchTemplateName string) (version string, err er
 
 	return
 }
+
+func GetClusterLaunchTemplates(clusterName cluster.ClusterName) (launchTemplates []*ec2.LaunchTemplate, err error) {
+	svc := connectors.GetAWSSession().EC2
+	launchTemplateOutput, err := svc.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("tag:wekactl.io/cluster_name"),
+				Values: []*string{
+					aws.String(string(clusterName)),
+				},
+			},
+		},
+	})
+	if err != nil {
+		return
+	}
+	launchTemplates = launchTemplateOutput.LaunchTemplates
+	return
+}
+
+func DeleteLaunchTemplates(launchTemplates []*ec2.LaunchTemplate) error {
+	for _, launchTemplate := range launchTemplates {
+		err := DeleteLaunchTemplate(*launchTemplate.LaunchTemplateName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -144,3 +144,40 @@ func GetStateMachineArn(stateMachineName string) (arn string, err error) {
 	}
 	return
 }
+
+func GetClusterStateMachines(clusterName cluster.ClusterName) (stateMachines []*sfn.StateMachineListItem, err error) {
+	svc := connectors.GetAWSSession().SFN
+	stateMachinesOutput, err := svc.ListStateMachines(&sfn.ListStateMachinesInput{})
+	if err != nil {
+		return
+	}
+
+	var tagsOutput *sfn.ListTagsForResourceOutput
+
+	for _, stateMachine := range stateMachinesOutput.StateMachines {
+		tagsOutput, err = svc.ListTagsForResource(&sfn.ListTagsForResourceInput{
+			ResourceArn: stateMachine.StateMachineArn,
+		})
+		if err != nil {
+			return
+		}
+		for _, tag := range tagsOutput.Tags {
+			if *tag.Key == cluster.ClusterNameTagKey && *tag.Value == string(clusterName) {
+				stateMachines = append(stateMachines, stateMachine)
+				break
+			}
+		}
+	}
+	return
+
+}
+
+func DeleteStateMachines(stateMachines []*sfn.StateMachineListItem) error {
+	for _, stateMachine := range stateMachines {
+		err := DeleteStateMachine(*stateMachine.Name)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

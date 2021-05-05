@@ -1,7 +1,6 @@
 package cluster
 
 import (
-	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/kms"
 	"wekactl/internal/cluster"
 )
@@ -23,7 +22,7 @@ func (k *KmsKey) SubResources() []cluster.Resource {
 }
 
 func (k *KmsKey) ResourceName() string {
-	return common.GenerateResourceName(k.ClusterName, "")
+	return kms.GetKmsAliasName(k.ClusterName)
 }
 
 func (k *KmsKey) Fetch() error {

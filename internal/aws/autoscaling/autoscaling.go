@@ -250,3 +250,42 @@ func GetAutoScalingGroupVersion(autoScalingGroupName string) (version string, er
 	}
 	return
 }
+
+func GetClusterAutoScalingGroups(clusterName cluster.ClusterName) (autoScalingGroups []*autoscaling.Group, err error) {
+	svcAsg := connectors.GetAWSSession().ASG
+	var nextToken *string
+	var asgOutput *autoscaling.DescribeAutoScalingGroupsOutput
+
+	for asgOutput == nil || nextToken != nil {
+		asgOutput, err = svcAsg.DescribeAutoScalingGroups(
+			&autoscaling.DescribeAutoScalingGroupsInput{
+				NextToken: nextToken,
+			},
+		)
+		if err != nil {
+			return
+		}
+
+		for _, asg := range asgOutput.AutoScalingGroups {
+			for _, tag := range asg.Tags {
+				if *tag.Key == cluster.ClusterNameTagKey && *tag.Value == string(clusterName) {
+					autoScalingGroups = append(autoScalingGroups, asg)
+					break
+				}
+			}
+
+		}
+		nextToken = asgOutput.NextToken
+	}
+	return
+}
+
+func DeleteAutoScalingGroups(autoScalingGroups []*autoscaling.Group) error {
+	for _, autoScalingGroup := range autoScalingGroups {
+		err := DeleteAutoScalingGroup(*autoScalingGroup.AutoScalingGroupName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

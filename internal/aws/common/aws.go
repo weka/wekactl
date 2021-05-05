@@ -238,7 +238,7 @@ func GetBackendsPrivateIps(clusterName string) (ips []string, err error) {
 
 var NoAdditionalSubnet = errors.New("no subnet with same route table in different availability zone was found")
 
-func filterOutSameAvailabilityZoneAdditionalSubnets(subnetId string, subnets []*ec2.Subnet) (filteredSubnets []*ec2.Subnet){
+func filterOutSameAvailabilityZoneAdditionalSubnets(subnetId string, subnets []*ec2.Subnet) (filteredSubnets []*ec2.Subnet) {
 	var availabilityZone string
 
 	// adding the requested subnetId subnet to the filtered list
@@ -310,4 +310,69 @@ func GetAdditionalVpcSubnet(vpcId, subnetId string) (additionalVpcSubnet string,
 		}
 	}
 	return "", NoAdditionalSubnet
+}
+
+func GetClusterInstances(clusterName cluster.ClusterName) (ids []string, err error) {
+	svc := connectors.GetAWSSession().EC2
+	describeResponse, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("running"),
+				},
+			},
+			{
+				Name: aws.String("tag:wekactl.io/cluster_name"),
+				Values: []*string{
+					aws.String(string(clusterName)),
+				},
+			},
+		},
+	})
+
+	if err != nil {
+		return
+	}
+
+	for _, reservation := range describeResponse.Reservations {
+		for _, instance := range reservation.Instances {
+			if instance.PrivateIpAddress == nil {
+				log.Warn().Msgf("Found backend instance %s without private ip!", *instance.InstanceId)
+				continue
+			}
+			ids = append(ids, *instance.InstanceId)
+		}
+	}
+	return
+}
+
+func DeleteClusterInstanceIds(ids []string) (err error) {
+	svc := connectors.GetAWSSession().EC2
+	if len(ids) > 0 {
+		loops := int(math.Ceil(float64(len(ids)) / 50))
+		i := 0
+		for i < loops {
+			setToTerminate, errs := SetDisableInstancesApiTermination(
+				ids[i:Min(len(ids), i+50)],
+				false,
+			)
+
+			if len(errs) > 0 {
+				for _, err := range errs {
+					log.Error().Err(err)
+				}
+			}
+
+			_, err = svc.TerminateInstances(&ec2.TerminateInstancesInput{
+				InstanceIds: strings2.ListToRefList(setToTerminate),
+			})
+
+			i += 50
+
+		}
+
+	}
+
+	return
 }

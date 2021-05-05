@@ -99,3 +99,40 @@ func GetCloudWatchEventRuleVersion(ruleName string) (version string, err error) 
 
 	return
 }
+
+func GetCloudWatchEventRules(clusterName cluster.ClusterName) (cloudWatchEventRules []*cloudwatchevents.Rule, err error) {
+	svc := connectors.GetAWSSession().CloudWatchEvents
+
+	rulesOutput, err := svc.ListRules(&cloudwatchevents.ListRulesInput{})
+	if err != nil {
+		return
+	}
+
+	var tagsOutput *cloudwatchevents.ListTagsForResourceOutput
+	for _, rule := range rulesOutput.Rules {
+		tagsOutput, err = svc.ListTagsForResource(&cloudwatchevents.ListTagsForResourceInput{
+			ResourceARN: rule.Arn,
+		})
+		if err != nil {
+			return
+		}
+		for _, tag := range tagsOutput.Tags {
+			if *tag.Key == cluster.ClusterNameTagKey && *tag.Value == string(clusterName) {
+				cloudWatchEventRules = append(cloudWatchEventRules, rule)
+				break
+			}
+		}
+	}
+
+	return
+}
+
+func DeleteCloudWatchEventRules(cloudWatchEventRules []*cloudwatchevents.Rule) error {
+	for _, cloudWatchEventRule := range cloudWatchEventRules {
+		err := DeleteCloudWatchEventRule(*cloudWatchEventRule.Name)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
