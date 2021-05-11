@@ -12,14 +12,12 @@ type KmsKey struct {
 	ClusterName cluster.ClusterName
 }
 
-func (k *KmsKey) Fetch(clusterName cluster.ClusterName) error {
-	kmsKey, err := kms2.GetClusterKMSKey(clusterName)
+func (k *KmsKey) Fetch() error {
+	kmsKey, err := kms2.GetClusterKMSKey(k.ClusterName)
 	if err != nil {
 		return err
 	}
 	k.Key = kmsKey
-
-	k.ClusterName = clusterName
 	return nil
 }
 

@@ -14,28 +14,26 @@ type ApplicationLoadBalancer struct {
 	ClusterName             cluster.ClusterName
 }
 
-func (a *ApplicationLoadBalancer) Fetch(clusterName cluster.ClusterName) error {
-	applicationLoadBalancer, err := alb.GetClusterApplicationLoadBalancer(clusterName)
+func (a *ApplicationLoadBalancer) Fetch() error {
+	applicationLoadBalancer, err := alb.GetClusterApplicationLoadBalancer(a.ClusterName)
 	if err != nil {
 		return err
 	}
 	a.ApplicationLoadBalancer = applicationLoadBalancer
 
 	if applicationLoadBalancer != nil {
-		listener, err := alb.GetClusterListener(clusterName, *applicationLoadBalancer.LoadBalancerArn)
+		listener, err := alb.GetClusterListener(a.ClusterName, *applicationLoadBalancer.LoadBalancerArn)
 		if err != nil {
 			return err
 		}
 		a.Listener = listener
 	}
 
-	targetGroup, err := alb.GetClusterTargetGroup(clusterName)
+	targetGroup, err := alb.GetClusterTargetGroup(a.ClusterName)
 	if err != nil {
 		return err
 	}
 	a.TargetGroup = targetGroup
-
-	a.ClusterName = clusterName
 	return nil
 }
 

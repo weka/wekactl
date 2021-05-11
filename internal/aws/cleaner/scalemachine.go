@@ -9,10 +9,11 @@ import (
 
 type ScaleMachine struct {
 	StateMachines []*sfn.StateMachineListItem
+	ClusterName   cluster.ClusterName
 }
 
-func (s *ScaleMachine) Fetch(clusterName cluster.ClusterName) error {
-	stateMachines, err := scalemachine.GetClusterStateMachines(clusterName)
+func (s *ScaleMachine) Fetch() error {
+	stateMachines, err := scalemachine.GetClusterStateMachines(s.ClusterName)
 	if err != nil {
 		return err
 	}

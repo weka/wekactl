@@ -9,10 +9,11 @@ import (
 
 type LaunchTemplate struct {
 	LaunchTemplates []*ec2.LaunchTemplate
+	ClusterName     cluster.ClusterName
 }
 
-func (l *LaunchTemplate) Fetch(clusterName cluster.ClusterName) error {
-	launchTemplates, err := launchtemplate.GetClusterLaunchTemplates(clusterName)
+func (l *LaunchTemplate) Fetch() error {
+	launchTemplates, err := launchtemplate.GetClusterLaunchTemplates(l.ClusterName)
 	if err != nil {
 		return err
 	}
