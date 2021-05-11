@@ -9,10 +9,11 @@ import (
 
 type AutoscalingGroup struct {
 	AutoScalingGroups []*autoscaling.Group
+	ClusterName       cluster.ClusterName
 }
 
-func (a *AutoscalingGroup) Fetch(clusterName cluster.ClusterName) error {
-	autoScalingGroups, err := autoscaling2.GetClusterAutoScalingGroups(clusterName)
+func (a *AutoscalingGroup) Fetch() error {
+	autoScalingGroups, err := autoscaling2.GetClusterAutoScalingGroups(a.ClusterName)
 	if err != nil {
 		return err
 	}

@@ -9,10 +9,11 @@ import (
 
 type CloudWatch struct {
 	CloudWatchEventRules []*cloudwatchevents.Rule
+	ClusterName          cluster.ClusterName
 }
 
-func (c *CloudWatch) Fetch(clusterName cluster.ClusterName) error {
-	cloudWatchEventRules, err := cloudwatch.GetCloudWatchEventRules(clusterName)
+func (c *CloudWatch) Fetch() error {
+	cloudWatchEventRules, err := cloudwatch.GetCloudWatchEventRules(c.ClusterName)
 	if err != nil {
 		return err
 	}

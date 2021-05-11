@@ -8,12 +8,13 @@ import (
 )
 
 type IamProfile struct {
-	Roles    []*iam.Role
-	Policies map[string][]*iam.AttachedPolicy
+	ClusterName cluster.ClusterName
+	Roles       []*iam.Role
+	Policies    map[string][]*iam.AttachedPolicy
 }
 
-func (i *IamProfile) Fetch(clusterName cluster.ClusterName) error {
-	roles, err := iam2.GetClusterRoles(clusterName)
+func (i *IamProfile) Fetch() error {
+	roles, err := iam2.GetClusterRoles(i.ClusterName)
 	if err != nil {
 		return err
 	}

@@ -1,13 +1,13 @@
 package cluster
 
 type Cleaner interface {
-	Fetch(clusterName ClusterName) error
+	Fetch() error
 	Delete() error
 	Print()
 }
 
-func CleanupResource(r Cleaner, clusterName ClusterName, dryRun bool) error {
-	err := r.Fetch(clusterName)
+func CleanupResource(r Cleaner, dryRun bool) error {
+	err := r.Fetch()
 	if err != nil {
 		return err
 	}

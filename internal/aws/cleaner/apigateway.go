@@ -8,11 +8,12 @@ import (
 )
 
 type ApiGateway struct {
-	RestApis []*apigateway.RestApi
+	RestApis    []*apigateway.RestApi
+	ClusterName cluster.ClusterName
 }
 
-func (a *ApiGateway) Fetch(clusterName cluster.ClusterName) error {
-	restApis, err := apigateway2.GetClusterApiGateways(clusterName)
+func (a *ApiGateway) Fetch() error {
+	restApis, err := apigateway2.GetClusterApiGateways(a.ClusterName)
 	if err != nil {
 		return err
 	}

@@ -28,57 +28,27 @@ var cleanupCmd = &cobra.Command{
 			} else {
 				logging.UserInfo("Removing the following resources:")
 			}
-
-			err = cluster.CleanupResource(&cleaner.IamProfile{}, clusterName, dryRun)
-			if err != nil {
-				return
+			resources := []cluster.Cleaner{
+				&cleaner.IamProfile{ClusterName: clusterName},
+				&cleaner.Lambda{ClusterName: clusterName},
+				&cleaner.ApiGateway{ClusterName: clusterName},
+				&cleaner.LaunchTemplate{ClusterName: clusterName},
+				&cleaner.ScaleMachine{ClusterName: clusterName},
+				&cleaner.CloudWatch{ClusterName: clusterName},
+				&cleaner.AutoscalingGroup{ClusterName: clusterName},
+				&cleaner.ApplicationLoadBalancer{ClusterName: clusterName},
+				&cleaner.KmsKey{ClusterName: clusterName},
+				&cleaner.DynamoDb{ClusterName: clusterName},
 			}
 
-			err = cluster.CleanupResource(&cleaner.Lambda{}, clusterName, dryRun)
-			if err != nil {
-				return
-			}
+			for _, r := range resources {
+				if err := cluster.CleanupResource(r, dryRun); err != nil {
+					return err
+				}
 
-			err = cluster.CleanupResource(&cleaner.ApiGateway{}, clusterName, dryRun)
-			if err != nil {
-				return err
 			}
-
-			err = cluster.CleanupResource(&cleaner.LaunchTemplate{}, clusterName, dryRun)
-			if err != nil {
-				return err
-			}
-
-			err = cluster.CleanupResource(&cleaner.ScaleMachine{}, clusterName, dryRun)
-			if err != nil {
-				return err
-			}
-
-			err = cluster.CleanupResource(&cleaner.CloudWatch{}, clusterName, dryRun)
-			if err != nil {
-				return err
-			}
-
-			err = cluster.CleanupResource(&cleaner.AutoscalingGroup{}, clusterName, dryRun)
-			if err != nil {
-				return err
-			}
-
-			err = cluster.CleanupResource(&cleaner.ApplicationLoadBalancer{}, clusterName, dryRun)
-			if err != nil {
-				return err
-			}
-
-			err = cluster.CleanupResource(&cleaner.KmsKey{}, clusterName, dryRun)
-			if err != nil {
-				return err
-			}
-
-			err = cluster.CleanupResource(&cleaner.DynamoDb{}, clusterName, dryRun)
-			if err != nil {
-				return err
-			}
-
+			//TODO: Add flag whether to delete instances.
+			// Probably this cleanup should just replace destroy
 			ids, err := common.GetClusterInstances(clusterName)
 			if err != nil {
 				return err
