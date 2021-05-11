@@ -12,13 +12,12 @@ type DynamoDb struct {
 	ClusterName cluster.ClusterName
 }
 
-func (d *DynamoDb) Fetch(clusterName cluster.ClusterName) error {
-	table, err := db.GetClusterDb(clusterName)
+func (d *DynamoDb) Fetch() error {
+	table, err := db.GetClusterDb(d.ClusterName)
 	if err != nil {
 		return err
 	}
 	d.Table = table
-	d.ClusterName = clusterName
 	return nil
 }
 

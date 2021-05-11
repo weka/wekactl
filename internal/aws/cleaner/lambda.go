@@ -8,11 +8,12 @@ import (
 )
 
 type Lambda struct {
-	Lambdas []*lambda.FunctionConfiguration
+	Lambdas     []*lambda.FunctionConfiguration
+	ClusterName cluster.ClusterName
 }
 
-func (l *Lambda) Fetch(clusterName cluster.ClusterName) error {
-	lambdaConfigurations, err := lambdas.GetClusterLambdas(clusterName)
+func (l *Lambda) Fetch() error {
+	lambdaConfigurations, err := lambdas.GetClusterLambdas(l.ClusterName)
 	if err != nil {
 		return err
 	}
