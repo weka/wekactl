@@ -32,7 +32,7 @@ func CreateIamRole(tags []*iam.Tag, roleName, policyName string, assumeRolePolic
 	svc := connectors.GetAWSSession().IAM
 	input := &iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(assumeRolePolicy.String()),
-		Path:                     aws.String("/"),
+		Path:                     aws.String("/wekactl/"),
 		//max roleName length must be 64 characters
 		RoleName: aws.String(roleName),
 		Tags:     tags,
@@ -217,6 +217,7 @@ func getRoles() (roles []*iam.Role, err error) {
 	for isTruncated {
 		rolesOutput, err = svc.ListRoles(&iam.ListRolesInput{
 			Marker: marker,
+			PathPrefix: aws.String("/wekactl/"),
 		})
 		if err != nil {
 			return
