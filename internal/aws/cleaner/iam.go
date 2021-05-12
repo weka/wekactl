@@ -10,7 +10,6 @@ import (
 type IamProfile struct {
 	ClusterName cluster.ClusterName
 	Roles       []*iam.Role
-	Policies    map[string][]*iam.AttachedPolicy
 }
 
 func (i *IamProfile) Fetch() error {
@@ -20,25 +19,16 @@ func (i *IamProfile) Fetch() error {
 	}
 	i.Roles = roles
 
-	policies, err := iam2.GetRolesPolicies(roles)
-	if err != nil {
-		return err
-	}
-	i.Policies = policies
-
 	return nil
 }
 
 func (i *IamProfile) Delete() error {
-	return iam2.DeleteRolesAndPolicies(i.Roles, i.Policies)
+	return iam2.DeleteRoles(i.Roles)
 }
 
 func (i *IamProfile) Print() {
 	logging.UserInfo("Roles:")
-	for role, policies := range i.Policies {
-		logging.UserInfo("\t- %s", role)
-		for _, policy := range policies {
-			logging.UserInfo("\t\t- policy:%s", *policy.PolicyName)
-		}
+	for _, role := range i.Roles {
+		logging.UserInfo("\t- %s", *role.RoleName)
 	}
 }

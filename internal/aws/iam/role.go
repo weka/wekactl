@@ -14,12 +14,12 @@ import (
 
 func attachIamPolicy(roleName, policyName string, policy PolicyDocument) error {
 	svc := connectors.GetAWSSession().IAM
-	policyOutput, err := createIamPolicy(policyName, policy)
-	if err != nil {
-		return err
-	}
 
-	_, err = svc.AttachRolePolicy(&iam.AttachRolePolicyInput{PolicyArn: policyOutput.Arn, RoleName: &roleName})
+	_, err := svc.PutRolePolicy(&iam.PutRolePolicyInput{
+		PolicyDocument: aws.String(policy.String()),
+		PolicyName:     &policyName,
+		RoleName:       &roleName,
+	})
 	if err != nil {
 		return err
 	}
@@ -79,59 +79,29 @@ func getIamRole(roleBaseName string, marker *string) (iamRole *iam.Role, err err
 	return
 }
 
-func deleteLeftoverPolicies(policyName string, marker *string) error {
-	// Handling a case that a policy exists although it isn't attached to a role
+func removeRolePolicy(role *iam.Role) error {
 	svc := connectors.GetAWSSession().IAM
-	policiesOutput, err := svc.ListPolicies(&iam.ListPoliciesInput{Marker: marker})
-	if err != nil {
-		return err
-	}
-	for _, policy := range policiesOutput.Policies {
-		if *policy.PolicyName == policyName {
-			err = deleteIamPolicy(policy.Arn)
-			if err != nil {
-				return err
-			}
-			log.Debug().Msgf("leftover policy %s was deleted successfully", *policy.PolicyName)
-		}
-	}
-
-	if *policiesOutput.IsTruncated {
-		return deleteLeftoverPolicies(policyName, policiesOutput.Marker)
-	}
-
-	return nil
-}
-
-func removeRolePolicy(role *iam.Role, policyName string) error {
-	svc := connectors.GetAWSSession().IAM
-	result, err := svc.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
+	result, err := svc.ListRolePolicies(&iam.ListRolePoliciesInput{
 		RoleName: role.RoleName,
 	})
 	if err != nil {
 		return err
 	}
 
-	for _, policy := range result.AttachedPolicies {
-		_, err = svc.DetachRolePolicy(&iam.DetachRolePolicyInput{
-			RoleName:  role.RoleName,
-			PolicyArn: policy.PolicyArn,
+	for _, policyName := range result.PolicyNames {
+		_, err = svc.DeleteRolePolicy(&iam.DeleteRolePolicyInput{
+			RoleName:   role.RoleName,
+			PolicyName: policyName,
 		})
 		if err != nil {
 			return err
 		}
-		log.Debug().Msgf("policy %s detached", *policy.PolicyName)
-
-		err = deleteIamPolicy(policy.PolicyArn)
-		if err != nil {
-			return err
-		}
-		log.Debug().Msgf("policy %s was deleted successfully", *policy.PolicyName)
+		log.Debug().Msgf("policy %s was deleted successfully", *policyName)
 	}
-	return deleteLeftoverPolicies(policyName, nil)
+	return nil
 }
 
-func DeleteIamRole(roleBaseName, policyName string) error {
+func DeleteIamRole(roleBaseName string) error {
 	svc := connectors.GetAWSSession().IAM
 	role, err := getIamRole(roleBaseName, nil)
 	if err != nil {
@@ -141,7 +111,7 @@ func DeleteIamRole(roleBaseName, policyName string) error {
 		return nil
 	}
 
-	err = removeRolePolicy(role, policyName)
+	err = removeRolePolicy(role)
 	if err != nil {
 		return err
 	}
@@ -188,7 +158,7 @@ func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument, ve
 	if err != nil {
 		return err
 	}
-	err = removeRolePolicy(role, policyName)
+	err = removeRolePolicy(role)
 	if err != nil {
 		return err
 	}
@@ -216,7 +186,7 @@ func getRoles() (roles []*iam.Role, err error) {
 	svc := connectors.GetAWSSession().IAM
 	for isTruncated {
 		rolesOutput, err = svc.ListRoles(&iam.ListRolesInput{
-			Marker: marker,
+			Marker:     marker,
 			PathPrefix: aws.String("/wekactl/"),
 		})
 		if err != nil {
@@ -288,19 +258,11 @@ func GetClusterRoles(clusterName cluster.ClusterName) (clusterRoles []*iam.Role,
 	return
 }
 
-func DeleteRolesAndPolicies(roles []*iam.Role, rolesPolicies map[string][]*iam.AttachedPolicy) error {
+func DeleteRoles(roles []*iam.Role) error {
 	for _, role := range roles {
-		for _, policy := range rolesPolicies[*role.RoleName] {
-			err := DeleteIamRole(*role.RoleName, *policy.PolicyName)
-			if err != nil {
-				return err
-			}
-		}
-		if len(rolesPolicies[*role.RoleName]) == 0 {
-			err := DeleteIamRole(*role.RoleName, "")
-			if err != nil {
-				return err
-			}
+		err := DeleteIamRole(*role.RoleName)
+		if err != nil {
+			return err
 		}
 	}
 
