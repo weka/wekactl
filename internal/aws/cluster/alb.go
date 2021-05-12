@@ -69,20 +69,6 @@ func (a *ApplicationLoadBalancer) TargetVersion() string {
 	return albVersion
 }
 
-func (a *ApplicationLoadBalancer) Delete() (err error) {
-	err = alb.DeleteListener(a.ResourceName())
-	if err != nil {
-		return err
-	}
-
-	err = alb.DeleteTargetGroup(a.ClusterName)
-	if err != nil {
-		return err
-	}
-
-	return alb.DeleteApplicationLoadBalancer(a.ResourceName())
-}
-
 func (a *ApplicationLoadBalancer) Create(tags cluster.Tags) (err error) {
 	//TODO: consider separating into 3 different resources
 

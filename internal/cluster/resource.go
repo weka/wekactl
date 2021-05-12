@@ -21,7 +21,6 @@ type Resource interface {
 	Fetch() error
 	DeployedVersion() string
 	TargetVersion() string
-	Delete() error
 	Create(tags Tags) error
 	Update() error
 	Init()
@@ -60,14 +59,4 @@ func EnsureResource(r Resource, clusterSettings IClusterSettings) error {
 
 	log.Debug().Msgf("resource %s %s exists and updated", resourceType, r.ResourceName())
 	return nil
-}
-
-func DestroyResource(r Resource) error {
-	for _, subresource := range r.SubResources() {
-		if err := DestroyResource(subresource); err != nil {
-			return err
-		}
-	}
-
-	return r.Delete()
 }

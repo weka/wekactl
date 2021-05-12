@@ -60,10 +60,6 @@ func (d *DynamoDb) TargetVersion() string {
 	return dbVersion
 }
 
-func (d *DynamoDb) Delete() error {
-	return db.DeleteDB(d.ResourceName())
-}
-
 func (d *DynamoDb) Create(tags cluster.Tags) error {
 	return db.CreateDb(d.ResourceName(), d.KmsKey.Key, tags)
 }

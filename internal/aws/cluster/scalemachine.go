@@ -98,10 +98,6 @@ func (s *ScaleMachine) TargetVersion() string {
 	return scaleMachineVersion
 }
 
-func (s *ScaleMachine) Delete() error {
-	return scalemachine.DeleteStateMachine(s.ResourceName())
-}
-
 func (s *ScaleMachine) Create(tags cluster.Tags) (err error) {
 	stateMachineLambdasArn := scalemachine.StateMachineLambdasArn{
 		Fetch:     s.fetch.Arn,

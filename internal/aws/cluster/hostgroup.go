@@ -47,10 +47,6 @@ func (h *HostGroup) TargetVersion() string {
 	return hostGroupVersion
 }
 
-func (h *HostGroup) Delete() error {
-	return nil
-}
-
 func (h *HostGroup) Create(tags cluster.Tags) (err error) {
 	if h.HostGroupInfo.Role != common.RoleBackend {
 		return

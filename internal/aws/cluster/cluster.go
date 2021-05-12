@@ -66,10 +66,6 @@ func (c *AWSCluster) TargetVersion() string {
 	return ""
 }
 
-func (c *AWSCluster) Delete() error {
-	return nil
-}
-
 func (c *AWSCluster) Create(tags cluster.Tags) (err error) {
 	return nil
 }
