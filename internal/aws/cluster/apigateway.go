@@ -74,10 +74,6 @@ func (a *ApiGateway) TargetVersion() string {
 	return joinApiVersion
 }
 
-func (a *ApiGateway) Delete() error {
-	return apigateway.DeleteRestApiGateway(a.ResourceName())
-}
-
 func (a *ApiGateway) Create(tags cluster.Tags) error {
 	vpcId := ""
 	if a.ClusterSettings.PrivateSubnet {
@@ -99,7 +95,7 @@ func (a *ApiGateway) Update() error {
 		if err != nil {
 			return err
 		}
-		err = a.Delete()
+		err = apigateway.DeleteRestApiGateway(a.ResourceName())
 		if err != nil {
 			return err
 		}

@@ -68,10 +68,6 @@ func (c *CloudWatch) TargetVersion() string {
 	return cloudwatchVersion
 }
 
-func (c *CloudWatch) Delete() error {
-	return cloudwatch.DeleteCloudWatchEventRule(c.ResourceName())
-}
-
 func (c *CloudWatch) Create(tags cluster.Tags) (err error) {
 	return cloudwatch.CreateCloudWatchEventRule(tags.AsCloudWatch(), &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 }

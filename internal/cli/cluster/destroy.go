@@ -3,15 +3,17 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/autoscaling"
-	cluster2 "wekactl/internal/aws/cluster"
+	"wekactl/internal/aws/cleaner"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
 )
 
-var keepInstances bool
+var keepInstances, dryRun bool
 
 var destroyCmd = &cobra.Command{
 	Use:   "destroy [flags]",
@@ -22,29 +24,52 @@ var destroyCmd = &cobra.Command{
 
 			clusterName := cluster.ClusterName(StackName)
 
-			awsCluster, err := cluster2.GetCluster(clusterName, false)
-			if err != nil {
-				return err
-			}
-
 			if keepInstances {
 				// TODO: Evicting instances manually and then running destroy would be better, without hacks
 				autoscaling.KeepInstances = true
 			}
 
-			err = cluster.DestroyResource(&awsCluster)
-			if err != nil {
-				logging.UserFailure("Destroying failed!")
-				return err
+			if dryRun {
+				logging.UserInfo("This is dry run, running cleanup will remove the following resources:")
+			} else {
+				logging.UserInfo("Removing the following resources:")
 			}
 
-			dynamoDb := cluster2.DynamoDb{
-				ClusterName: clusterName,
+			resources := []cluster.Cleaner{
+				&cleaner.IamProfile{ClusterName: clusterName},
+				&cleaner.Lambda{ClusterName: clusterName},
+				&cleaner.ApiGateway{ClusterName: clusterName},
+				&cleaner.LaunchTemplate{ClusterName: clusterName},
+				&cleaner.ScaleMachine{ClusterName: clusterName},
+				&cleaner.CloudWatch{ClusterName: clusterName},
+				&cleaner.AutoscalingGroup{ClusterName: clusterName},
+				&cleaner.ApplicationLoadBalancer{ClusterName: clusterName},
+				&cleaner.KmsKey{ClusterName: clusterName},
+				&cleaner.DynamoDb{ClusterName: clusterName},
 			}
-			dynamoDb.Init()
-			err = cluster.DestroyResource(&dynamoDb)
-			if err != nil {
-				return err
+
+			for _, r := range resources {
+				if err := cluster.CleanupResource(r, dryRun); err != nil {
+					return err
+				}
+
+			}
+
+			if !keepInstances {
+				ids, err := common.GetClusterInstances(clusterName)
+				if err != nil {
+					return err
+				}
+				logging.UserInfo("InstanceIds:")
+				for _, id := range ids {
+					logging.UserInfo("\t- %s", id)
+				}
+				if !dryRun {
+					err = common.DeleteClusterInstanceIds(ids)
+					if err != nil {
+						log.Error().Err(err)
+					}
+				}
 			}
 
 			logging.UserSuccess("Destroying finished successfully!")
@@ -60,6 +85,6 @@ var destroyCmd = &cobra.Command{
 func init() {
 	destroyCmd.Flags().StringVarP(&StackName, "name", "n", "", "weka cluster name")
 	destroyCmd.Flags().BoolVarP(&keepInstances, "keep-instances", "k", false, "Keep instances")
-	destroyCmd.Flags().MarkHidden("keep-instances")
+	destroyCmd.Flags().BoolVarP(&dryRun, "dry-run", "d", false, "dry run")
 	_ = destroyCmd.MarkFlagRequired("name")
 }

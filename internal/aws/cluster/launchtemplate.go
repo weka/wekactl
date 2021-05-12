@@ -58,10 +58,6 @@ func (l *LaunchTemplate) TargetVersion() string {
 	return launchtemplateVersion
 }
 
-func (l *LaunchTemplate) Delete() error {
-	return launchtemplate.DeleteLaunchTemplate(l.ResourceName())
-}
-
 func (l *LaunchTemplate) Create(tags cluster.Tags) error {
 	return launchtemplate.CreateLaunchTemplate(tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName(), !l.ClusterSettings.PrivateSubnet)
 }

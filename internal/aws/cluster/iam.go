@@ -60,10 +60,6 @@ func (i *IamProfile) TargetVersion() string {
 	return i.Policy.VersionHash()
 }
 
-func (i *IamProfile) Delete() error {
-	return iam.DeleteIamRole(i.resourceNameBase(), i.PolicyName)
-}
-
 func (i *IamProfile) Create(tags cluster.Tags) error {
 	arn, err := iam.CreateIamRole(tags.AsIam(), i.ResourceName(), i.PolicyName, i.AssumeRolePolicy, i.Policy)
 	if err != nil {
