@@ -41,6 +41,15 @@ func migrateSettings(clusterName cluster.ClusterName, dbClusterSettings db.Clust
 		migrateRequired = true
 	}
 
+	versionInfo, err := env.GetBuildVersion()
+	if err != nil {
+		return err
+	}
+	if dbClusterSettings.BuildVersion != versionInfo.BuildVersion {
+		dbClusterSettings.BuildVersion = versionInfo.BuildVersion
+		migrateRequired = true
+	}
+
 	if !migrateRequired {
 		return nil
 	}

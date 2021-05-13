@@ -14,6 +14,7 @@ import (
 	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	"wekactl/internal/env"
 )
 
 type StackInstances struct {
@@ -196,6 +197,11 @@ func ImportCluster(params cluster.ImportParams) error {
 
 	clusterSettings.PrivateSubnet = params.PrivateSubnet
 	clusterSettings.TagsMap = params.TagsMap()
+	versionInfo, err := env.GetBuildVersion()
+	if err != nil {
+		return err
+	}
+	clusterSettings.BuildVersion = versionInfo.BuildVersion
 
 	dynamoDb := DynamoDb{
 		ClusterName: cluster.ClusterName(params.Name),
