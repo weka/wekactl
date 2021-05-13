@@ -1,6 +1,8 @@
 package autoscaling
 
 import (
+	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
@@ -204,13 +206,18 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 		}
 		retry = false
 		for _, activity := range activitiesOutput.Activities {
-			if *activity.StatusCode != autoscaling.ScalingActivityStatusCodeSuccessful {
-				logging.UserProgress("waiting 10 sec for auto scaling group %s instances detaching to finish", autoScalingGroupName)
+			if *activity.StatusCode == autoscaling.ScalingActivityStatusCodeInProgress {
+				logging.UserProgress("Waiting 10 sec for auto scaling group %s instances detaching to finish", autoScalingGroupName)
 				time.Sleep(10 * time.Second)
 				retry = true
 				break
 			}
 		}
+	}
+
+	if retry {
+		return errors.New(fmt.Sprintf(
+			"some asg scaling activities are still in progress, can't delete asg - %s", autoScalingGroupName))
 	}
 
 	_, err = svc.DeleteAutoScalingGroup(&autoscaling.DeleteAutoScalingGroupInput{
