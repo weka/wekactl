@@ -4,14 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"time"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
+	"wekactl/internal/logging"
 )
 
 const policyTemplate = `{
@@ -224,9 +227,23 @@ func DeleteRestApiGateway(resourceName string) error {
 		if *restApi.Name != resourceName {
 			continue
 		}
-		_, err = svc.DeleteRestApi(&apigateway.DeleteRestApiInput{
-			RestApiId: restApi.Id,
-		})
+		retry := true
+
+		for i := 0; i < 3 && retry; i++ {
+			retry = false
+			_, err = svc.DeleteRestApi(&apigateway.DeleteRestApiInput{
+				RestApiId: restApi.Id,
+			})
+			if err != nil {
+				if aerr, ok := err.(awserr.Error); ok {
+					if aerr.Code() == apigateway.ErrCodeTooManyRequestsException {
+						logging.UserProgress("Got too many rest api deletion requests exception, waiting 10 sec and retrying")
+						time.Sleep(10 * time.Second)
+						retry = true
+					}
+				}
+			}
+		}
 		if err != nil {
 			return err
 		}
