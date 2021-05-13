@@ -2,11 +2,14 @@ package scalemachine
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/rs/zerolog/log"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	"wekactl/internal/env"
 )
 
 func CreateStateMachine(tags []*sfn.Tag, lambda StateMachineLambdasArn, roleArn, stateMachineName string) (*string, error) {
@@ -102,26 +105,21 @@ func DeleteStateMachine(stateMachineName string) error {
 
 func GetStateMachineVersion(stateMachineName string) (version string, err error) {
 	svc := connectors.GetAWSSession().SFN
-
-	stateMachinesOutput, err := svc.ListStateMachines(&sfn.ListStateMachinesInput{})
+	stateMachineArn, err := GetStateMachineArn(stateMachineName)
 	if err != nil {
 		return
 	}
-	for _, stateMachine := range stateMachinesOutput.StateMachines {
-		if *stateMachine.Name != stateMachineName {
-			continue
-		}
-		tagsOutput, err := svc.ListTagsForResource(&sfn.ListTagsForResourceInput{
-			ResourceArn: stateMachine.StateMachineArn,
-		})
-		if err != nil {
-			return "", err
-		}
-		for _, tag := range tagsOutput.Tags {
-			if *tag.Key == cluster.VersionTagKey {
-				version = *tag.Value
-				return version, nil
-			}
+
+	tagsOutput, err := svc.ListTagsForResource(&sfn.ListTagsForResourceInput{
+		ResourceArn: &stateMachineArn,
+	})
+	if err != nil {
+		return "", err
+	}
+	for _, tag := range tagsOutput.Tags {
+		if *tag.Key == cluster.VersionTagKey {
+			version = *tag.Value
+			return version, nil
 		}
 	}
 
@@ -129,19 +127,11 @@ func GetStateMachineVersion(stateMachineName string) (version string, err error)
 }
 
 func GetStateMachineArn(stateMachineName string) (arn string, err error) {
-	svc := connectors.GetAWSSession().SFN
-
-	stateMachinesOutput, err := svc.ListStateMachines(&sfn.ListStateMachinesInput{})
+	account, err := common.GetAccountId()
 	if err != nil {
 		return
 	}
-	for _, stateMachine := range stateMachinesOutput.StateMachines {
-		if *stateMachine.Name != stateMachineName {
-			continue
-		}
-		arn = *stateMachine.StateMachineArn
-		break
-	}
+	arn = fmt.Sprintf("arn:aws:states:%s:%s:stateMachine:%s", env.Config.Region, account, stateMachineName)
 	return
 }
 
