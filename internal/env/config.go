@@ -5,7 +5,10 @@ var Config struct {
 	Region   string
 }
 
-var Version struct {
+type VersionInfo struct {
 	BuildVersion string
 	Commit       string
 }
+
+var BuildVersion string
+var Commit string
