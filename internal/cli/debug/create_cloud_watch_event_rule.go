@@ -33,7 +33,7 @@ var createCloudWatchEventCmd = &cobra.Command{
 
 			iamTargetVersion := policy.VersionHash()
 			iamTags := cluster2.GetHostGroupResourceTags(hostGroup, iamTargetVersion).AsIam()
-			roleArn, err := iam.CreateIamRole(iamTags, roleName, policyName, assumeRolePolicy, policy)
+			roleArn, err := iam.CreateIamRole(hostGroup.ClusterName, iamTags, roleName, policyName, assumeRolePolicy, policy)
 			if err != nil {
 				return err
 			}
