@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/olekukonko/tablewriter"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/semaphore"
@@ -375,4 +376,13 @@ func DeleteClusterInstanceIds(ids []string) (err error) {
 	}
 
 	return
+}
+
+func GetAccountId() (string, error) {
+	svc := connectors.GetAWSSession().STS
+	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		return "", err
+	}
+	return *result.Account, nil
 }

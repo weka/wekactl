@@ -7,10 +7,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/apigateway"
 	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"time"
+	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
@@ -39,15 +39,6 @@ const policyTemplate = `{
         }
     ]
 }`
-
-func getAccountId() (string, error) {
-	svc := connectors.GetAWSSession().STS
-	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-	if err != nil {
-		return "", err
-	}
-	return *result.Account, nil
-}
 
 func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGatewayName string, vpcId string) (restApiGateway RestApiGateway, err error) {
 	svc := connectors.GetAWSSession().ApiGateway
@@ -178,7 +169,7 @@ func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGate
 
 func addLambdaInvokePermissions(lambdaName, restApiId, apiGatewayName string) error {
 	svc := connectors.GetAWSSession().Lambda
-	account, err := getAccountId()
+	account, err := common.GetAccountId()
 	if err != nil {
 		return err
 	}
