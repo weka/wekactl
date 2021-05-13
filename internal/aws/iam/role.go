@@ -2,6 +2,7 @@ package iam
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/rs/zerolog/log"
@@ -27,12 +28,12 @@ func attachIamPolicy(roleName, policyName string, policy PolicyDocument) error {
 	return nil
 }
 
-func CreateIamRole(tags []*iam.Tag, roleName, policyName string, assumeRolePolicy AssumeRolePolicyDocument, policy PolicyDocument) (*string, error) {
+func CreateIamRole(clusterName cluster.ClusterName, tags []*iam.Tag, roleName, policyName string, assumeRolePolicy AssumeRolePolicyDocument, policy PolicyDocument) (*string, error) {
 	log.Debug().Msgf("creating role %s", roleName)
 	svc := connectors.GetAWSSession().IAM
 	input := &iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(assumeRolePolicy.String()),
-		Path:                     aws.String("/wekactl/"),
+		Path:                     aws.String(fmt.Sprintf("/wekactl/%s/", clusterName)),
 		//max roleName length must be 64 characters
 		RoleName: aws.String(roleName),
 		Tags:     tags,
@@ -176,7 +177,7 @@ func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument, ve
 	return err
 }
 
-func getRoles() (roles []*iam.Role, err error) {
+func getRoles(clusterName cluster.ClusterName) (roles []*iam.Role, err error) {
 	var marker *string
 	isTruncated := true
 	var rolesOutput *iam.ListRolesOutput
@@ -187,7 +188,7 @@ func getRoles() (roles []*iam.Role, err error) {
 	for isTruncated {
 		rolesOutput, err = svc.ListRoles(&iam.ListRolesInput{
 			Marker:     marker,
-			PathPrefix: aws.String("/wekactl/"),
+			PathPrefix: aws.String(fmt.Sprintf("/wekactl/%s/", clusterName)),
 		})
 		if err != nil {
 			return
@@ -225,7 +226,7 @@ func GetClusterRoles(clusterName cluster.ClusterName) (clusterRoles []*iam.Role,
 	var wg sync.WaitGroup
 	var responseLock sync.Mutex
 
-	roles, err := getRoles()
+	roles, err := getRoles(clusterName)
 	if err != nil {
 		return
 	}

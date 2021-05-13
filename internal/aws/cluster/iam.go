@@ -61,7 +61,7 @@ func (i *IamProfile) TargetVersion() string {
 }
 
 func (i *IamProfile) Create(tags cluster.Tags) error {
-	arn, err := iam.CreateIamRole(tags.AsIam(), i.ResourceName(), i.PolicyName, i.AssumeRolePolicy, i.Policy)
+	arn, err := iam.CreateIamRole(i.HostGroupInfo.ClusterName, tags.AsIam(), i.ResourceName(), i.PolicyName, i.AssumeRolePolicy, i.Policy)
 	if err != nil {
 		return err
 	}
