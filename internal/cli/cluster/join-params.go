@@ -17,7 +17,7 @@ var joinParamsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
 
-			err := alb.PrintStatelessClientsJoinScript(cluster.ClusterName(StackName))
+			err := alb.PrintStatelessClientsJoinScript(cluster.ClusterName(StackName), importParams.DnsAlias)
 			if err != nil {
 				return err
 			}
@@ -33,5 +33,6 @@ var joinParamsCmd = &cobra.Command{
 
 func init() {
 	joinParamsCmd.Flags().StringVarP(&StackName, "name", "n", "", "weka cluster name")
+	joinParamsCmd.Flags().StringVarP(&importParams.DnsAlias, "dns-alias", "l", "", "ALB dns alias")
 	_ = joinParamsCmd.MarkFlagRequired("name")
 }

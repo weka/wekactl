@@ -1,8 +1,11 @@
 package cluster
 
 import (
+	"github.com/aws/aws-sdk-go/service/elbv2"
+	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/alb"
+	route53internal "wekactl/internal/aws/route53"
 	"wekactl/internal/cluster"
 	"wekactl/internal/lib/strings"
 )
@@ -17,6 +20,9 @@ type ApplicationLoadBalancer struct {
 	VpcSubnets         []string
 	VpcId              string
 	SecurityGroupsIds  []*string
+	DnsAlias           string
+	DnsZoneId          string
+	RecordSet          *route53.ResourceRecordSet
 }
 
 func (a *ApplicationLoadBalancer) Tags() cluster.Tags {
@@ -50,6 +56,20 @@ func (a *ApplicationLoadBalancer) Fetch() error {
 	}
 	a.ListenerVersion = listenerVersion
 
+	if a.DnsAlias != "" && a.DnsZoneId != "" {
+		loadBalancer, err := alb.GetClusterApplicationLoadBalancer(a.ClusterName)
+		if err != nil {
+			return err
+		}
+		if loadBalancer != nil {
+			recordSet, err := route53internal.GetRoute53Record(a.DnsAlias, a.DnsZoneId)
+			if err != nil {
+				return err
+			}
+			a.RecordSet = recordSet
+		}
+	}
+
 	return nil
 }
 
@@ -59,10 +79,14 @@ func (a *ApplicationLoadBalancer) Init() {
 }
 
 func (a *ApplicationLoadBalancer) DeployedVersion() string {
+	differentVersion := a.TargetVersion() + "#" // just to make it different from TargetVersion so we will enter Update flow
+	if a.DnsAlias != "" && a.DnsZoneId != "" && a.RecordSet == nil {
+		return differentVersion
+	}
 	if a.Version == a.TargetGroupVersion && a.Version == a.ListenerVersion {
 		return a.Version
 	}
-	return a.TargetVersion() + "#" // just to make it different from TargetVersion so we will enter Update flow
+	return differentVersion
 }
 
 func (a *ApplicationLoadBalancer) TargetVersion() string {
@@ -72,7 +96,7 @@ func (a *ApplicationLoadBalancer) TargetVersion() string {
 func (a *ApplicationLoadBalancer) Create(tags cluster.Tags) (err error) {
 	//TODO: consider separating into 3 different resources
 
-	albArn, err := alb.CreateApplicationLoadBalancer(tags.AsAlb(), a.ResourceName(), strings.ListToRefList(a.VpcSubnets), a.SecurityGroupsIds)
+	loadBalancer, err := alb.CreateApplicationLoadBalancer(tags.AsAlb(), a.ResourceName(), strings.ListToRefList(a.VpcSubnets), a.SecurityGroupsIds)
 	if err != nil {
 		return
 	}
@@ -81,13 +105,21 @@ func (a *ApplicationLoadBalancer) Create(tags cluster.Tags) (err error) {
 		return
 	}
 
-	return alb.CreateListener(tags.Update(cluster.Tags{alb.ListenerTypeTagKey: "api"}).AsAlb(), albArn, targetArn)
+	err = alb.CreateListener(tags.Update(cluster.Tags{alb.ListenerTypeTagKey: "api"}).AsAlb(), *loadBalancer.LoadBalancerArn, targetArn)
+	if err != nil {
+		return err
+	}
+
+	if a.DnsAlias != "" && a.DnsZoneId != "" {
+		err = route53internal.CreateApplicationLoadBalancerAliasRecord(loadBalancer, a.DnsAlias, a.DnsZoneId)
+	}
+	return
 }
 
 func (a *ApplicationLoadBalancer) Update() (err error) {
 	// currently we will enter here only if Create failed at some point (during import).
 	// the only case we need to support is when for some reason alb/targetGroup/listener where not created
-	var albArn, targetArn string
+	var targetArn string
 
 	if a.TargetGroupVersion == "" {
 		targetArn, err = alb.CreateTargetGroup(a.Tags().AsAlb(), alb.GetTargetGroupName(a.ClusterName), a.VpcId)
@@ -101,17 +133,27 @@ func (a *ApplicationLoadBalancer) Update() (err error) {
 		}
 	}
 
+	var loadBalancer *elbv2.LoadBalancer
 	if a.Version == "" {
-		albArn, err = alb.CreateApplicationLoadBalancer(a.Tags().AsAlb(), a.ResourceName(), strings.ListToRefList(a.VpcSubnets), a.SecurityGroupsIds)
+		loadBalancer, err = alb.CreateApplicationLoadBalancer(a.Tags().AsAlb(), a.ResourceName(), strings.ListToRefList(a.VpcSubnets), a.SecurityGroupsIds)
 		if err != nil {
 			return
 		}
 	} else {
-		albArn, err = alb.GetApplicationLoadBalancerArn(a.ResourceName())
+		loadBalancer, err = alb.GetClusterApplicationLoadBalancer(a.ClusterName)
 		if err != nil {
 			return
 		}
 	}
 
-	return alb.CreateListener(a.Tags().Update(cluster.Tags{alb.ListenerTypeTagKey: "api"}).AsAlb(), albArn, targetArn)
+	err = alb.CreateListener(a.Tags().Update(cluster.Tags{alb.ListenerTypeTagKey: "api"}).AsAlb(), *loadBalancer.LoadBalancerArn, targetArn)
+	if err != nil {
+		return err
+	}
+
+	if a.DnsAlias != "" && a.DnsZoneId != "" && a.RecordSet == nil {
+		err = route53internal.CreateApplicationLoadBalancerAliasRecord(loadBalancer, a.DnsAlias, a.DnsZoneId)
+	}
+	return
+
 }

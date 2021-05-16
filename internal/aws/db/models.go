@@ -28,6 +28,8 @@ type ClusterSettings struct {
 	PrivateSubnet    bool
 	StackId          *string // != nil in case it is created from CF stack
 	BuildVersion     string
+	DnsAlias         string
+	DnsZoneId        string
 }
 
 func (c ClusterSettings) Tags() cluster.Tags {

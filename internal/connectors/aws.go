@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"sync"
@@ -37,6 +38,7 @@ type SAwsSession struct {
 	CloudWatchEvents *cloudwatchevents.CloudWatchEvents
 	ELB              *elb.ELB
 	ELBV2            *elbv2.ELBV2
+	Route53          *route53.Route53
 }
 
 var awsSession SAwsSession
@@ -62,6 +64,7 @@ func GetAWSSession() *SAwsSession {
 		awsSession.CloudWatchEvents = cloudwatchevents.New(awsSession.Session)
 		awsSession.ELB = elb.New(awsSession.Session)
 		awsSession.ELBV2 = elbv2.New(awsSession.Session)
+		awsSession.Route53 = route53.New(awsSession.Session)
 	}
 	return &awsSession
 }

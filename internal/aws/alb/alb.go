@@ -18,7 +18,7 @@ func GetApplicationLoadBalancerName(clusterName cluster.ClusterName) string {
 	return strings2.ElfHashSuffixed(common.GenerateResourceName(clusterName, ""), 32)
 }
 
-func CreateApplicationLoadBalancer(tags []*elbv2.Tag, albName string, subnets []*string, securityGroupsIds []*string) (arn string, err error) {
+func CreateApplicationLoadBalancer(tags []*elbv2.Tag, albName string, subnets []*string, securityGroupsIds []*string) (loadBalancer *elbv2.LoadBalancer, err error) {
 	svc := connectors.GetAWSSession().ELBV2
 	albOutput, err := svc.CreateLoadBalancer(&elbv2.CreateLoadBalancerInput{
 		Name:           aws.String(albName),
@@ -32,7 +32,7 @@ func CreateApplicationLoadBalancer(tags []*elbv2.Tag, albName string, subnets []
 		return
 	}
 
-	arn = *albOutput.LoadBalancers[0].LoadBalancerArn
+	loadBalancer = albOutput.LoadBalancers[0]
 	return
 
 }
@@ -306,10 +306,13 @@ func GetApplicationLoadBalancerDns(clusterName cluster.ClusterName) (dns string,
 	return
 }
 
-func PrintStatelessClientsJoinScript(clusterName cluster.ClusterName) (err error) {
-	dns, err := GetApplicationLoadBalancerDns(clusterName)
-	if err != nil {
-		return
+func PrintStatelessClientsJoinScript(clusterName cluster.ClusterName, dnsAlias string) (err error) {
+	dns := dnsAlias
+	if dns == "" {
+		dns, err = GetApplicationLoadBalancerDns(clusterName)
+		if err != nil {
+			return
+		}
 	}
 
 	bashScriptTemplate := `

@@ -19,6 +19,8 @@ type ImportParams struct {
 	TagsList            []string
 	PrivateSubnet       bool
 	AdditionalAlbSubnet string
+	DnsAlias            string
+	DnsZoneId           string
 }
 
 func (params ImportParams) TagsMap() Tags {

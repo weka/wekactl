@@ -26,7 +26,7 @@ var importCmd = &cobra.Command{
 			}
 			logging.UserSuccess("Import finished successfully!")
 
-			err = alb.PrintStatelessClientsJoinScript(cluster2.ClusterName(importParams.Name))
+			err = alb.PrintStatelessClientsJoinScript(cluster2.ClusterName(importParams.Name), importParams.DnsAlias)
 			if err != nil {
 				return err
 			}
@@ -47,6 +47,8 @@ func init() {
 	importCmd.Flags().StringArrayVarP(&importParams.TagsList, "tags", "t", []string{}, "cloud resources tags, each tag should be passed in this pattern: '-t key=value'")
 	importCmd.Flags().BoolVarP(&importParams.PrivateSubnet, "private-subnet", "s", false, "cluster runs in private subnet, requires execute-api VPC endpoint to present on VPC")
 	importCmd.Flags().StringVarP(&importParams.AdditionalAlbSubnet, "additional-alb-subnet", "a", "", "Additional subnet to use for ALB")
+	importCmd.Flags().StringVarP(&importParams.DnsAlias, "dns-alias", "l", "", "ALB dns alias")
+	importCmd.Flags().StringVarP(&importParams.DnsZoneId, "dns-zone-id", "z", "", "ALB dns zone id")
 	_ = importCmd.MarkFlagRequired("name")
 	_ = importCmd.MarkFlagRequired("username")
 	_ = importCmd.MarkFlagRequired("password")
