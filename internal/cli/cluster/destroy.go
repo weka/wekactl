@@ -44,8 +44,8 @@ var destroyCmd = &cobra.Command{
 				&cleaner.CloudWatch{ClusterName: clusterName},
 				&cleaner.AutoscalingGroup{ClusterName: clusterName},
 				&cleaner.ApplicationLoadBalancer{ClusterName: clusterName},
-				&cleaner.KmsKey{ClusterName: clusterName},
 				&cleaner.DynamoDb{ClusterName: clusterName},
+				&cleaner.KmsKey{ClusterName: clusterName},
 			}
 
 			for _, r := range resources {
