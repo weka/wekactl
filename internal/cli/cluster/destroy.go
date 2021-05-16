@@ -65,7 +65,7 @@ var destroyCmd = &cobra.Command{
 					logging.UserInfo("\t- %s", id)
 				}
 				if !dryRun {
-					err = common.DeleteClusterInstanceIds(ids)
+					err = common.DeleteInstances(ids)
 					if err != nil {
 						log.Error().Err(err)
 					}

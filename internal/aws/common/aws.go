@@ -348,7 +348,7 @@ func GetClusterInstances(clusterName cluster.ClusterName) (ids []string, err err
 	return
 }
 
-func DeleteClusterInstanceIds(ids []string) (err error) {
+func DeleteInstances(ids []string) (err error) {
 	svc := connectors.GetAWSSession().EC2
 	if len(ids) > 0 {
 		loops := int(math.Ceil(float64(len(ids)) / 50))
