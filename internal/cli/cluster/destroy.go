@@ -3,11 +3,13 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/cleaner"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
@@ -35,7 +37,24 @@ var destroyCmd = &cobra.Command{
 				logging.UserInfo("Removing the following resources:")
 			}
 
-			resources := []cluster.Cleaner{
+			var resources []cluster.Cleaner
+
+			clusterSettings, err := db.GetClusterSettings(clusterName)
+
+			if err != nil {
+				if _, ok := err.(*dynamodb.ResourceNotFoundException); !ok {
+					return err
+				}
+			}
+
+			if err == nil && clusterSettings.DnsAlias != "" {
+				resources = append(resources, &cleaner.Route53{
+					DnsAlias:  clusterSettings.DnsAlias,
+					DnsZoneId: clusterSettings.DnsZoneId,
+				})
+			}
+
+			resources = append(resources,
 				&cleaner.IamProfile{ClusterName: clusterName},
 				&cleaner.Lambda{ClusterName: clusterName},
 				&cleaner.ApiGateway{ClusterName: clusterName},
@@ -46,7 +65,7 @@ var destroyCmd = &cobra.Command{
 				&cleaner.ApplicationLoadBalancer{ClusterName: clusterName},
 				&cleaner.DynamoDb{ClusterName: clusterName},
 				&cleaner.KmsKey{ClusterName: clusterName},
-			}
+			)
 
 			for _, r := range resources {
 				if err := cluster.CleanupResource(r, dryRun); err != nil {

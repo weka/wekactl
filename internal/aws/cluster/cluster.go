@@ -55,6 +55,8 @@ func (c *AWSCluster) Init() {
 	c.ALB.VpcSubnets = []string{c.ClusterSettings.Subnet, c.ClusterSettings.AdditionalSubnet}
 	c.ALB.VpcId = c.ClusterSettings.VpcId
 	c.ALB.SecurityGroupsIds = c.ClusterSettings.Backends.SecurityGroupsIds
+	c.ALB.DnsAlias = c.ClusterSettings.DnsAlias
+	c.ALB.DnsZoneId = c.ClusterSettings.DnsZoneId
 	return
 }
 
