@@ -45,7 +45,7 @@ func configureLogging() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	logLevel := os.Getenv("LOG_LEVEL")
 	if logLevel == "" {
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	} else {
 		level, err := zerolog.ParseLevel(logLevel)
 		if err != nil {
