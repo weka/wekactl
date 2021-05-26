@@ -80,9 +80,10 @@ func GetJoinParams(clusterName, asgName, tableName, role string) (string, error)
 	random=$$
 	echo $random
 	for backend_ip in ${backend_ips[@]}; do
-		VERSION=$(curl -s -XPOST --data '{"jsonrpc":"2.0", "method":"client_query_backend", "id":"'$random'"}' $backend_ip:14000/api/v1 | sed  's/.*"software_release":"\([^"]*\)".*$/\1/g')
-		if [[ "$VERSION" != "" ]]; then
-			break
+		if VERSION=$(curl -s -XPOST --data '{"jsonrpc":"2.0", "method":"client_query_backend", "id":"'$random'"}' $backend_ip:14000/api/v1 | sed  's/.*"software_release":"\([^"]*\)".*$/\1/g'); then
+			if [[ "$VERSION" != "" ]]; then
+				break
+			fi
 		fi
 	done
 
