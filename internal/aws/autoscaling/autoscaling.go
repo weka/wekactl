@@ -12,6 +12,7 @@ import (
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	"wekactl/internal/lib/strings"
 	"wekactl/internal/logging"
 )
 
@@ -69,11 +70,11 @@ func AttachInstancesToASG(instancesIds []*string, autoScalingGroupsName string) 
 	return nil
 }
 
-func DetachInstancesFromASG(instancesIds []*string, autoScalingGroupsName string) error {
+func DetachInstancesFromASG(instancesIds []string, autoScalingGroupsName string) error {
 	svc := connectors.GetAWSSession().ASG
 	limit := 20
 	for i := 0; i < len(instancesIds); i += limit {
-		batch := instancesIds[i:common.Min(i+limit, len(instancesIds))]
+		batch := strings.ListToRefList(instancesIds[i:common.Min(i+limit, len(instancesIds))])
 		_, err := svc.DetachInstances(&autoscaling.DetachInstancesInput{
 			AutoScalingGroupName:           &autoScalingGroupsName,
 			InstanceIds:                    batch,

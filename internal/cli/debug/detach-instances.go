@@ -5,7 +5,6 @@ import (
 	"gopkg.in/errgo.v2/fmt/errors"
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/env"
-	"wekactl/internal/lib/strings"
 )
 
 var detachAsgInstances = &cobra.Command{
@@ -22,7 +21,7 @@ var detachAsgInstances = &cobra.Command{
 }
 
 func detach(cmd *cobra.Command, args []string) error {
-	return autoscaling.DetachInstancesFromASG(strings.ListToRefList(args), ASGName)
+	return autoscaling.DetachInstancesFromASG(args, ASGName)
 }
 
 func init() {

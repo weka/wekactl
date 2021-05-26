@@ -68,7 +68,7 @@ func setForExplicitRemoval(instance *ec2.Instance, toRemove []protocol.HgInstanc
 	return false
 }
 
-func terminateInstances(instanceIds []string) (terminatingInstances []*string, err error) {
+func terminateInstances(instanceIds []string) (terminatingInstances []string, err error) {
 	svc := connectors.GetAWSSession().EC2
 	log.Info().Msgf("Terminating instances %s", instanceIds)
 	res, err := svc.TerminateInstances(&ec2.TerminateInstancesInput{
@@ -79,7 +79,7 @@ func terminateInstances(instanceIds []string) (terminatingInstances []*string, e
 		return
 	}
 	for _, terminatingInstance := range res.TerminatingInstances {
-		terminatingInstances = append(terminatingInstances, terminatingInstance.InstanceId)
+		terminatingInstances = append(terminatingInstances, *terminatingInstance.InstanceId)
 	}
 	return
 }
@@ -100,6 +100,15 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance, expli
 		}
 	}
 
+	terminatedInstances, errs := terminateAsgInstances(asgName, terminateInstanceIds)
+
+	for _, id := range terminatedInstances {
+		terminated = append(terminated, imap[id])
+	}
+	return
+}
+
+func terminateAsgInstances(asgName string, terminateInstanceIds []string) (terminatedInstances []string, errs []error) {
 	if len(terminateInstanceIds) == 0 {
 		return
 	}
@@ -118,15 +127,11 @@ func terminateUnneededInstances(asgName string, instances []*ec2.Instance, expli
 		errs = append(errs, err)
 	}
 
-	terminatingInstances, err := terminateInstances(setToTerminate)
+	terminatedInstances, err = terminateInstances(setToTerminate)
 	if err != nil {
 		log.Error().Err(err)
 		errs = append(errs, err)
 		return
-	}
-
-	for _, id := range terminatingInstances {
-		terminated = append(terminated, imap[*id])
 	}
 	return
 }
@@ -146,10 +151,9 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 		return
 	}
 
-	err = detachUnhealthyInstances(asgInstances, asgName)
-	if err != nil {
-		log.Error().Msgf("error detaching instances %s", err)
-		response.AddTransientError(err, "detach unhealthy")
+	errs := detachUnhealthyInstances(asgInstances, asgName)
+	if len(errs) != 0 {
+		response.AddTransientErrors(errs)
 	}
 
 	deltaInstanceIds, err := getDeltaInstancesIds(asgInstanceIds, scaleResponse)
@@ -181,8 +185,9 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 	return
 }
 
-func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string) error {
-	toDetach := []*string{}
+func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string) (errs []error) {
+	toDetach := []string{}
+	toTerminate := []string{}
 	for _, instance := range instances {
 		if *instance.HealthStatus == "Unhealthy" {
 			toDelete := false
@@ -192,16 +197,40 @@ func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string)
 			if *instance.LifecycleState == "Terminated" {
 				toDelete = true
 			}
+			if !toDelete {
+				instances, ec2err := common.GetInstances([]*string{instance.InstanceId})
+				if ec2err != nil {
+					errs = append(errs, ec2err)
+					continue
+				}
+				if len(instances) == 1 {
+					inst := instances[0]
+					if *inst.State.Name == ec2.InstanceStateNameStopped {
+						toTerminate = append(toTerminate, *inst.InstanceId)
+					}
+				}
+
+			}
 			if toDelete {
 				log.Info().Msgf("detaching %s", *instance.InstanceId)
-				toDetach = append(toDetach, instance.InstanceId)
+				toDetach = append(toDetach, *instance.InstanceId)
 			}
 		}
+	}
+
+	terminatedInstances, terminateErrors := terminateAsgInstances(asgName, toTerminate)
+	errs = append(errs, terminateErrors...)
+	for _, inst := range terminatedInstances {
+		toDetach = append(toDetach, inst)
 	}
 
 	if len(toDetach) == 0 {
 		return nil
 	}
 
-	return autoscaling2.DetachInstancesFromASG(toDetach, asgName)
+	err := autoscaling2.DetachInstancesFromASG(toDetach, asgName)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	return
 }
