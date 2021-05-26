@@ -12,9 +12,10 @@ import (
 )
 
 type BackendCoreCount struct {
-	total    int
-	frontend int
-	drive    int
+	total     int
+	frontend  int
+	drive     int
+	converged bool
 }
 
 type BackendCoreCounts map[string]BackendCoreCount
@@ -44,7 +45,7 @@ func getBackendCoreCounts() BackendCoreCounts {
 		"i3en.6xlarge":  BackendCoreCount{total: 7, frontend: 1, drive: 2},
 		"i3en.12xlarge": BackendCoreCount{total: 7, frontend: 1, drive: 2},
 		"i3en.24xlarge": BackendCoreCount{total: 14, frontend: 1, drive: 4},
-		"z1d.12xlarge":  BackendCoreCount{total: 4, frontend: 1, drive: 2},
+		"z1d.12xlarge":  BackendCoreCount{total: 4, frontend: 1, drive: 2, converged: true},
 	}
 	return backendCoreCounts
 }
@@ -123,10 +124,14 @@ func GetJoinParams(clusterName, asgName, tableName, role string) (string, error)
 	var cores, frontend, drive int
 	if role == "backend" {
 		backendCoreCounts := getBackendCoreCounts()
-		cores = backendCoreCounts[instanceType].total
-		frontend = backendCoreCounts[instanceType].frontend
-		drive = backendCoreCounts[instanceType].drive
-		bashScriptTemplate += " --dedicate" + isReady + addDrives
+		instanceParams := backendCoreCounts[instanceType]
+		cores = instanceParams.total
+		frontend = instanceParams.frontend
+		drive = instanceParams.drive
+		if !instanceParams.converged {
+			bashScriptTemplate += " --dedicate"
+		}
+		bashScriptTemplate += isReady + addDrives
 	} else {
 		bashScriptTemplate += isReady
 		cores = 1
