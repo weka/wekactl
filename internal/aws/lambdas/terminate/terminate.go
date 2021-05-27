@@ -190,21 +190,24 @@ func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string)
 	toTerminate := []string{}
 	for _, instance := range instances {
 		if *instance.HealthStatus == "Unhealthy" {
+			log.Info().Msgf("handling unhealthy instance %s", *instance.InstanceId)
 			toDelete := false
 			if !*instance.ProtectedFromScaleIn {
 				toDelete = true
 			}
-			if *instance.LifecycleState == "Terminated" {
-				toDelete = true
-			}
+
 			if !toDelete {
 				instances, ec2err := common.GetInstances([]*string{instance.InstanceId})
 				if ec2err != nil {
 					errs = append(errs, ec2err)
 					continue
 				}
-				if len(instances) == 1 {
+				if len(instances) == 0 {
+					log.Debug().Msgf("didn't find instance %s, assuming it is terminated", *instance.InstanceId)
+					toDelete = true
+				} else {
 					inst := instances[0]
+					log.Debug().Msgf("instance state: %s", *inst.State.Name)
 					if *inst.State.Name == ec2.InstanceStateNameStopped {
 						toTerminate = append(toTerminate, *inst.InstanceId)
 					}
@@ -218,9 +221,11 @@ func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string)
 		}
 	}
 
+	log.Debug().Msgf("found %d stopped instances", len(toTerminate))
 	terminatedInstances, terminateErrors := terminateAsgInstances(asgName, toTerminate)
 	errs = append(errs, terminateErrors...)
 	for _, inst := range terminatedInstances {
+		log.Info().Msgf("detaching %s", inst)
 		toDetach = append(toDetach, inst)
 	}
 
