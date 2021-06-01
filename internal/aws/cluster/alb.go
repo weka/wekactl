@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"errors"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/rs/zerolog/log"
@@ -126,11 +127,8 @@ func (a *ApplicationLoadBalancer) Update() (err error) {
 		if err != nil {
 			return
 		}
-	} else {
-		targetArn, err = alb.GetTargetGroupArn(a.ClusterName)
-		if err != nil {
-			return
-		}
+	} else if a.TargetGroupVersion != albVersion {
+		err = errors.New("target group upgrade is not supported")
 	}
 
 	var loadBalancer *elbv2.LoadBalancer
@@ -139,16 +137,31 @@ func (a *ApplicationLoadBalancer) Update() (err error) {
 		if err != nil {
 			return
 		}
-	} else {
-		loadBalancer, err = alb.GetClusterApplicationLoadBalancer(a.ClusterName)
-		if err != nil {
-			return
-		}
+	} else if a.Version != albVersion {
+		err = errors.New("application load balancer upgrade is not supported")
 	}
 
-	err = alb.CreateListener(a.Tags().Update(cluster.Tags{alb.ListenerTypeTagKey: "api"}).AsAlb(), *loadBalancer.LoadBalancerArn, targetArn)
-	if err != nil {
-		return err
+	if a.ListenerVersion == "" {
+		if targetArn == "" {
+			targetArn, err = alb.GetTargetGroupArn(a.ClusterName)
+			if err != nil {
+				return
+			}
+		}
+
+		if loadBalancer == nil {
+			loadBalancer, err = alb.GetClusterApplicationLoadBalancer(a.ClusterName)
+			if err != nil {
+				return
+			}
+		}
+
+		err = alb.CreateListener(a.Tags().Update(cluster.Tags{alb.ListenerTypeTagKey: "api"}).AsAlb(), *loadBalancer.LoadBalancerArn, targetArn)
+		if err != nil {
+			return err
+		}
+	} else if a.ListenerVersion != albVersion {
+		err = errors.New("listener upgrade is not supported")
 	}
 
 	if a.DnsAlias != "" && a.DnsZoneId != "" && a.RecordSet == nil {
