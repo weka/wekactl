@@ -379,7 +379,7 @@ func deriveHostState(host *hostInfo) hostState {
 	if strings.AnyOf(host.State, "DEACTIVATING", "REMOVING", "INACTIVE") {
 		return DEACTIVATING
 	}
-	if host.Status == "DOWN" && host.managementTimedOut(unhealthyDeactivateTimeout) {
+	if strings.AnyOf(host.Status, "DOWN", "DEGRADED") && host.managementTimedOut(unhealthyDeactivateTimeout) {
 		log.Info().Msgf("Marking %s as unhealthy due to DOWN", host.id.String())
 		return UNHEALTHY
 	}
