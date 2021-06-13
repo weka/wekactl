@@ -45,7 +45,7 @@ func getBackendCoreCounts() BackendCoreCounts {
 		"i3en.6xlarge":  BackendCoreCount{total: 7, frontend: 1, drive: 2},
 		"i3en.12xlarge": BackendCoreCount{total: 7, frontend: 1, drive: 2},
 		"i3en.24xlarge": BackendCoreCount{total: 14, frontend: 1, drive: 4},
-		"z1d.12xlarge":  BackendCoreCount{total: 4, frontend: 1, drive: 2, converged: true},
+		"z1d.12xlarge":  BackendCoreCount{total: 4, frontend: 1, drive: 1, converged: true},
 	}
 	return backendCoreCounts
 }
