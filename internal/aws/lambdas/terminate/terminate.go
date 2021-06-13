@@ -211,6 +211,9 @@ func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string)
 					if *inst.State.Name == ec2.InstanceStateNameStopped {
 						toTerminate = append(toTerminate, *inst.InstanceId)
 					}
+					if *inst.State.Name == ec2.InstanceStateNameTerminated {
+						toDelete = true
+					}
 				}
 
 			}
