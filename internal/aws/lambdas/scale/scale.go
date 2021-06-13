@@ -272,6 +272,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 
 	deactivateHost := func(host hostInfo) {
 		log.Info().Msgf("Trying to deactivate host %s", host.id)
+		jpool.Drop(host.HostIp)
 		for _, drive := range host.drives {
 			if drive.ShouldBeActive {
 				err := jpool.Call(weka.JrpcDeactivateDrives, types.JsonDict{
@@ -284,7 +285,6 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 			}
 		}
 
-		jpool.Drop(host.HostIp)
 		err := jpool.Call(weka.JrpcDeactivateHosts, types.JsonDict{
 			"host_ids":                 []weka.HostId{host.id},
 			"skip_resource_validation": false,
