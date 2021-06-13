@@ -284,16 +284,14 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 			}
 		}
 
-		if host.allDrivesInactive() {
-			jpool.Drop(host.HostIp)
-			err := jpool.Call(weka.JrpcDeactivateHosts, types.JsonDict{
-				"host_ids":                 []weka.HostId{host.id},
-				"skip_resource_validation": false,
-			}, nil)
-			if err != nil {
-				log.Error().Err(err)
-				response.AddTransientError(err, "deactivateHost")
-			}
+		jpool.Drop(host.HostIp)
+		err := jpool.Call(weka.JrpcDeactivateHosts, types.JsonDict{
+			"host_ids":                 []weka.HostId{host.id},
+			"skip_resource_validation": false,
+		}, nil)
+		if err != nil {
+			log.Error().Err(err)
+			response.AddTransientError(err, "deactivateHost")
 		}
 
 	}
