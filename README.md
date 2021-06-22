@@ -40,6 +40,13 @@ An application load balancer (ALB) is automatically created during the wekactl c
   --dns-zone-id string             ALB dns zone id
 ```
 
+#### Tags
+It is possible to specify additional tags for every resource created by wekactl (If supported by resource type).  
+`-t` flag can be specified multiple times during an import, example:
+```
+  wekactl import ... -t tag1=value1 -t tag2=value1
+```
+
 ### Connecting clients instances to the Weka cluster
 After the import, you will be presented with a script to use for joining clients to the Weka cluster.
 
