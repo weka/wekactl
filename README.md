@@ -35,6 +35,39 @@ PATH_TO_WEKACTL_BINARY cluster import -n CLUSTER_NAME -u WEKA_USERNAME -p WEKA_P
 The import reads the CloudFormation stack and creates Auto Scaling Groups based on that.
 It Creates an auto-scaling group for the Weka cluster (backend servers), and if clients have been deployed via the CloudFormation stack, it also creates an auto-scaling group for the clients.
 
+### Connecting clients to cluster
+After the import, you will be presented with a script to use for joining clients to weka cluster
+It will look like
+```
+"""
+#!/bin/bash
+
+curl dns.elb.amazonaws.com:14000/dist/v1/install | sh
+
+FILESYSTEM_NAME=default # replace with different filesystem, if not using default one
+MOUNT_POINT=/mnt/weka # replace with different mount point, in case default one does not fit your needs
+
+mkdir -p $MOUNT_POINT
+mount -t wekafs internal-wekactl-weka-2077122359.eu-west-1.elb.amazonaws.com/"$FILESYSTEM_NAME" $MOUNT_POINT
+"""
+```
+You are free to adjust filesystem name and mount point
+
+Load balancer is auto-created during import process
+In addition, you can specify route53 alias for this ALB during an import, by passing 
+```
+  --dns-alias string               ALB dns alias
+  --dns-zone-id string             ALB dns zone id
+```
+
+In this case, join script will have route53 alias in it, instead of ALB DNS
+
+#### Clients requirements
+Please refer to https://docs.weka.io for general requirements
+Permissions wise, clients do not require any additional permissions, 
+other then being in security group that allows to communicate with backends on 14000-14100 ports
+You can share backends security group with clients, that allows communication with itself
+
 ### Destroying an existing cluster
 
 ```
