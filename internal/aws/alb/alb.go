@@ -321,8 +321,8 @@ func PrintStatelessClientsJoinScript(clusterName cluster.ClusterName, dnsAlias s
 
 	curl %s:14000/dist/v1/install | sh
 
-	FILESYSTEM_NAME=default # replace with different filesystem, if not using default one
-	MOUNT_POINT=/mnt/weka # replace with different mount point, in case default one does not fit your needs
+	FILESYSTEM_NAME=default # replace with a different filesystem at need
+	MOUNT_POINT=/mnt/weka # replace with a different mount point at need
 
 	mkdir -p $MOUNT_POINT
 	mount -t wekafs %s/"$FILESYSTEM_NAME" $MOUNT_POINT
