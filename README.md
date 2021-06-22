@@ -32,40 +32,37 @@ You can follow the instruction on the [Create an interface VPC endpoint for API 
 PATH_TO_WEKACTL_BINARY cluster import -n CLUSTER_NAME -u WEKA_USERNAME -p WEKA_PASSWORD --region CLUSTER_REGION
 ```
 
-The import reads the CloudFormation stack and creates Auto Scaling Groups for Weka backends servers based on that.
+The import reads the CloudFormation stack and creates an Auto Scaling Group for Weka backend servers based on that.
 
-### Connecting clients to cluster
-After the import, you will be presented with a script to use for joining clients to weka cluster
-It will look like
+An application load balancer (ALB) is automatically created during the wekactl cluster import process. In addition, you can specify a route53 alias for this ALB during an import, by passing the following flags:
+```
+  --dns-alias string               ALB dns alias
+  --dns-zone-id string             ALB dns zone id
+```
+
+### Connecting clients instances to the Weka cluster
+After the import, you will be presented with a script to use for joining clients to the Weka cluster.
+
+For example (adjust the filesystem name and mount point as needed):
 ```
 """
 #!/bin/bash
 
 curl dns.elb.amazonaws.com:14000/dist/v1/install | sh
 
-FILESYSTEM_NAME=default # replace with different filesystem, if not using default one
-MOUNT_POINT=/mnt/weka # replace with different mount point, in case default one does not fit your needs
+FILESYSTEM_NAME=default # replace with a different filesystem at need
+MOUNT_POINT=/mnt/weka # replace with a different mount point at need
 
 mkdir -p $MOUNT_POINT
 mount -t wekafs internal-wekactl-weka-2077122359.eu-west-1.elb.amazonaws.com/"$FILESYSTEM_NAME" $MOUNT_POINT
 """
 ```
-You are free to adjust filesystem name and mount point
 
-Load balancer is auto-created during import process
-In addition, you can specify route53 alias for this ALB during an import, by passing 
-```
-  --dns-alias string               ALB dns alias
-  --dns-zone-id string             ALB dns zone id
-```
-
-In this case, join script will have route53 alias in it, instead of ALB DNS
+If a route53 alias has been supplied in the import process, the join script will have the route53 alias instead of the ALB DNS.
 
 #### Clients requirements
-Please refer to https://docs.weka.io for general requirements
-Permissions wise, clients do not require any additional permissions, 
-other then being in security group that allows to communicate with backends on 14000-14100 ports
-You can share backends security group with clients, that allows communication with itself
+Please refer to https://docs.weka.io for the general requirements.
+Permissions-wise, clients do not require any additional permissions other than being in a security group that allows communicating with the backends on ports 14000-14100. It is possible to share the backends security group, which already enables this communication, with the clients.
 
 ### Destroying an existing cluster
 
@@ -89,40 +86,40 @@ PATH_TO_WEKACTL_BINARY cluster destroy -n CLUSTER_NAME --region CLUSTER_REGION
 
 ## Additional info
 
-Importing a Weka cluster will create the following resources (note, these should not be exposed to a user that has not ClusterAdmin permission for the Weka cluster):
+Importing a Weka cluster will create the following resources (note, these should not be exposed to a user that doesn't have ClusterAdmin permission for the Weka cluster):
 
 - **KMS key**
 
 - **DynamoDB** table (stores the Weka cluster username and password using the KMS key)
 
-- For both backends and clients:
+- **Lambda**:
 
-- - **Lambda**:
+  - for API Gateway:
 
-  - - for API Gateway:
+  - - *join* - responsible for providing cluster information to new instances
 
-    - - *join* - responsible for providing cluster information to new instances
+  - for State Machine:
 
-    - for State Machine:
+    - *fetch* - fetches cluster/autoscaling group information and passes to the next stage
+    - *scale* - relied on *fetch* information to work on the Weka cluster, i.e., deactivate drives/hosts. Will fail if the required target is not supported (like scaling down to 2 backend instances)
+    - *terminate* - terminates deactivated hosts
+    - *transient* - lambda responsible for reporting transient errors, e.g., could not deactivate specific hosts, but some have been deactivated, and the whole flow proceeded
 
-    - - *fetch* - fetches cluster/autoscaling group information and passes to the next stage
-      - *scale* - relied on *fetch* information to work on the Weka cluster, i.e., deactivate drives/hosts. Will fail if the required target is not supported (like scaling down to 2 backend instances)
-      - *terminate* - terminates deactivated hosts
-      - *transient* - lambda responsible for reporting transient errors, e.g., could not deactivate specific hosts, but some have been deactivated, and the whole flow proceeded
+- **API Gateway**: invokes the *join* lambda function using an API key
 
-  - **API Gateway**: invokes the *join* lambda function using an API key
+- **Launch Template**: used for new auto-scaling group instances; will run the join script on launch.
 
-  - **Launch Template**: used for new auto-scaling group instances; will run the join script on launch.
+- **Auto Scaling Group**
 
-  - **Auto Scaling Groups**
+- **ALB**
 
-  - **State Machine**: invokes the *fetch*, scale, terminate, transient
+- **State Machine**: invokes the *fetch*, scale, terminate, transient
 
-  - - Uses the previous lambda output as input for the following lambda.
-    - **CloudWatch**: invokes the state machine every minute
+  - Uses the previous lambda output as input for the following lambda.
+  - **CloudWatch**: invokes the state machine every minute
 
-  - **IAM Roles (and policies)**:
+- **IAM Roles (and policies)**:
 
-  - - Lambda
-    - State Machine
-    - Cloud Watch
+  - Lambda
+  - State Machine
+  - Cloud Watch
