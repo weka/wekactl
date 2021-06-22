@@ -41,8 +41,8 @@ An application load balancer (ALB) is automatically created during the wekactl c
 ```
 
 #### Tags
-It is possible to specify additional tags for every resource created by wekactl (If supported by resource type).  
-`-t` flag can be specified multiple times during an import, example:
+It is possible to specify additional tags for every resource created by the wekactl utility (if supported by the resource type).  
+The `-t` flag can be specified multiple times during an import, for example:
 ```
   wekactl import ... -t tag1=value1 -t tag2=value1
 ```
