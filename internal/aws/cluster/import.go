@@ -86,6 +86,7 @@ func GetStackInstancesInfo(stackName string) (stackInstances StackInstances, err
 			if strings.Contains(arn, "InstanceProfileBackend") {
 				stackInstances.Backends = append(stackInstances.Backends, instance)
 			} else if strings.Contains(arn, "InstanceProfileClient") {
+				// ASG for clients is deprecated until need
 				stackInstances.Clients = append(stackInstances.Clients, instance)
 			}
 		}
@@ -145,14 +146,16 @@ func generateAWSCluster(stackName, tableName string, defaultParams db.ClusterSet
 		),
 	}
 
-	if clientsExist {
-		hostGroups = append(hostGroups, GenerateHostGroup(
-			clusterName,
-			defaultParams.Clients,
-			common.RoleClient,
-			"Clients",
-		))
-	}
+	// ASG for clients is deprecated
+
+	//if clientsExist {
+	//	hostGroups = append(hostGroups, GenerateHostGroup(
+	//		clusterName,
+	//		defaultParams.Clients,
+	//		common.RoleClient,
+	//		"Clients",
+	//	))
+	//}
 
 	return AWSCluster{
 		Name:            clusterName,

@@ -32,8 +32,7 @@ You can follow the instruction on the [Create an interface VPC endpoint for API 
 PATH_TO_WEKACTL_BINARY cluster import -n CLUSTER_NAME -u WEKA_USERNAME -p WEKA_PASSWORD --region CLUSTER_REGION
 ```
 
-The import reads the CloudFormation stack and creates Auto Scaling Groups based on that.
-It Creates an auto-scaling group for the Weka cluster (backend servers), and if clients have been deployed via the CloudFormation stack, it also creates an auto-scaling group for the clients.
+The import reads the CloudFormation stack and creates Auto Scaling Groups for Weka backends servers based on that.
 
 ### Connecting clients to cluster
 After the import, you will be presented with a script to use for joining clients to weka cluster
