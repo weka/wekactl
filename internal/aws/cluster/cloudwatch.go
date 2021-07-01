@@ -50,7 +50,7 @@ func (c *CloudWatch) Fetch() error {
 	}
 
 	if c.Profile.Arn == "" {
-		profileArn, err := iam.GetIamRoleArn(c.Profile.resourceNameBase())
+		profileArn, err := iam.GetIamRoleArn(c.HostGroupInfo.ClusterName, c.Profile.resourceNameBase())
 		if err != nil {
 			return err
 		}
