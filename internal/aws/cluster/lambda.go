@@ -52,6 +52,16 @@ func (l *Lambda) Fetch() error {
 		l.Profile.Arn = profileArn
 	}
 
+	if l.Version != "" {
+		arn, err := lambdas.GetLambdaRoleArn(l.ResourceName())
+		if err != nil {
+			return err
+		}
+		if arn != l.Profile.Arn {
+			l.Version = l.Version + "#" // just to make it different from TargetVersion so we will enter Update flow
+		}
+	}
+
 	return nil
 }
 
@@ -86,5 +96,14 @@ func (l *Lambda) Create(tags cluster.Tags) (err error) {
 }
 
 func (l *Lambda) Update() error {
-	return lambdas.UpdateLambdaHandler(l.ResourceName(), cluster.GetResourceVersionTag(l.TargetVersion()).AsStringRefs())
+	if strings.HasSuffix(l.DeployedVersion(), "#") {
+		err := lambdas.UpdateLambdaRole(l.ResourceName(), l.Profile.Arn)
+		if err != nil {
+			return err
+		}
+	}
+	if l.DeployedVersion() != l.TargetVersion() && l.DeployedVersion() != l.TargetVersion()+"#" {
+		return lambdas.UpdateLambdaHandler(l.ResourceName(), cluster.GetResourceVersionTag(l.TargetVersion()).AsStringRefs())
+	}
+	return nil
 }

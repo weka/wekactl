@@ -9,6 +9,22 @@ import (
 	"wekactl/internal/connectors"
 )
 
+func PutTargets(arn *string, roleArn, ruleName string) error {
+	svc := connectors.GetAWSSession().CloudWatchEvents
+
+	_, err := svc.PutTargets(&cloudwatchevents.PutTargetsInput{
+		Rule: &ruleName,
+		Targets: []*cloudwatchevents.Target{
+			{
+				Arn:     arn,
+				Id:      aws.String(uuid.New().String()),
+				RoleArn: &roleArn,
+			},
+		},
+	})
+	return err
+}
+
 func CreateCloudWatchEventRule(tags []*cloudwatchevents.Tag, arn *string, roleArn, ruleName string) error {
 	svc := connectors.GetAWSSession().CloudWatchEvents
 	_, err := svc.PutRule(&cloudwatchevents.PutRuleInput{
@@ -22,16 +38,7 @@ func CreateCloudWatchEventRule(tags []*cloudwatchevents.Tag, arn *string, roleAr
 	}
 	log.Debug().Msgf("cloudwatch rule %s was created successfully!", ruleName)
 
-	_, err = svc.PutTargets(&cloudwatchevents.PutTargetsInput{
-		Rule: &ruleName,
-		Targets: []*cloudwatchevents.Target{
-			{
-				Arn:     arn,
-				Id:      aws.String(uuid.New().String()),
-				RoleArn: &roleArn,
-			},
-		},
-	})
+	err = PutTargets(arn, roleArn, ruleName)
 	if err != nil {
 		return err
 	}
@@ -135,4 +142,18 @@ func DeleteCloudWatchEventRules(cloudWatchEventRules []*cloudwatchevents.Rule) e
 		}
 	}
 	return nil
+}
+
+func GetCloudWatchEventRuleRoleArn(ruleName string) (arn string, err error) {
+	svc := connectors.GetAWSSession().CloudWatchEvents
+
+	targetsOutput, err := svc.ListTargetsByRule(&cloudwatchevents.ListTargetsByRuleInput{
+		Rule: &ruleName,
+	})
+	if err != nil {
+		return
+	}
+
+	arn = *targetsOutput.Targets[0].RoleArn
+	return
 }

@@ -171,3 +171,28 @@ func DeleteStateMachines(stateMachines []*sfn.StateMachineListItem) error {
 	}
 	return nil
 }
+
+func GetStateMachineRoleArn(stateMachineName string) (arn string, err error) {
+	stateMachineArn, err := GetStateMachineArn(stateMachineName)
+	if err != nil {
+		return
+	}
+
+	svc := connectors.GetAWSSession().SFN
+	stateMachineOutput, err := svc.DescribeStateMachine(&sfn.DescribeStateMachineInput{StateMachineArn: &stateMachineArn})
+	if err != nil {
+		return
+	}
+	arn = *stateMachineOutput.RoleArn
+
+	return
+}
+
+func UpdateStateMachineRoleArn(stateMachineArn, roleArn string) error {
+	svc := connectors.GetAWSSession().SFN
+	_, err := svc.UpdateStateMachine(&sfn.UpdateStateMachineInput{
+		StateMachineArn: &stateMachineArn,
+		RoleArn:         &roleArn,
+	})
+	return err
+}

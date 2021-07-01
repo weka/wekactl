@@ -57,6 +57,16 @@ func (c *CloudWatch) Fetch() error {
 		c.Profile.Arn = profileArn
 	}
 
+	if version != "" {
+		arn, err := cloudwatch.GetCloudWatchEventRuleRoleArn(c.ResourceName())
+		if err != nil {
+			return err
+		}
+		if arn != c.Profile.Arn {
+			c.Version = c.Version + "#" // just to make it different from TargetVersion so we will enter Update flow
+		}
+	}
+
 	return nil
 }
 
@@ -73,7 +83,7 @@ func (c *CloudWatch) Create(tags cluster.Tags) (err error) {
 }
 
 func (c *CloudWatch) Update() error {
-	panic("update not supported")
+	return cloudwatch.PutTargets(&c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 }
 
 func (c *CloudWatch) Init() {
