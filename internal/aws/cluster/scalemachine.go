@@ -55,6 +55,22 @@ func (s *ScaleMachine) Fetch() error {
 		s.Profile.Arn = profileArn
 	}
 
+	if version != "" {
+		scaleMachineArn, err := scalemachine.GetStateMachineArn(s.ResourceName())
+		if err != nil {
+			return err
+		}
+		s.Arn = scaleMachineArn
+
+		arn, err := scalemachine.GetStateMachineRoleArn(s.ResourceName())
+		if err != nil {
+			return err
+		}
+		if arn != s.Profile.Arn {
+			s.Version = s.Version + "#" // just to make it different from TargetVersion so we will enter Update flow
+		}
+	}
+
 	if s.fetch.Arn == "" {
 		backendArn, err := lambdas.GetLambdaArn(s.fetch.ResourceName())
 		if err != nil {
@@ -115,7 +131,7 @@ func (s *ScaleMachine) Create(tags cluster.Tags) (err error) {
 }
 
 func (s *ScaleMachine) Update() error {
-	panic("update not supported")
+	return scalemachine.UpdateStateMachineRoleArn(s.Arn, s.Profile.Arn)
 }
 
 func (s *ScaleMachine) Init() {

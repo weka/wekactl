@@ -22,6 +22,21 @@ func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcC
 	}
 }
 
+func handleAwsInvalidParameterValueException(err error, lambdaName string, shouldSleep bool) bool {
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == lambda.ErrCodeInvalidParameterValueException {
+				if shouldSleep {
+					logging.UserProgress("waiting 10 sec for IAM role trust entity to finish update on \"%s\" lambda ...", lambdaName)
+					time.Sleep(10 * time.Second)
+				}
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, hostGroupInfo common.HostGroupInfo, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
@@ -72,19 +87,11 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 
 	// it takes some time for the trust entity to be updated
 	retry := true
-	for i := 0; i < 3 && retry; i++ {
-		retry = false
+	retries := 3
+	for i := 0; i < retries && retry; i++ {
 		log.Debug().Msgf("try %d: creating lambda %s using: %s", i+1, lambdaName, s3Key)
 		lambdaCreateOutput, err = svc.CreateFunction(input)
-		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				if aerr.Code() == lambda.ErrCodeInvalidParameterValueException {
-					logging.UserProgress("waiting 10 sec for IAM role trust entity to finish update on \"%s\" lambda ...", lambdaName)
-					time.Sleep(10 * time.Second)
-					retry = true
-				}
-			}
-		}
+		retry = handleAwsInvalidParameterValueException(err, lambdaName, retries > i+1)
 	}
 	if err != nil {
 		return nil, err
@@ -251,4 +258,33 @@ func DeleteLambdas(lambdaConfigurations []*lambda.FunctionConfiguration) error {
 		}
 	}
 	return nil
+}
+
+func GetLambdaRoleArn(lambdaName string) (roleArn string, err error) {
+	svc := connectors.GetAWSSession().Lambda
+	lambdaOutput, err := svc.GetFunction(&lambda.GetFunctionInput{
+		FunctionName: &lambdaName,
+	})
+
+	if err != nil {
+		return
+	}
+	roleArn = *lambdaOutput.Configuration.Role
+	return
+}
+
+func UpdateLambdaRole(lambdaName, roleArn string) (err error) {
+	svc := connectors.GetAWSSession().Lambda
+
+	// it takes some time for the trust entity to be updated
+	retry := true
+	retries := 3
+	for i := 0; i < retries && retry; i++ {
+		_, err = svc.UpdateFunctionConfiguration(&lambda.UpdateFunctionConfigurationInput{
+			FunctionName: &lambdaName,
+			Role:         &roleArn,
+		})
+		retry = handleAwsInvalidParameterValueException(err, lambdaName, retries > i+1)
+	}
+	return
 }
