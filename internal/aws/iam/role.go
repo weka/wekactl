@@ -60,10 +60,13 @@ func CreateIamRole(clusterName cluster.ClusterName, tags []*iam.Tag, roleName, p
 	return result.Role.Arn, nil
 }
 
-func getIamRole(roleBaseName string, marker *string) (iamRole *iam.Role, err error) {
+func getIamRole(clusterName cluster.ClusterName, roleBaseName string, marker *string) (iamRole *iam.Role, err error) {
 	svc := connectors.GetAWSSession().IAM
 
-	rolesOutput, err := svc.ListRoles(&iam.ListRolesInput{Marker: marker})
+	rolesOutput, err := svc.ListRoles(&iam.ListRolesInput{
+		Marker:     marker,
+		PathPrefix: aws.String(fmt.Sprintf("/wekactl/%s/", clusterName)),
+	})
 	if err != nil {
 		return
 	}
@@ -74,7 +77,7 @@ func getIamRole(roleBaseName string, marker *string) (iamRole *iam.Role, err err
 	}
 
 	if *rolesOutput.IsTruncated {
-		return getIamRole(roleBaseName, rolesOutput.Marker)
+		return getIamRole(clusterName, roleBaseName, rolesOutput.Marker)
 	}
 
 	return
@@ -102,9 +105,9 @@ func removeRolePolicy(role *iam.Role) error {
 	return nil
 }
 
-func DeleteIamRole(roleBaseName string) error {
+func DeleteIamRole(clusterName cluster.ClusterName, roleBaseName string) error {
 	svc := connectors.GetAWSSession().IAM
-	role, err := getIamRole(roleBaseName, nil)
+	role, err := getIamRole(clusterName, roleBaseName, nil)
 	if err != nil {
 		return err
 	}
@@ -126,8 +129,8 @@ func DeleteIamRole(roleBaseName string) error {
 
 }
 
-func GetIamRoleVersion(roleBaseName string) (version string, err error) {
-	role, err := getIamRole(roleBaseName, nil)
+func GetIamRoleVersion(clusterName cluster.ClusterName, roleBaseName string) (version string, err error) {
+	role, err := getIamRole(clusterName, roleBaseName, nil)
 	if err != nil || role == nil {
 		return
 	}
@@ -145,8 +148,8 @@ func GetIamRoleVersion(roleBaseName string) (version string, err error) {
 	return
 }
 
-func GetIamRoleArn(roleBaseName string) (arn string, err error) {
-	role, err := getIamRole(roleBaseName, nil)
+func GetIamRoleArn(clusterName cluster.ClusterName, roleBaseName string) (arn string, err error) {
+	role, err := getIamRole(clusterName, roleBaseName, nil)
 	if err != nil || role == nil {
 		return
 	}
@@ -154,8 +157,8 @@ func GetIamRoleArn(roleBaseName string) (arn string, err error) {
 	return
 }
 
-func UpdateRolePolicy(roleBaseName, policyName string, policy PolicyDocument, versionTag []*iam.Tag) error {
-	role, err := getIamRole(roleBaseName, nil)
+func UpdateRolePolicy(clusterName cluster.ClusterName, roleBaseName, policyName string, policy PolicyDocument, versionTag []*iam.Tag) error {
+	role, err := getIamRole(clusterName, roleBaseName, nil)
 	if err != nil {
 		return err
 	}
@@ -259,9 +262,9 @@ func GetClusterRoles(clusterName cluster.ClusterName) (clusterRoles []*iam.Role,
 	return
 }
 
-func DeleteRoles(roles []*iam.Role) error {
+func DeleteRoles(clusterName cluster.ClusterName, roles []*iam.Role) error {
 	for _, role := range roles {
-		err := DeleteIamRole(*role.RoleName)
+		err := DeleteIamRole(clusterName, *role.RoleName)
 		if err != nil {
 			return err
 		}

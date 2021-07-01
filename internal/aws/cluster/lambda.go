@@ -45,7 +45,7 @@ func (l *Lambda) Fetch() error {
 	l.Version = version
 
 	if l.Profile.Arn == "" {
-		profileArn, err := iam.GetIamRoleArn(l.Profile.resourceNameBase())
+		profileArn, err := iam.GetIamRoleArn(l.HostGroupInfo.ClusterName, l.Profile.resourceNameBase())
 		if err != nil {
 			return err
 		}

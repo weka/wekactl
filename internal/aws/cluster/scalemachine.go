@@ -48,7 +48,7 @@ func (s *ScaleMachine) Fetch() error {
 	s.Version = version
 
 	if s.Profile.Arn == "" {
-		profileArn, err := iam.GetIamRoleArn(s.Profile.resourceNameBase())
+		profileArn, err := iam.GetIamRoleArn(s.HostGroupInfo.ClusterName, s.Profile.resourceNameBase())
 		if err != nil {
 			return err
 		}

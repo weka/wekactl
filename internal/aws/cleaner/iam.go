@@ -23,7 +23,7 @@ func (i *IamProfile) Fetch() error {
 }
 
 func (i *IamProfile) Delete() error {
-	return iam2.DeleteRoles(i.Roles)
+	return iam2.DeleteRoles(i.ClusterName, i.Roles)
 }
 
 func (i *IamProfile) Print() {

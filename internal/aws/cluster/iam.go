@@ -39,7 +39,7 @@ func (i *IamProfile) ResourceName() string {
 }
 
 func (i *IamProfile) Fetch() error {
-	version, err := iam.GetIamRoleVersion(i.resourceNameBase())
+	version, err := iam.GetIamRoleVersion(i.HostGroupInfo.ClusterName, i.resourceNameBase())
 	if err != nil {
 		return err
 	}
@@ -71,5 +71,6 @@ func (i *IamProfile) Create(tags cluster.Tags) error {
 
 func (i *IamProfile) Update() error {
 	return iam.UpdateRolePolicy(
-		i.resourceNameBase(), i.PolicyName, i.Policy, cluster.GetResourceVersionTag(i.TargetVersion()).AsIam())
+		i.HostGroupInfo.ClusterName, i.resourceNameBase(), i.PolicyName, i.Policy,
+		cluster.GetResourceVersionTag(i.TargetVersion()).AsIam())
 }
