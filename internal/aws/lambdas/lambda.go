@@ -212,8 +212,8 @@ func getLambdaConfigurations() (lambdaConfigurations []*lambda.FunctionConfigura
 			return
 		}
 
-		for _, lambda := range lambdasOutput.Functions {
-			lambdaConfigurations = append(lambdaConfigurations, lambda)
+		for _, lambdaConfiguration := range lambdasOutput.Functions {
+			lambdaConfigurations = append(lambdaConfigurations, lambdaConfiguration)
 		}
 		isFirst = false
 		marker = lambdasOutput.NextMarker
