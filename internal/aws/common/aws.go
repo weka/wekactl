@@ -20,6 +20,7 @@ import (
 )
 
 type InstanceIdsSet map[string]types.Nilt
+type InstancePrivateIpsSet map[string]types.Nilt
 
 func RenderTable(fields []string, data [][]string) {
 	table := tablewriter.NewWriter(os.Stdout)

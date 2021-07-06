@@ -22,6 +22,7 @@ type HostGroupInfoResponse struct {
 
 type ScaleResponseHost struct {
 	InstanceId string      `json:"instance_id"`
+	PrivateIp  string      `json:"private_ip"`
 	State      string      `json:"status"`
 	AddedTime  time.Time   `json:"added_time"`
 	HostId     weka.HostId `json:"host_id"`

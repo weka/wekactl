@@ -18,12 +18,12 @@ import (
 
 type instancesMap map[string]*ec2.Instance
 
-func getInstanceIdsSet(scaleResponse protocol.ScaleResponse) common.InstanceIdsSet {
-	instanceIdsSet := make(common.InstanceIdsSet)
+func getInstancePrivateIpsSet(scaleResponse protocol.ScaleResponse) common.InstancePrivateIpsSet {
+	instancePrivateIpsSet := make(common.InstancePrivateIpsSet)
 	for _, instance := range scaleResponse.Hosts {
-		instanceIdsSet[instance.InstanceId] = types.Nilv
+		instancePrivateIpsSet[instance.PrivateIp] = types.Nilv
 	}
-	return instanceIdsSet
+	return instancePrivateIpsSet
 }
 
 func instancesToMap(instances []*ec2.Instance) instancesMap {
@@ -34,16 +34,19 @@ func instancesToMap(instances []*ec2.Instance) instancesMap {
 	return im
 }
 
-func getDeltaInstancesIds(asgInstanceIds []*string, scaleResponse protocol.ScaleResponse) ([]*string, error) {
-	instanceIdsSet := getInstanceIdsSet(scaleResponse)
-	var deltaInstanceIDs []*string
+func getDeltaInstancesIds(asgInstanceIds []*string, scaleResponse protocol.ScaleResponse) (deltaInstanceIDs []*string, err error) {
+	asgInstances, err := common.GetInstances(asgInstanceIds)
+	if err != nil {
+		return
+	}
+	instancePrivateIpsSet := getInstancePrivateIpsSet(scaleResponse)
 
-	for _, instanceId := range asgInstanceIds {
-		if _, ok := instanceIdsSet[*instanceId]; !ok {
-			deltaInstanceIDs = append(deltaInstanceIDs, instanceId)
+	for _, instance := range asgInstances {
+		if _, ok := instancePrivateIpsSet[*instance.PrivateIpAddress]; !ok {
+			deltaInstanceIDs = append(deltaInstanceIDs, instance.InstanceId)
 		}
 	}
-	return deltaInstanceIDs, nil
+	return
 }
 
 func removeAutoScalingProtection(asgName string, instanceIds []string) error {

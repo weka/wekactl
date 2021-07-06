@@ -307,6 +307,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 	for _, host := range hostsList {
 		response.Hosts = append(response.Hosts, protocol.ScaleResponseHost{
 			InstanceId: host.Aws.InstanceId,
+			PrivateIp:  host.HostIp,
 			State:      host.State,
 			AddedTime:  host.AddedTime,
 			HostId:     host.id,
