@@ -42,6 +42,9 @@ func getDeltaInstancesIds(asgInstanceIds []*string, scaleResponse protocol.Scale
 	instancePrivateIpsSet := getInstancePrivateIpsSet(scaleResponse)
 
 	for _, instance := range asgInstances {
+		if instance.PrivateIpAddress == nil {
+			continue
+		}
 		if _, ok := instancePrivateIpsSet[*instance.PrivateIpAddress]; !ok {
 			deltaInstanceIDs = append(deltaInstanceIDs, instance.InstanceId)
 		}
