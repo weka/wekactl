@@ -139,6 +139,9 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 
 		NEW_D = max(A+U+D-T, min(2-D, U), 0)
 	*/
+
+	response.Version = protocol.Version
+
 	jrpcBuilder := func(ip string) *jrpc.BaseClient {
 		return connectors.NewJrpcClient(ctx, ip, weka.ManagementJrpcPort, info.Username, info.Password)
 	}

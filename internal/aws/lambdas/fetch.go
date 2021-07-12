@@ -39,6 +39,7 @@ func GetFetchDataParams(clusterName, asgName, tableName, role string) (fd protoc
 		Instances:       getHostGroupInfoInstances(instances),
 		BackendIps:      backendIps,
 		Role:            role,
+		Version:         protocol.Version,
 	}, nil
 }
 

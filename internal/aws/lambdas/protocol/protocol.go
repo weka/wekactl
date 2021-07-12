@@ -6,6 +6,8 @@ import (
 	"wekactl/internal/lib/weka"
 )
 
+var Version = 1
+
 type HgInstance struct {
 	Id        string
 	PrivateIp string
@@ -18,6 +20,7 @@ type HostGroupInfoResponse struct {
 	Instances       []HgInstance `json:"instances"`
 	BackendIps      []string     `json:"backend_ips"`
 	Role            string       `json:"role"`
+	Version         int          `json:"version"`
 }
 
 type ScaleResponseHost struct {
@@ -32,6 +35,7 @@ type ScaleResponse struct {
 	Hosts           []ScaleResponseHost `json:"hosts"`
 	ToTerminate     []HgInstance        `json:"to_terminate"`
 	TransientErrors []string
+	Version         int `json:"version"`
 }
 
 func (r *ScaleResponse) AddTransientErrors(errs []error, caller string) {
@@ -51,6 +55,7 @@ type TerminatedInstance struct {
 type TerminatedInstancesResponse struct {
 	Instances       []TerminatedInstance `json:"set_to_terminate_instances"`
 	TransientErrors []string
+	Version         int `json:"version"`
 }
 
 func (r *TerminatedInstancesResponse) AddTransientErrors(errs []error) {
