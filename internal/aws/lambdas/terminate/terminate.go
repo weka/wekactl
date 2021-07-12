@@ -143,6 +143,13 @@ func terminateAsgInstances(asgName string, terminateInstanceIds []string) (termi
 }
 
 func Handler(scaleResponse protocol.ScaleResponse) (response protocol.TerminatedInstancesResponse, err error) {
+	response.Version = protocol.Version
+
+	if scaleResponse.Version != protocol.Version {
+		err = errors.New("incompatible scale response version")
+		return
+	}
+
 	asgName := os.Getenv("ASG_NAME")
 	if asgName == "" {
 		err = errors.New("ASG_NAME env var is mandatory")
