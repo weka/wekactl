@@ -113,11 +113,11 @@ func getHostGroups(clusterName cluster.ClusterName, fetchHotGroupParams bool) (h
 	return
 }
 
-func UpdateCluster(name cluster.ClusterName) error {
+func UpdateCluster(name cluster.ClusterName, dryRun bool) error {
 	awsCluster, err := GetCluster(name, true)
 	if err != nil {
 		return err
 	}
 
-	return cluster.EnsureResource(&awsCluster, awsCluster.ClusterSettings)
+	return cluster.EnsureResource(&awsCluster, awsCluster.ClusterSettings, dryRun)
 }

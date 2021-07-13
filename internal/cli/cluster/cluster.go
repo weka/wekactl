@@ -7,6 +7,7 @@ import (
 
 var Region string
 var StackName string
+var DryRun bool
 
 var Cluster = &cobra.Command{
 	Use:   "cluster [command] [flags]",

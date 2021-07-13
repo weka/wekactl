@@ -16,12 +16,14 @@ var updateCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
-			err := cluster.UpdateCluster(cluster2.ClusterName(StackName))
+			err := cluster.UpdateCluster(cluster2.ClusterName(StackName), DryRun)
 			if err != nil {
 				logging.UserFailure("Update failed!")
 				return err
 			}
-			logging.UserSuccess("Update finished successfully!")
+			if !DryRun {
+				logging.UserSuccess("Update finished successfully!")
+			}
 		} else {
 			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
 			logging.UserFailure(err.Error())
@@ -33,5 +35,7 @@ var updateCmd = &cobra.Command{
 
 func init() {
 	updateCmd.Flags().StringVarP(&StackName, "name", "n", "", "weka cluster name")
+	updateCmd.Flags().BoolVarP(&DryRun, "dry-run", "d", false, "dry run")
+
 	_ = updateCmd.MarkFlagRequired("name")
 }

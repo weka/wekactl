@@ -213,7 +213,7 @@ func ImportCluster(params cluster.ImportParams) error {
 		StackId:     stackId,
 	}
 	dynamoDb.Init()
-	err = cluster.EnsureResource(&dynamoDb, clusterSettings)
+	err = cluster.EnsureResource(&dynamoDb, clusterSettings, false)
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func ImportCluster(params cluster.ImportParams) error {
 	clientsExist := len(stackInstances.Clients) > 0
 	awsCluster := generateAWSCluster(params.Name, dynamoDb.ResourceName(), clusterSettings, clientsExist)
 	awsCluster.Init()
-	err = cluster.EnsureResource(&awsCluster, clusterSettings)
+	err = cluster.EnsureResource(&awsCluster, clusterSettings, false)
 	if err != nil {
 		return err
 	}
