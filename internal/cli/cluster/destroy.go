@@ -15,7 +15,7 @@ import (
 	"wekactl/internal/logging"
 )
 
-var keepInstances, dryRun bool
+var keepInstances bool
 
 var destroyCmd = &cobra.Command{
 	Use:   "destroy [flags]",
@@ -31,7 +31,7 @@ var destroyCmd = &cobra.Command{
 				autoscaling.KeepInstances = true
 			}
 
-			if dryRun {
+			if DryRun {
 				logging.UserInfo("This is dry run, running cleanup will remove the following resources:")
 			} else {
 				logging.UserInfo("Removing the following resources:")
@@ -68,7 +68,7 @@ var destroyCmd = &cobra.Command{
 			)
 
 			for _, r := range resources {
-				if err := cluster.CleanupResource(r, dryRun); err != nil {
+				if err := cluster.CleanupResource(r, DryRun); err != nil {
 					return err
 				}
 
@@ -83,7 +83,7 @@ var destroyCmd = &cobra.Command{
 				for _, id := range ids {
 					logging.UserInfo("\t- %s", id)
 				}
-				if !dryRun {
+				if !DryRun {
 					err = common.DeleteInstances(ids)
 					if err != nil {
 						log.Error().Err(err)
@@ -104,6 +104,6 @@ var destroyCmd = &cobra.Command{
 func init() {
 	destroyCmd.Flags().StringVarP(&StackName, "name", "n", "", "weka cluster name")
 	destroyCmd.Flags().BoolVarP(&keepInstances, "keep-instances", "k", false, "Keep instances")
-	destroyCmd.Flags().BoolVarP(&dryRun, "dry-run", "d", false, "dry run")
+	destroyCmd.Flags().BoolVarP(&DryRun, "dry-run", "d", false, "dry run")
 	_ = destroyCmd.MarkFlagRequired("name")
 }

@@ -129,13 +129,18 @@ func DeleteIamRole(clusterName cluster.ClusterName, roleBaseName string) error {
 
 }
 
-func GetIamRoleVersion(clusterName cluster.ClusterName, roleBaseName string) (version string, err error) {
+func GetIamRoleName(clusterName cluster.ClusterName, roleBaseName string) (roleName string, err error) {
 	role, err := getIamRole(clusterName, roleBaseName, nil)
 	if err != nil || role == nil {
 		return
 	}
+	roleName = *role.RoleName
+	return
+}
+
+func GetIamRoleVersion(roleName string) (version string, err error) {
 	svc := connectors.GetAWSSession().IAM
-	tagsOutput, err := svc.ListRoleTags(&iam.ListRoleTagsInput{RoleName: role.RoleName})
+	tagsOutput, err := svc.ListRoleTags(&iam.ListRoleTagsInput{RoleName: &roleName})
 	if err != nil {
 		return
 	}

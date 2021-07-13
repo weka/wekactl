@@ -12,6 +12,7 @@ import (
 type IamProfile struct {
 	Arn              string
 	Name             string
+	RoleName         string
 	PolicyName       string
 	TableName        string
 	Version          string
@@ -35,11 +36,19 @@ func (i *IamProfile) resourceNameBase() string {
 
 func (i *IamProfile) ResourceName() string {
 	//creating and deleting the same role name and use it for lambda caused problems, so we use unique uuid
-	return strings2.ElfHashSuffixed(fmt.Sprintf("%s-%s", i.resourceNameBase(), uuid.New().String()), 64)
+	if i.RoleName == "" {
+		return strings2.ElfHashSuffixed(fmt.Sprintf("%s-%s", i.resourceNameBase(), uuid.New().String()), 64)
+	}
+	return i.RoleName
 }
 
 func (i *IamProfile) Fetch() error {
-	version, err := iam.GetIamRoleVersion(i.HostGroupInfo.ClusterName, i.resourceNameBase())
+	roleName, err := iam.GetIamRoleName(i.HostGroupInfo.ClusterName, i.resourceNameBase())
+	if err != nil || roleName == "" {
+		return err
+	}
+	i.RoleName = roleName
+	version, err := iam.GetIamRoleVersion(roleName)
 	if err != nil {
 		return err
 	}
