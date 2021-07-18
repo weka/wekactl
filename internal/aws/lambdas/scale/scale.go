@@ -56,15 +56,6 @@ type hostInfo struct {
 	scaleState hostState
 }
 
-func (host hostInfo) belongsToHg(instances []protocol.HgInstance) bool {
-	for _, instance := range instances {
-		if host.Aws.InstanceId == instance.Id {
-			return true
-		}
-	}
-	return false
-}
-
 func (host hostInfo) belongsToHgIpBased(instances []protocol.HgInstance) bool {
 	for _, instance := range instances {
 		if host.HostIp == instance.PrivateIp {
@@ -214,29 +205,16 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		case "INACTIVE":
 			if host.belongsToHgIpBased(info.Instances) {
 				inactiveHosts = append(inactiveHosts, host)
-			} else {
-				if info.Role == "backend" && time.Since(host.StateChangedTime) > backendCleanupDelay {
-					// Since terminate logic is mostly delta based, and remove might be transient errors
-					// We might have leftovers, that we are unable to recognize
-					// So decision is, to kick out whatever is inactive.
-					inactiveHosts = append(inactiveHosts, host)
-				}
 			}
 		default:
-			if host.belongsToHg(info.Instances) {
+			if host.belongsToHgIpBased(info.Instances) {
 				hostsList = append(hostsList, host)
-			} else if host.Status == "DOWN" {
-				log.Info().Msgf("found down host, %s : %s : %s", host.id, host.Status, host.HostIp)
-				if host.belongsToHgIpBased(info.Instances) {
-					log.Info().Msgf("including in known hosts  %s : %s", host.id, host.Status)
-					hostsList = append(hostsList, host)
-				}
-				// Down hosts lose instanceIds, so have to account basing on IPs
 			}
 		}
 
 		switch host.Status {
 		case "DOWN":
+			log.Info().Msgf("found down host %s %s %s", host.id, host.Aws.InstanceId, host.HostIp)
 			if info.Role == "backend" {
 				if host.State != "INACTIVE" && host.managementTimedOut(downKickOutTimeout) {
 					log.Info().Msgf("host %s is still active but down for too long, kicking out", host.id)
