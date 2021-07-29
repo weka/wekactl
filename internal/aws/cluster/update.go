@@ -30,10 +30,12 @@ func fetchHostGroupParams(asg *autoscaling.Group) (hostGroupParams common.HostGr
 
 	launchTemplateData := launchTemplateVersionsOutput.LaunchTemplateVersions[0].LaunchTemplateData
 
+
+
+
 	hostGroupParams = common.HostGroupParams{
 		SecurityGroupsIds: launchTemplateData.SecurityGroupIds,
 		ImageID:           *launchTemplateData.ImageId,
-		KeyName:           *launchTemplateData.KeyName,
 		IamArn:            *launchTemplateData.IamInstanceProfile.Arn,
 		InstanceType:      *launchTemplateData.InstanceType,
 		Subnet:            *launchTemplateData.NetworkInterfaces[0].SubnetId,
@@ -41,6 +43,10 @@ func fetchHostGroupParams(asg *autoscaling.Group) (hostGroupParams common.HostGr
 		VolumeType:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType,
 		VolumeSize:        *launchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize,
 		MaxSize:           *asg.MaxSize,
+	}
+
+	if launchTemplateData.KeyName != nil{
+		hostGroupParams.KeyName = *launchTemplateData.KeyName
 	}
 	return
 }
