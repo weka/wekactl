@@ -48,6 +48,10 @@ func EnsureResource(r Resource, clusterSettings IClusterSettings, dryRun bool) e
 			// these resources are not actual aws resources, so we want to log them only to developers
 			log.Debug().Msgf("creating resource %s %s ...", resourceType, r.ResourceName())
 		} else {
+			if dryRun {
+				logging.UserInfo("resource %s \"%s\" will be created", resourceType, r.ResourceName())
+				return nil
+			}
 			log.Info().Msgf("creating resource %s %s ...", resourceType, r.ResourceName())
 		}
 		return r.Create(tags)
