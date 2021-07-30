@@ -30,9 +30,6 @@ func fetchHostGroupParams(asg *autoscaling.Group) (hostGroupParams common.HostGr
 
 	launchTemplateData := launchTemplateVersionsOutput.LaunchTemplateVersions[0].LaunchTemplateData
 
-
-
-
 	hostGroupParams = common.HostGroupParams{
 		SecurityGroupsIds: launchTemplateData.SecurityGroupIds,
 		ImageID:           *launchTemplateData.ImageId,
