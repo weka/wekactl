@@ -187,6 +187,7 @@ func ImportCluster(params cluster.ImportParams) error {
 	}
 	clusterSettings.VpcId = vpcId
 
+    clusterSettings.AdditionalSubnet = params.AdditionalAlbSubnet
 	if clusterSettings.AdditionalSubnet == "" {
 		additionalSubnet, err := common.GetAdditionalVpcSubnet(vpcId, clusterSettings.Subnet)
 		if err != nil {
