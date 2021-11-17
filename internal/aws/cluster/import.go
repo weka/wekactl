@@ -15,14 +15,15 @@ import (
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
+	strings2 "wekactl/internal/lib/strings"
 )
 
-type StackInstances struct {
+type ClusterInstances struct {
 	Backends []*ec2.Instance
 	Clients  []*ec2.Instance
 }
 
-func (s *StackInstances) All() []*ec2.Instance {
+func (s *ClusterInstances) All() []*ec2.Instance {
 	return append(s.Clients[0:len(s.Clients):len(s.Clients)], s.Backends...)
 }
 
@@ -63,7 +64,7 @@ func getStackInstances(stackName string) ([]*string, error) {
 	return instancesIds, nil
 }
 
-func GetStackInstancesInfo(stackName string) (stackInstances StackInstances, err error) {
+func GetStackInstancesInfo(stackName string) (clusterInstances ClusterInstances, err error) {
 	log.Debug().Msgf("Retrieving %s instances info ...", stackName)
 	svc := connectors.GetAWSSession().EC2
 	instances, err := getStackInstances(stackName)
@@ -84,14 +85,14 @@ func GetStackInstancesInfo(stackName string) (stackInstances StackInstances, err
 			}
 			arn := *instance.IamInstanceProfile.Arn
 			if strings.Contains(arn, "InstanceProfileBackend") {
-				stackInstances.Backends = append(stackInstances.Backends, instance)
+				clusterInstances.Backends = append(clusterInstances.Backends, instance)
 			} else if strings.Contains(arn, "InstanceProfileClient") {
 				// ASG for clients is deprecated until need
-				stackInstances.Clients = append(stackInstances.Clients, instance)
+				clusterInstances.Clients = append(clusterInstances.Clients, instance)
 			}
 		}
 	}
-	return stackInstances, nil
+	return clusterInstances, nil
 }
 
 func GetInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
@@ -165,18 +166,49 @@ func generateAWSCluster(stackName, tableName string, defaultParams db.ClusterSet
 	}
 }
 
-func ImportCluster(params cluster.ImportParams) error {
-	stackId, err := GetStackId(params.Name)
+func instanceIdsToClusterInstances(instanceIds []string) (clusterInstances ClusterInstances, err error) {
+	log.Debug().Msgf("Retrieving instances info from instance ids...")
+	svc := connectors.GetAWSSession().EC2
+	result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: strings2.ListToRefList(instanceIds),
+	})
 	if err != nil {
-		return err
+		return
 	}
 
-	stackInstances, err := GetStackInstancesInfo(params.Name)
-	if err != nil {
-		return err
+	for _, reservation := range result.Reservations {
+		for _, instance := range reservation.Instances {
+			clusterInstances.Backends = append(clusterInstances.Backends, instance)
+		}
+	}
+	return
+}
+
+func ImportCluster(params cluster.ImportParams) (err error) {
+	var stackId string
+	var clusterSettings db.ClusterSettings
+	var clusterInstances ClusterInstances
+	stackImport := len(params.InstanceIds) == 0
+
+	if stackImport {
+		stackId, err = GetStackId(params.Name)
+		if err != nil {
+			return err
+		}
+
+		clusterInstances, err = GetStackInstancesInfo(params.Name)
+		if err != nil {
+			return err
+		}
+	} else {
+		clusterInstances, err = instanceIdsToClusterInstances(params.InstanceIds)
+		if err != nil {
+			return err
+		}
+
 	}
 
-	clusterSettings, err := importClusterParamsFromCF(stackInstances)
+	clusterSettings, err = importClusterParamsFromClusterInstances(clusterInstances)
 	if err != nil {
 		return err
 	}
@@ -187,7 +219,7 @@ func ImportCluster(params cluster.ImportParams) error {
 	}
 	clusterSettings.VpcId = vpcId
 
-    clusterSettings.AdditionalSubnet = params.AdditionalAlbSubnet
+	clusterSettings.AdditionalSubnet = params.AdditionalAlbSubnet
 	if clusterSettings.AdditionalSubnet == "" {
 		additionalSubnet, err := common.GetAdditionalVpcSubnet(vpcId, clusterSettings.Subnet)
 		if err != nil {
@@ -227,13 +259,13 @@ func ImportCluster(params cluster.ImportParams) error {
 		return err
 	}
 
-	instanceIds := common.GetInstancesIds(stackInstances.All())
+	instanceIds := common.GetInstancesIds(clusterInstances.All())
 	_, errs := common.SetDisableInstancesApiTermination(instanceIds, true)
 	if len(errs) != 0 {
 		return errs[0]
 	}
 
-	clientsExist := len(stackInstances.Clients) > 0
+	clientsExist := len(clusterInstances.Clients) > 0
 	awsCluster := generateAWSCluster(params.Name, dynamoDb.ResourceName(), clusterSettings, clientsExist)
 	awsCluster.Init()
 	err = cluster.EnsureResource(&awsCluster, clusterSettings, false)
@@ -242,15 +274,15 @@ func ImportCluster(params cluster.ImportParams) error {
 	}
 
 	roleInstanceIdsRefs := make(map[common.InstanceRole][]*string)
-	roleInstanceIdsRefs[common.RoleBackend] = common.GetInstancesIdsRefs(stackInstances.Backends)
-	roleInstanceIdsRefs[common.RoleClient] = common.GetInstancesIdsRefs(stackInstances.Clients)
+	roleInstanceIdsRefs[common.RoleBackend] = common.GetInstancesIdsRefs(clusterInstances.Backends)
+	roleInstanceIdsRefs[common.RoleClient] = common.GetInstancesIdsRefs(clusterInstances.Clients)
 	for _, hostgroup := range awsCluster.HostGroups {
 		autoscalingGroupName := hostgroup.AutoscalingGroup.ResourceName()
 		err = autoscaling.AttachInstancesToASG(roleInstanceIdsRefs[hostgroup.HostGroupInfo.Role], autoscalingGroupName)
 		if err != nil {
 			return err
 		}
-		if hostgroup.HostGroupInfo.Role == common.RoleBackend {
+		if stackImport && hostgroup.HostGroupInfo.Role == common.RoleBackend {
 			err = autoscaling.AttachLoadBalancer(hostgroup.HostGroupInfo.ClusterName, autoscalingGroupName)
 			if err != nil {
 				return err
@@ -261,7 +293,7 @@ func ImportCluster(params cluster.ImportParams) error {
 	return nil
 }
 
-func importClusterParamsFromCF(instances StackInstances) (defaultParams db.ClusterSettings, err error) {
+func importClusterParamsFromClusterInstances(instances ClusterInstances) (defaultParams db.ClusterSettings, err error) {
 	minBackendsNumber := 5
 	if len(instances.Backends) < minBackendsNumber {
 		return defaultParams, errors.New(fmt.Sprintf(

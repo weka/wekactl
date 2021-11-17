@@ -14,6 +14,7 @@ type IClusterSettings interface {
 
 type ImportParams struct {
 	Name                string
+	InstanceIds         []string
 	Username            string
 	Password            string
 	TagsList            []string
