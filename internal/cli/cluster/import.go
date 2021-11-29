@@ -13,30 +13,31 @@ import (
 
 var importParams cluster2.ImportParams
 
+func ImportClusterAndPrintJoinScript(importParams cluster2.ImportParams) error {
+	err := cluster.ImportCluster(importParams)
+	if err != nil {
+		logging.UserFailure("Import failed!")
+		return err
+	}
+	logging.UserSuccess("Import finished successfully!")
+
+	err = alb.PrintStatelessClientsJoinScript(cluster2.ClusterName(importParams.Name), importParams.DnsAlias)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 var importCmd = &cobra.Command{
 	Use:   "import [flags]",
 	Short: "",
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if env.Config.Provider == "aws" {
-			err := cluster.ImportCluster(importParams)
-			if err != nil {
-				logging.UserFailure("Import failed!")
-				return err
-			}
-			logging.UserSuccess("Import finished successfully!")
-
-			err = alb.PrintStatelessClientsJoinScript(cluster2.ClusterName(importParams.Name), importParams.DnsAlias)
-			if err != nil {
-				return err
-			}
-
-		} else {
+		if env.Config.Provider != "aws" {
 			err := errors.New(fmt.Sprintf("Cloud provider '%s' is not supported with this action", env.Config.Provider))
-			logging.UserFailure(err.Error())
 			return err
 		}
-		return nil
+		return ImportClusterAndPrintJoinScript(importParams)
 	},
 }
 

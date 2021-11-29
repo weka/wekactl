@@ -12,6 +12,19 @@ type IClusterSettings interface {
 	Tags() Tags
 }
 
+type CreateParams struct {
+	Name            string
+	VpcId           string
+	SubnetId        string
+	NetworkTopology string
+	CustomProxy     string
+	KeyName         string
+	Token           string
+	InstanceType    string
+	WekaVersion     string
+	Count           int
+}
+
 type ImportParams struct {
 	Name                string
 	InstanceIds         []string

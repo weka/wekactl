@@ -37,7 +37,7 @@ func init() {
 	rootCmd.AddCommand(debug.Debug)
 	rootCmd.AddCommand(version.Version)
 
-	rootCmd.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "c", "aws", "Cloud provider")
+	rootCmd.PersistentFlags().StringVarP(&env.Config.Provider, "provider", "", "aws", "Cloud provider")
 	rootCmd.PersistentFlags().StringVarP(&env.Config.Region, "region", "r", "", "Region")
 }
 

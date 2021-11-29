@@ -22,7 +22,7 @@ var Cluster = &cobra.Command{
 }
 
 func init() {
-	//Cluster.AddCommand(createCmd)
+	Cluster.AddCommand(createCmd)
 	Cluster.AddCommand(importCmd)
 	Cluster.AddCommand(listCmd)
 	Cluster.AddCommand(destroyCmd)
