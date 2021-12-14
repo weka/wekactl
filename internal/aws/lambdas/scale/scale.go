@@ -211,10 +211,18 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		case "INACTIVE":
 			if host.belongsToHgIpBased(info.Instances) {
 				inactiveHosts = append(inactiveHosts, host)
+				continue
+			}else{
+				if info.Role == "backend" {
+					log.Info().Msgf("host %s is inactive and does not belong to HG, removing from cluster", host.id)
+					inactiveHosts = append(inactiveHosts, host)
+					continue
+				}
 			}
 		default:
 			if host.belongsToHgIpBased(info.Instances) {
 				hostsList = append(hostsList, host)
+				continue
 			}
 		}
 
@@ -225,9 +233,11 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 				if host.State != "INACTIVE" && host.managementTimedOut(downKickOutTimeout) {
 					log.Info().Msgf("host %s is still active but down for too long, kicking out", host.id)
 					downHosts = append(downHosts, host)
+					continue
 				}
 			}
 		}
+
 	}
 
 	calculateHostsState(hostsList)
