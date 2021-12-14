@@ -109,7 +109,13 @@ func (host hostInfo) managementTimedOut(timeout time.Duration) bool {
 		if !nodeId.IsManagement() {
 			continue
 		}
-		if node.Status == "DOWN" && time.Since(*node.LastFencingTime) > timeout {
+		var period time.Time
+		if node.LastFencingTime != nil {
+			period = *node.LastFencingTime
+		} else {
+			period = host.StateChangedTime
+		}
+		if node.Status == "DOWN" && time.Since(period) > timeout {
 			return true
 		}
 	}
