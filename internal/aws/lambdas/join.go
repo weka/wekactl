@@ -11,43 +11,9 @@ import (
 	"wekactl/internal/connectors"
 )
 
-type BackendCoreCount struct {
-	total     int
-	frontend  int
-	drive     int
-	converged bool
-}
-
-type BackendCoreCounts map[string]BackendCoreCount
-
 func shuffleSlice(slice []string) {
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(slice), func(i, j int) { slice[i], slice[j] = slice[j], slice[i] })
-}
-
-func getBackendCoreCounts() BackendCoreCounts {
-	backendCoreCounts := BackendCoreCounts{
-		"r3.large":      BackendCoreCount{total: 1, frontend: 0, drive: 0},
-		"r3.xlarge":     BackendCoreCount{total: 1, frontend: 0, drive: 0},
-		"r3.2xlarge":    BackendCoreCount{total: 3, frontend: 1, drive: 1},
-		"r3.4xlarge":    BackendCoreCount{total: 7, frontend: 1, drive: 1},
-		"r3.8xlarge":    BackendCoreCount{total: 7, frontend: 1, drive: 2},
-		"i3.large":      BackendCoreCount{total: 1, frontend: 0, drive: 0},
-		"i3.xlarge":     BackendCoreCount{total: 1, frontend: 0, drive: 0},
-		"i3.2xlarge":    BackendCoreCount{total: 3, frontend: 1, drive: 1},
-		"i3.4xlarge":    BackendCoreCount{total: 7, frontend: 1, drive: 1},
-		"i3.8xlarge":    BackendCoreCount{total: 7, frontend: 1, drive: 2},
-		"i3.16xlarge":   BackendCoreCount{total: 14, frontend: 1, drive: 4},
-		"i3en.large":    BackendCoreCount{total: 1, frontend: 0, drive: 0},
-		"i3en.xlarge":   BackendCoreCount{total: 1, frontend: 0, drive: 0},
-		"i3en.2xlarge":  BackendCoreCount{total: 3, frontend: 1, drive: 1},
-		"i3en.3xlarge":  BackendCoreCount{total: 3, frontend: 1, drive: 1},
-		"i3en.6xlarge":  BackendCoreCount{total: 7, frontend: 1, drive: 2},
-		"i3en.12xlarge": BackendCoreCount{total: 7, frontend: 1, drive: 2},
-		"i3en.24xlarge": BackendCoreCount{total: 14, frontend: 1, drive: 4},
-		"z1d.12xlarge":  BackendCoreCount{total: 4, frontend: 1, drive: 1, converged: true},
-	}
-	return backendCoreCounts
 }
 
 func GetJoinParams(clusterName, asgName, tableName, role string) (string, error) {
@@ -73,6 +39,46 @@ func GetJoinParams(clusterName, asgName, tableName, role string) (string, error)
 	#!/bin/bash
 
 	set -ex
+
+	function setup_aws_logs_agent() {
+		echo "---------------------------"
+		echo " Setting up AWS logs agent "
+		echo "---------------------------"
+
+		no_proxy=".amazonaws.com" https_proxy="${PROXY}" retry 5 3 yum install -y amazon-cloudwatch-agent.x86_64 || return 1
+		configure_aws_logs_agent || return 1
+		service amazon-cloudwatch-agent restart || return 1
+	}
+
+	function create_wekaio_partition() {
+		echo "--------------------------------------------"
+		echo " Creating local filesystem on WekaIO volume "
+		echo "--------------------------------------------"
+
+		if [ -e /dev/xvdp ]
+		then
+			wekaiosw_device="/dev/xvdp"
+		elif [ -e /dev/sdp ]
+		then
+			wekaiosw_device="/dev/sdp"
+		elif [ -e /dev/nvme1n1 ]
+		then
+			wekaiosw_device="/dev/nvme1n1"
+		else
+			echo "error: Could not find the WekaIO software block device. This may be the result of a new kernel not exposing the device in the known paths."
+			return 1
+		fi
+
+		sleep 4
+		mkfs.ext4 -L wekaiosw ${wekaiosw_device} || return 1
+		mkdir -p /opt/weka || return 1
+		mount $wekaiosw_device /opt/weka || return 1
+		echo "LABEL=wekaiosw /opt/weka ext4 defaults 0 2" >>/etc/fstab
+	}
+
+	setup_aws_logs_agent || echo "setup_aws_logs_agent failed" >> /tmp/res
+	df -h > /tmp/df_res
+	create_wekaio_partition || echo "create_wekaio_partition failed" >> /tmp/res
 
 	export WEKA_USERNAME="%s"
 	export WEKA_PASSWORD="%s"
@@ -123,12 +129,12 @@ func GetJoinParams(clusterName, asgName, tableName, role string) (string, error)
 	`
 	var cores, frontend, drive int
 	if role == "backend" {
-		backendCoreCounts := getBackendCoreCounts()
+		backendCoreCounts := common.GetBackendCoreCounts()
 		instanceParams := backendCoreCounts[instanceType]
-		cores = instanceParams.total
-		frontend = instanceParams.frontend
-		drive = instanceParams.drive
-		if !instanceParams.converged {
+		cores = instanceParams.Total
+		frontend = instanceParams.Frontend
+		drive = instanceParams.Drive
+		if !instanceParams.Converged {
 			bashScriptTemplate += " --dedicate"
 		}
 		bashScriptTemplate += isReady + addDrives

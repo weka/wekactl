@@ -89,7 +89,7 @@ func (a *ApiGateway) Create(tags cluster.Tags) error {
 	return nil
 }
 
-func (a *ApiGateway) Update() error {
+func (a *ApiGateway) Update(tags cluster.Tags) error {
 	if a.Version == "re-create" {
 		tags, err := apigateway.GetRestApiGatewayTags(a.ResourceName())
 		if err != nil {

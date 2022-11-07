@@ -23,7 +23,7 @@ type Resource interface {
 	DeployedVersion() string
 	TargetVersion() string
 	Create(tags Tags) error
-	Update() error
+	Update(tags Tags) error
 	Init()
 	//UpdateTags(tags Tags) error
 }
@@ -63,7 +63,7 @@ func EnsureResource(r Resource, clusterSettings IClusterSettings, dryRun bool) e
 			return nil
 		}
 		log.Info().Msgf("updating resource %s %s ...", resourceType, r.ResourceName())
-		return r.Update()
+		return r.Update(tags)
 	}
 
 	//if len(clusterSettings.Tags) > 0 {

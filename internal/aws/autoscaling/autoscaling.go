@@ -48,6 +48,37 @@ func CreateAutoScalingGroup(tags []*autoscaling.Tag, launchTemplateName string, 
 	return
 }
 
+func UpdateAutoScalingGroup(launchTemplateName, autoScalingGroupName string, tags []*autoscaling.Tag) (err error) {
+	svc := connectors.GetAWSSession().ASG
+
+	_, err = svc.UpdateAutoScalingGroup(&autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: &autoScalingGroupName,
+		LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+			LaunchTemplateName: aws.String(launchTemplateName),
+			Version:            aws.String("$Latest"),
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	for _, tag := range tags {
+		tag.ResourceId = &autoScalingGroupName
+		tag.ResourceType = aws.String("auto-scaling-group")
+		tag.PropagateAtLaunch = aws.Bool(false)
+	}
+	_, err = svc.CreateOrUpdateTags(&autoscaling.CreateOrUpdateTagsInput{
+		Tags: tags,
+	})
+	if err != nil {
+		return
+	}
+
+	log.Debug().Msgf("AutoScalingGroup: \"%s\" was updated successfully!", autoScalingGroupName)
+
+	return
+}
+
 func AttachInstancesToASG(instancesIds []*string, autoScalingGroupsName string) error {
 	asgInstanceIds, err := common.GetAutoScalingGroupInstanceIds(autoScalingGroupsName)
 	if err != nil {

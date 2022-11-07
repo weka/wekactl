@@ -26,8 +26,8 @@ func GenerateHostGroup(clusterName cluster.ClusterName, hostGroupParams common.H
 	return hostGroup
 }
 
-func migrateSettings(clusterName cluster.ClusterName, dbClusterSettings db.ClusterSettings) error {
-	// this function is for updating old clusters that might be missing some settings in db
+func migrateSettings(clusterName cluster.ClusterName, dbClusterSettings *db.ClusterSettings, hostGroups []HostGroup) error {
+	// this function is for updating old clusters that might be missing some settings in db or clusters with wrong volumes info
 
 	log.Debug().Msg("Checking if settings migration is needed ...")
 	migrateRequired := false
@@ -50,12 +50,27 @@ func migrateSettings(clusterName cluster.ClusterName, dbClusterSettings db.Clust
 		migrateRequired = true
 	}
 
+	for _, hostGroup := range hostGroups {
+		if hostGroup.HostGroupInfo.Role == common.RoleBackend {
+			if dbClusterSettings.Backends.VolumesInfo == nil {
+				dbClusterSettings.Backends.VolumesInfo = hostGroup.HostGroupParams.VolumesInfo
+				migrateRequired = true
+			}
+		}
+		if hostGroup.HostGroupInfo.Role == common.RoleClient {
+			if dbClusterSettings.Clients.VolumesInfo == nil {
+				dbClusterSettings.Clients.VolumesInfo = hostGroup.HostGroupParams.VolumesInfo
+				migrateRequired = true
+			}
+		}
+	}
+
 	if !migrateRequired {
 		return nil
 	}
 
 	log.Debug().Msg("Settings migration is needed, saving to DB ...")
-	if err := db.SaveClusterSettings(db.GetTableName(clusterName), dbClusterSettings); err != nil {
+	if err := db.SaveClusterSettings(db.GetTableName(clusterName), *dbClusterSettings); err != nil {
 		return err
 	}
 
@@ -71,12 +86,12 @@ func GetCluster(name cluster.ClusterName, fetchHotGroupParams bool) (awsCluster 
 		return
 	}
 
-	err = migrateSettings(name, dbClusterSettings)
+	hostGroups, err := getHostGroups(name, fetchHotGroupParams)
 	if err != nil {
 		return
 	}
 
-	hostGroups, err := getHostGroups(name, fetchHotGroupParams)
+	err = migrateSettings(name, &dbClusterSettings, hostGroups)
 	if err != nil {
 		return
 	}
