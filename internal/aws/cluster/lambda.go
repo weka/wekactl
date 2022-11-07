@@ -95,7 +95,7 @@ func (l *Lambda) Create(tags cluster.Tags) (err error) {
 	return nil
 }
 
-func (l *Lambda) Update() error {
+func (l *Lambda) Update(tags cluster.Tags) error {
 	if strings.HasSuffix(l.DeployedVersion(), "#") {
 		err := lambdas.UpdateLambdaRole(l.ResourceName(), l.Profile.Arn)
 		if err != nil {

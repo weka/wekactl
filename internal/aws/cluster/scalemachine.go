@@ -130,7 +130,7 @@ func (s *ScaleMachine) Create(tags cluster.Tags) (err error) {
 	return nil
 }
 
-func (s *ScaleMachine) Update() error {
+func (s *ScaleMachine) Update(tags cluster.Tags) error {
 	return scalemachine.UpdateStateMachineRoleArn(s.Arn, s.Profile.Arn)
 }
 

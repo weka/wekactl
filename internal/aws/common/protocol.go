@@ -1,6 +1,8 @@
 package common
 
-import "wekactl/internal/cluster"
+import (
+	"wekactl/internal/cluster"
+)
 
 type InstanceRole string
 
@@ -9,6 +11,12 @@ const RoleClient InstanceRole = "client"
 
 type HostGroupName string
 
+type VolumeInfo struct {
+	Name string
+	Type string
+	Size int64
+}
+
 type HostGroupParams struct {
 	SecurityGroupsIds []*string
 	ImageID           string
@@ -16,9 +24,7 @@ type HostGroupParams struct {
 	IamArn            string
 	InstanceType      string
 	Subnet            string
-	VolumeName        string
-	VolumeType        string
-	VolumeSize        int64
+	VolumesInfo       []VolumeInfo
 	MaxSize           int64
 }
 
@@ -27,3 +33,12 @@ type HostGroupInfo struct {
 	Role        InstanceRole
 	Name        HostGroupName
 }
+
+type BackendCoreCount struct {
+	Total     int
+	Frontend  int
+	Drive     int
+	Converged bool
+}
+
+type BackendCoreCounts map[string]BackendCoreCount

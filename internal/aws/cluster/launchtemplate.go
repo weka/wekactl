@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/rs/zerolog/log"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
@@ -8,8 +9,6 @@ import (
 	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
 )
-
-const launchtemplateVersion = "v1"
 
 type LaunchTemplate struct {
 	HostGroupInfo   common.HostGroupInfo
@@ -36,7 +35,13 @@ func (l *LaunchTemplate) ResourceName() string {
 func (l *LaunchTemplate) Fetch() error {
 	version, err := launchtemplate.GetLaunchTemplateVersion(l.ResourceName())
 	if err != nil {
-		return err
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() != "InvalidLaunchTemplateName.NotFoundException" {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 	l.Version = version
 
@@ -47,6 +52,7 @@ func (l *LaunchTemplate) Fetch() error {
 		}
 		l.JoinApi.RestApiGateway = restApiGateway
 	}
+
 	return nil
 }
 
@@ -55,15 +61,20 @@ func (l *LaunchTemplate) DeployedVersion() string {
 }
 
 func (l *LaunchTemplate) TargetVersion() string {
-	return launchtemplateVersion
+	return launchtemplate.LaunchtemplateVersion
 }
 
 func (l *LaunchTemplate) Create(tags cluster.Tags) error {
 	return launchtemplate.CreateLaunchTemplate(tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName(), !l.ClusterSettings.PrivateSubnet)
 }
 
-func (l *LaunchTemplate) Update() error {
-	panic("update not supported")
+func (l *LaunchTemplate) Update(tags cluster.Tags) error {
+	newVersion, err := launchtemplate.CreateNewLaunchTemplateVersion(
+		tags.AsEc2(), l.HostGroupInfo.Name, l.HostGroupParams, l.JoinApi.RestApiGateway, l.ResourceName(), !l.ClusterSettings.PrivateSubnet)
+	if err != nil {
+		return err
+	}
+	return launchtemplate.ModifyLaunchTemplateDefaultVersion(l.ResourceName(), newVersion)
 }
 
 func (l *LaunchTemplate) Init() {

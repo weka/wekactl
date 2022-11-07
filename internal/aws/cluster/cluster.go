@@ -72,6 +72,6 @@ func (c *AWSCluster) Create(tags cluster.Tags) (err error) {
 	return nil
 }
 
-func (c *AWSCluster) Update() error {
+func (c *AWSCluster) Update(tags cluster.Tags) error {
 	panic("implement me")
 }

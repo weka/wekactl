@@ -64,6 +64,6 @@ func (d *DynamoDb) Create(tags cluster.Tags) error {
 	return db.CreateDb(d.ResourceName(), d.KmsKey.Key, tags)
 }
 
-func (d *DynamoDb) Update() error {
+func (d *DynamoDb) Update(tags cluster.Tags) error {
 	panic("update not supported")
 }

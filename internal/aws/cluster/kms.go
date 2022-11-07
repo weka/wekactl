@@ -56,6 +56,6 @@ func (k *KmsKey) Create(tags cluster.Tags) error {
 	return nil
 }
 
-func (k *KmsKey) Update() error {
+func (k *KmsKey) Update(tags cluster.Tags) error {
 	panic("update not supported")
 }

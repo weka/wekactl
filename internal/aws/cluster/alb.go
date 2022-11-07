@@ -117,7 +117,7 @@ func (a *ApplicationLoadBalancer) Create(tags cluster.Tags) (err error) {
 	return
 }
 
-func (a *ApplicationLoadBalancer) Update() (err error) {
+func (a *ApplicationLoadBalancer) Update(tags cluster.Tags) (err error) {
 	// currently we will enter here only if Create failed at some point (during import).
 	// the only case we need to support is when for some reason alb/targetGroup/listener where not created
 	var targetArn string

@@ -387,3 +387,28 @@ func GetAccountId() (string, error) {
 	}
 	return *result.Account, nil
 }
+
+func GetBackendCoreCounts() BackendCoreCounts {
+	backendCoreCounts := BackendCoreCounts{
+		"r3.large":      BackendCoreCount{Total: 1, Frontend: 0, Drive: 0},
+		"r3.xlarge":     BackendCoreCount{Total: 1, Frontend: 0, Drive: 0},
+		"r3.2xlarge":    BackendCoreCount{Total: 3, Frontend: 1, Drive: 1},
+		"r3.4xlarge":    BackendCoreCount{Total: 7, Frontend: 1, Drive: 1},
+		"r3.8xlarge":    BackendCoreCount{Total: 7, Frontend: 1, Drive: 2},
+		"i3.large":      BackendCoreCount{Total: 1, Frontend: 0, Drive: 0},
+		"i3.xlarge":     BackendCoreCount{Total: 1, Frontend: 0, Drive: 0},
+		"i3.2xlarge":    BackendCoreCount{Total: 3, Frontend: 1, Drive: 1},
+		"i3.4xlarge":    BackendCoreCount{Total: 7, Frontend: 1, Drive: 1},
+		"i3.8xlarge":    BackendCoreCount{Total: 7, Frontend: 1, Drive: 2},
+		"i3.16xlarge":   BackendCoreCount{Total: 14, Frontend: 1, Drive: 4},
+		"i3en.large":    BackendCoreCount{Total: 1, Frontend: 0, Drive: 0},
+		"i3en.xlarge":   BackendCoreCount{Total: 1, Frontend: 0, Drive: 0},
+		"i3en.2xlarge":  BackendCoreCount{Total: 3, Frontend: 1, Drive: 1},
+		"i3en.3xlarge":  BackendCoreCount{Total: 3, Frontend: 1, Drive: 1},
+		"i3en.6xlarge":  BackendCoreCount{Total: 7, Frontend: 1, Drive: 2},
+		"i3en.12xlarge": BackendCoreCount{Total: 7, Frontend: 1, Drive: 2},
+		"i3en.24xlarge": BackendCoreCount{Total: 14, Frontend: 1, Drive: 4},
+		"z1d.12xlarge":  BackendCoreCount{Total: 4, Frontend: 1, Drive: 1, Converged: true},
+	}
+	return backendCoreCounts
+}

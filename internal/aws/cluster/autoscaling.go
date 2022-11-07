@@ -9,7 +9,7 @@ import (
 	"wekactl/internal/cluster"
 )
 
-const autoscalingVersion = "v1"
+const autoscalingVersion = "v2"
 
 type AutoscalingGroup struct {
 	HostGroupInfo          common.HostGroupInfo
@@ -56,8 +56,9 @@ func (a *AutoscalingGroup) Create(tags cluster.Tags) error {
 		tags.AsAsg(), a.LaunchTemplate.ResourceName(), a.HostGroupParams.MaxSize, a.ResourceName())
 }
 
-func (a *AutoscalingGroup) Update() error {
-	panic("update not supported")
+func (a *AutoscalingGroup) Update(tags cluster.Tags) error {
+	return autoscaling.UpdateAutoScalingGroup(
+		a.LaunchTemplate.ResourceName(), a.ResourceName(), tags.AsAsg())
 }
 
 func (a *AutoscalingGroup) Init() {

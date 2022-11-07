@@ -8,30 +8,33 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/lithammer/dedent"
 	"github.com/rs/zerolog/log"
+	"strconv"
 	"wekactl/internal/aws/apigateway"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 )
 
-func generateBlockDeviceMappingRequest(name common.HostGroupName, volumeInfo VolumeInfo) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+const LaunchtemplateVersion = "v2"
 
-	log.Debug().Msgf("%s launch template total root device volume size: %d", string(name), volumeInfo.Size)
-
-	return []*ec2.LaunchTemplateBlockDeviceMappingRequest{
-		{
+func generateBlockDeviceMappingRequest(name common.HostGroupName, volumesInfo []common.VolumeInfo) (request []*ec2.LaunchTemplateBlockDeviceMappingRequest) {
+	log.Debug().Msgf("generating %s launch template block device mapping", string(name))
+	for i := 0; i < len(volumesInfo); i++ {
+		volumeInfo := volumesInfo[i]
+		request = append(request, &ec2.LaunchTemplateBlockDeviceMappingRequest{
 			DeviceName: &volumeInfo.Name,
 			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
 				VolumeType:          &volumeInfo.Type,
 				VolumeSize:          &volumeInfo.Size,
 				DeleteOnTermination: aws.Bool(true),
 			},
-		},
+		})
 	}
+
+	return
 }
 
-func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, hostGroupParams common.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string, associatePublicIpAddress bool) (err error) {
-	svc := connectors.GetAWSSession().EC2
+func getUserData(restApiGateway apigateway.RestApiGateway) string {
 	userDataTemplate := `
 	#!/usr/bin/env bash
 	
@@ -39,15 +42,22 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 		shutdown now
 	fi
 	`
+	return fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.Url(), restApiGateway.ApiKey)
+}
 
-	userData := fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.Url(), restApiGateway.ApiKey)
-
-	var keyName *string
-	if hostGroupParams.KeyName == "" {
-		keyName = nil
+func getKeyName(keyName string) *string {
+	if keyName == "" {
+		return nil
 	} else {
-		keyName = &hostGroupParams.KeyName
+		return &keyName
 	}
+}
+
+func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, hostGroupParams common.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string, associatePublicIpAddress bool) (err error) {
+	svc := connectors.GetAWSSession().EC2
+	userData := getUserData(restApiGateway)
+	keyName := getKeyName(hostGroupParams.KeyName)
+
 	input := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			ImageId:               &hostGroupParams.ImageID,
@@ -58,11 +68,7 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Arn: &hostGroupParams.IamArn,
 			},
-			BlockDeviceMappings: generateBlockDeviceMappingRequest(hostGroupName, VolumeInfo{
-				Name: hostGroupParams.VolumeName,
-				Type: hostGroupParams.VolumeType,
-				Size: hostGroupParams.VolumeSize,
-			}),
+			BlockDeviceMappings: generateBlockDeviceMappingRequest(hostGroupName, hostGroupParams.VolumesInfo),
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{
 					ResourceType: aws.String("instance"),
@@ -79,7 +85,7 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 				},
 			},
 		},
-		VersionDescription: aws.String("v1"),
+		VersionDescription: aws.String(LaunchtemplateVersion),
 		LaunchTemplateName: aws.String(launchTemplateName),
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -94,6 +100,83 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 		return
 	}
 	log.Debug().Msgf("LaunchTemplate: \"%s\" was created successfully!", launchTemplateName)
+	return
+}
+
+func GetLatestLaunchTemplateVersion(launchTemplateName string) (launchTemplateVersion *ec2.LaunchTemplateVersion, err error) {
+	svc := connectors.GetAWSSession().EC2
+	launchTemplateVersionsOutput, err := svc.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
+		LaunchTemplateName: &launchTemplateName,
+		Versions:           []*string{aws.String("$Latest")},
+	})
+	if err != nil {
+		return
+	}
+
+	launchTemplateVersion = launchTemplateVersionsOutput.LaunchTemplateVersions[0]
+	return
+}
+
+func CreateNewLaunchTemplateVersion(tags []*ec2.Tag, hostGroupName common.HostGroupName, hostGroupParams common.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string, associatePublicIpAddress bool) (newVersion string, err error) {
+	svc := connectors.GetAWSSession().EC2
+	launchTemplateVersion, err := GetLatestLaunchTemplateVersion(launchTemplateName)
+	if err != nil {
+		return
+	}
+
+	userData := getUserData(restApiGateway)
+	keyName := getKeyName(hostGroupParams.KeyName)
+
+	input := &ec2.CreateLaunchTemplateVersionInput{
+		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
+			ImageId:               &hostGroupParams.ImageID,
+			InstanceType:          &hostGroupParams.InstanceType,
+			KeyName:               keyName,
+			UserData:              aws.String(base64.StdEncoding.EncodeToString([]byte(userData))),
+			DisableApiTermination: aws.Bool(true),
+			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
+				Arn: &hostGroupParams.IamArn,
+			},
+			BlockDeviceMappings: generateBlockDeviceMappingRequest(hostGroupName, hostGroupParams.VolumesInfo),
+			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
+				{
+					ResourceType: aws.String("instance"),
+					Tags:         tags,
+				},
+			},
+			NetworkInterfaces: []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				{
+					AssociatePublicIpAddress: aws.Bool(associatePublicIpAddress),
+					DeviceIndex:              aws.Int64(0),
+					Ipv6AddressCount:         aws.Int64(0),
+					SubnetId:                 &hostGroupParams.Subnet,
+					Groups:                   hostGroupParams.SecurityGroupsIds,
+				},
+			},
+		},
+		VersionDescription: aws.String(LaunchtemplateVersion),
+		LaunchTemplateName: aws.String(launchTemplateName),
+		SourceVersion:      aws.String(strconv.Itoa(int(*launchTemplateVersion.VersionNumber))),
+	}
+
+	launchTemplateVersionOutput, err := svc.CreateLaunchTemplateVersion(input)
+	if err != nil {
+		return
+	}
+	newVersion = strconv.Itoa(int(*launchTemplateVersionOutput.LaunchTemplateVersion.VersionNumber))
+	log.Debug().Msgf(
+		"New LaunchTemplateVersion: \"%s\" version \"%s\" was created successfully!",
+		launchTemplateName, LaunchtemplateVersion)
+	return
+}
+
+func ModifyLaunchTemplateDefaultVersion(launchTemplateName, newVersion string) (err error) {
+	svc := connectors.GetAWSSession().EC2
+	_, err = svc.ModifyLaunchTemplate(&ec2.ModifyLaunchTemplateInput{
+		LaunchTemplateName: &launchTemplateName,
+		DefaultVersion:     &newVersion,
+	})
+
 	return
 }
 
@@ -116,20 +199,12 @@ func DeleteLaunchTemplate(launchTemplateName string) error {
 }
 
 func GetLaunchTemplateVersion(launchTemplateName string) (version string, err error) {
-	svc := connectors.GetAWSSession().EC2
-	launchTemplateOutput, err := svc.DescribeLaunchTemplates(&ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []*string{&launchTemplateName},
-	})
+	launchTemplateVersion, err := GetLatestLaunchTemplateVersion(launchTemplateName)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() == "InvalidLaunchTemplateName.NotFoundException" {
-				return "", nil
-			}
-		}
 		return
 	}
 
-	for _, lt := range launchTemplateOutput.LaunchTemplates {
+	for _, lt := range launchTemplateVersion.LaunchTemplateData.TagSpecifications {
 		for _, tag := range lt.Tags {
 			if *tag.Key == cluster.VersionTagKey {
 				version = *tag.Value

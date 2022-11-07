@@ -78,7 +78,7 @@ func (i *IamProfile) Create(tags cluster.Tags) error {
 	return nil
 }
 
-func (i *IamProfile) Update() error {
+func (i *IamProfile) Update(tags cluster.Tags) error {
 	return iam.UpdateRolePolicy(
 		i.HostGroupInfo.ClusterName, i.resourceNameBase(), i.PolicyName, i.Policy,
 		cluster.GetResourceVersionTag(i.TargetVersion()).AsIam())

@@ -82,7 +82,7 @@ func (c *CloudWatch) Create(tags cluster.Tags) (err error) {
 	return cloudwatch.CreateCloudWatchEventRule(tags.AsCloudWatch(), &c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 }
 
-func (c *CloudWatch) Update() error {
+func (c *CloudWatch) Update(tags cluster.Tags) error {
 	return cloudwatch.PutTargets(&c.ScaleMachine.Arn, c.Profile.Arn, c.ResourceName())
 }
 

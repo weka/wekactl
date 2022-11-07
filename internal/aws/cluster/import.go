@@ -11,7 +11,6 @@ import (
 	"wekactl/internal/aws/autoscaling"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
-	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
@@ -103,11 +102,14 @@ func GetInstanceSecurityGroupsId(instance *ec2.Instance) []*string {
 	return securityGroupIds
 }
 
-func getVolumeInfo(instance *ec2.Instance, role common.InstanceRole) (volumeInfo launchtemplate.VolumeInfo, err error) {
+func GetVolumesInfo(instance *ec2.Instance, role common.InstanceRole) (volumesInfo []common.VolumeInfo, err error) {
 	log.Debug().Msgf("Retrieving %s instance volume info ...", string(role))
 	var volumeIds []*string
+	volumeIdToDeviceName := make(map[string]string)
 	for _, blockDeviceMapping := range instance.BlockDeviceMappings {
-		volumeIds = append(volumeIds, blockDeviceMapping.Ebs.VolumeId)
+		volumeId := blockDeviceMapping.Ebs.VolumeId
+		volumeIds = append(volumeIds, volumeId)
+		volumeIdToDeviceName[*volumeId] = *blockDeviceMapping.DeviceName
 	}
 
 	svc := connectors.GetAWSSession().EC2
@@ -122,15 +124,12 @@ func getVolumeInfo(instance *ec2.Instance, role common.InstanceRole) (volumeInfo
 		return
 	}
 
-	totalSize := int64(0)
 	for _, volume := range volumesOutput.Volumes {
-		totalSize += *volume.Size
-	}
-
-	volumeInfo = launchtemplate.VolumeInfo{
-		Name: *instance.RootDeviceName,
-		Type: *volumesOutput.Volumes[0].VolumeType,
-		Size: totalSize,
+		volumesInfo = append(volumesInfo, common.VolumeInfo{
+			Name: volumeIdToDeviceName[*volume.VolumeId],
+			Type: *volume.VolumeType,
+			Size: *volume.Size,
+		})
 	}
 	return
 }
@@ -324,7 +323,7 @@ func importClusterParamsFromClusterInstances(instances ClusterInstances) (defaul
 func importRoleParams(hostGroupParams *common.HostGroupParams, instances []*ec2.Instance, role common.InstanceRole) error {
 	instance := instances[0]
 
-	volumeInfo, err := getVolumeInfo(instance, role)
+	volumeInfo, err := GetVolumesInfo(instance, role)
 	if err != nil {
 		return err
 	}
@@ -336,9 +335,7 @@ func importRoleParams(hostGroupParams *common.HostGroupParams, instances []*ec2.
 	hostGroupParams.IamArn = *instance.IamInstanceProfile.Arn
 	hostGroupParams.InstanceType = *instance.InstanceType
 	hostGroupParams.Subnet = *instance.SubnetId
-	hostGroupParams.VolumeName = volumeInfo.Name
-	hostGroupParams.VolumeType = volumeInfo.Type
-	hostGroupParams.VolumeSize = volumeInfo.Size
+	hostGroupParams.VolumesInfo = volumeInfo
 	hostGroupParams.MaxSize = common.GetMaxSize(role, len(instances))
 	return nil
 }

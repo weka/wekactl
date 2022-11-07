@@ -67,7 +67,7 @@ func (h *HostGroup) Create(tags cluster.Tags) (err error) {
 	return
 }
 
-func (h *HostGroup) Update() error {
+func (h *HostGroup) Update(tags cluster.Tags) error {
 	panic("implement me")
 }
 
