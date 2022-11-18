@@ -124,6 +124,7 @@ func GetVolumesInfo(instance *ec2.Instance, role common.InstanceRole) (volumesIn
 		return
 	}
 
+	volumeType := common.GetVolumeType(env.Config.Region)
 	for _, volume := range volumesOutput.Volumes {
 		volumeName := volumeIdToDeviceName[*volume.VolumeId]
 		size := *volume.Size
@@ -132,7 +133,7 @@ func GetVolumesInfo(instance *ec2.Instance, role common.InstanceRole) (volumesIn
 		}
 		volumesInfo = append(volumesInfo, common.VolumeInfo{
 			Name: volumeName,
-			Type: *volume.VolumeType,
+			Type: volumeType,
 			Size: size,
 		})
 	}
