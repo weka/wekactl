@@ -50,6 +50,9 @@ func generateVolumesInfo(clusterName cluster.ClusterName, asg *autoscaling.Group
 	launchTemplateDeviceName := *launchTemplateBlockDeviceMapping[0].DeviceName
 	launchTemplateDeviceType := *launchTemplateBlockDeviceMapping[0].Ebs.VolumeType
 	rootDeviceSize := *launchTemplateBlockDeviceMapping[0].Ebs.VolumeSize - int64(wekaVolumeSize)
+	if rootDeviceSize < common.RootFsMinimalSize {
+		rootDeviceSize = common.RootFsMinimalSize
+	}
 	wekaDeviceType := launchTemplateDeviceType
 
 	log.Debug().Msgf("Trying to get weka volume type from stack")
