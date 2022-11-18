@@ -22,6 +22,8 @@ import (
 type InstanceIdsSet map[string]types.Nilt
 type InstancePrivateIpsSet map[string]types.Nilt
 
+const RootFsMinimalSize = 16
+
 func RenderTable(fields []string, data [][]string) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader(fields)
