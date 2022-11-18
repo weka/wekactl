@@ -3,9 +3,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/rs/zerolog/log"
 	autoscaling2 "wekactl/internal/aws/autoscaling"
@@ -13,6 +11,7 @@ import (
 	"wekactl/internal/aws/launchtemplate"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	"wekactl/internal/env"
 )
 
 const defaultVolumeSize = 48
@@ -46,40 +45,26 @@ func generateVolumesInfo(clusterName cluster.ClusterName, asg *autoscaling.Group
 	}
 	asgInstance := asg.Instances[0]
 	instanceType := *asgInstance.InstanceType
+
 	wekaVolumeSize := defaultVolumeSize + common.GetBackendCoreCounts()[instanceType].Total*tracesPerIonode
-	launchTemplateDeviceName := *launchTemplateBlockDeviceMapping[0].DeviceName
-	launchTemplateDeviceType := *launchTemplateBlockDeviceMapping[0].Ebs.VolumeType
+
+	rootDeviceDeviceName := *launchTemplateBlockDeviceMapping[0].DeviceName
 	rootDeviceSize := *launchTemplateBlockDeviceMapping[0].Ebs.VolumeSize - int64(wekaVolumeSize)
 	if rootDeviceSize < common.RootFsMinimalSize {
 		rootDeviceSize = common.RootFsMinimalSize
 	}
-	wekaDeviceType := launchTemplateDeviceType
 
-	log.Debug().Msgf("Trying to get weka volume type from stack")
-	svcCF := connectors.GetAWSSession().CF
-	stacksOutput, err := svcCF.DescribeStacks(&cloudformation.DescribeStacksInput{
-		StackName: aws.String(string(clusterName))},
-	)
-	if err != nil {
-		log.Warn().Msgf("Stack %s wasn't found, will use launch template volume type ")
-	} else {
-		for _, param := range stacksOutput.Stacks[0].Parameters {
-			if *param.ParameterKey == "WekaVolumeType" {
-				wekaDeviceType = *param.ParameterValue
-				break
-			}
-		}
-	}
+	volumeType := common.GetVolumeType(env.Config.Region)
 
 	volumesInfo = []common.VolumeInfo{
 		{
-			Name: launchTemplateDeviceName,
-			Type: launchTemplateDeviceType,
+			Name: rootDeviceDeviceName,
+			Type: volumeType,
 			Size: rootDeviceSize,
 		},
 		{
 			Name: defaultDeviceName,
-			Type: wekaDeviceType,
+			Type: volumeType,
 			Size: int64(wekaVolumeSize),
 		},
 	}

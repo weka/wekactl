@@ -414,3 +414,39 @@ func GetBackendCoreCounts() BackendCoreCounts {
 	}
 	return backendCoreCounts
 }
+
+func GetVolumeType(region string) string {
+	gp3_supported_regions := map[string]bool{
+		"us-east-2":       true,
+		"us-east-1":       true,
+		"us-west-1":       true,
+		"us-west-2":       true,
+		"af-south-1":      true,
+		"ap-east-1":       true,
+		"ap-southeast-3":  true,
+		"ap-south-1":      true,
+		"ap-northeast-3":  true,
+		"ap-northeast-2":  true,
+		"ap-southeast-1":  true,
+		"ap-southeast-2":  true,
+		"ap-northeast-1":  true,
+		"ca-central-1":    true,
+		"eu-central-1":    true,
+		"eu-west-1":       true,
+		"eu-west-2":       true,
+		"eu-south-1":      true,
+		"eu-west-3":       true,
+		"eu-south-2":      true,
+		"eu-north-1":      true,
+		"eu-central-2":    true,
+		"me-south-1":      true,
+		"me-central-1":    true,
+		"sa-east-1":       true,
+		"us-west-2-lax-1": true, // local zone: Los Angeles
+	}
+	_, ok := gp3_supported_regions[region] // check for existence
+	if ok {
+		return "gp3"
+	}
+	return "gp2"
+}
