@@ -33,12 +33,3 @@ type HostGroupInfo struct {
 	Role        InstanceRole
 	Name        HostGroupName
 }
-
-type BackendCoreCount struct {
-	Total     int
-	Frontend  int
-	Drive     int
-	Converged bool
-}
-
-type BackendCoreCounts map[string]BackendCoreCount

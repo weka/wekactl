@@ -13,6 +13,7 @@ import (
 	"wekactl/internal/aws/common"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	"wekactl/internal/env"
 )
 
 const LaunchtemplateVersion = "v2"
@@ -34,15 +35,48 @@ func generateBlockDeviceMappingRequest(name common.HostGroupName, volumesInfo []
 	return
 }
 
-func getUserData(restApiGateway apigateway.RestApiGateway) string {
+func getUserData(restApiGateway apigateway.RestApiGateway, subnetId, instanceType string, securityGroupsIds []*string) string {
+	securityGroupsIdsStr := ""
+	for _, securityGroupsId := range securityGroupsIds {
+		securityGroupsIdsStr = securityGroupsIdsStr + *securityGroupsId + " "
+	}
+
+	additionalNicsNum := common.GetBackendCoreCounts()[instanceType].Total
+
 	userDataTemplate := `
 	#!/usr/bin/env bash
+	set -ex
 	
-	if ! curl --location --request GET '%s' --header 'x-api-key: %s' | sudo sh; then
+	region=%s
+	subnet_id=%s
+	groups=%s
+	nics_num=%d
+	join_url=%s
+	api_key=%s
+
+	instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+
+	for (( i=1; i<=$nics_num; i++ ))
+	do
+		eni_file="/tmp/eni-$i.json"
+		aws ec2 create-network-interface --region $region --subnet-id $subnet_id  --groups $groups > $eni_file
+		network_interface_id=$(cat $eni_file | python3 -c "import sys, json; print(json.load(sys.stdin)['NetworkInterface']['NetworkInterfaceId'])")
+		aws ec2 attach-network-interface --region $region --device-index $i --instance-id $instance_id --network-interface-id $network_interface_id
+	done
+
+	if ! curl --location --request GET "$join_url" --header "x-api-key: $api_key" | sudo sh; then
 		shutdown now
 	fi
 	`
-	return fmt.Sprintf(dedent.Dedent(userDataTemplate), restApiGateway.Url(), restApiGateway.ApiKey)
+	return fmt.Sprintf(
+		dedent.Dedent(userDataTemplate),
+		env.Config.Region,
+		subnetId,
+		securityGroupsIdsStr,
+		additionalNicsNum,
+		restApiGateway.Url(),
+		restApiGateway.ApiKey,
+	)
 }
 
 func getKeyName(keyName string) *string {
@@ -55,7 +89,7 @@ func getKeyName(keyName string) *string {
 
 func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, hostGroupParams common.HostGroupParams, restApiGateway apigateway.RestApiGateway, launchTemplateName string, associatePublicIpAddress bool) (err error) {
 	svc := connectors.GetAWSSession().EC2
-	userData := getUserData(restApiGateway)
+	userData := getUserData(restApiGateway, hostGroupParams.Subnet, hostGroupParams.InstanceType, hostGroupParams.SecurityGroupsIds)
 	keyName := getKeyName(hostGroupParams.KeyName)
 
 	input := &ec2.CreateLaunchTemplateInput{
@@ -124,7 +158,7 @@ func CreateNewLaunchTemplateVersion(tags []*ec2.Tag, hostGroupName common.HostGr
 		return
 	}
 
-	userData := getUserData(restApiGateway)
+	userData := getUserData(restApiGateway, hostGroupParams.Subnet, hostGroupParams.InstanceType, hostGroupParams.SecurityGroupsIds)
 	keyName := getKeyName(hostGroupParams.KeyName)
 
 	input := &ec2.CreateLaunchTemplateVersionInput{

@@ -175,7 +175,10 @@ func Handler(scaleResponse protocol.ScaleResponse) (response protocol.Terminated
 	}
 
 	if len(deltaInstanceIds) == 0 {
+		log.Info().Msgf("No delta instances ids")
 		return
+	} else {
+		log.Info().Msgf("Delta instances: %s", strings.RefListToList(deltaInstanceIds))
 	}
 
 	candidatesToTerminate, err := common.GetInstances(deltaInstanceIds)
@@ -231,8 +234,12 @@ func detachUnhealthyInstances(instances []*autoscaling.Instance, asgName string)
 
 			}
 			if toDelete {
-				log.Info().Msgf("detaching %s", *instance.InstanceId)
-				toDetach = append(toDetach, *instance.InstanceId)
+				if *instance.LifecycleState == autoscaling.LifecycleStateStandby ||
+					*instance.LifecycleState == autoscaling.LifecycleStateInService {
+					log.Info().Msgf("detaching %s", *instance.InstanceId)
+					toDetach = append(toDetach, *instance.InstanceId)
+				}
+
 			}
 		}
 	}

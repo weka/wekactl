@@ -32,6 +32,13 @@ func ListToRefList(ss []string) (ret []*string) {
 	return
 }
 
+func RefListToList(ss []*string) (ret []string) {
+	for i := range ss {
+		ret = append(ret, *ss[i])
+	}
+	return
+}
+
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 func RandSeq(n int) string {
