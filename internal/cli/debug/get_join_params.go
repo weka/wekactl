@@ -1,6 +1,7 @@
 package debug
 
 import (
+	"context"
 	"fmt"
 	"github.com/spf13/cobra"
 	"wekactl/internal/aws/lambdas"
@@ -16,7 +17,8 @@ var GetInstanceJoinParamsCmd = &cobra.Command{
 	Long:  "",
 	Run: func(cmd *cobra.Command, args []string) {
 		if env.Config.Provider == "aws" {
-			res, err := lambdas.GetJoinParams(StackName, AsgName, TableName, "Backends")
+			var ctx context.Context
+			res, err := lambdas.GetJoinParams(ctx, StackName, AsgName, TableName, "Backends")
 			if err != nil {
 				fmt.Println(err)
 			} else {
