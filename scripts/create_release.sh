@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 WEKACTL_LINUX=$1
 WEKACTL_DARWIN=$2
