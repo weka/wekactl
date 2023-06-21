@@ -15,7 +15,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.29.0
 	github.com/spf13/cobra v1.1.1
-	github.com/weka/go-cloud-lib v0.0.0-20230605063327-31ce0379f1eb
+	github.com/weka/go-cloud-lib v0.0.0-20230621161320-c18710dea0b0
 	golang.org/x/oauth2 v0.6.0
 	golang.org/x/sync v0.1.0
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
