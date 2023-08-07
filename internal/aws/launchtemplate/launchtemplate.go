@@ -41,7 +41,7 @@ func getUserData(restApiGateway apigateway.RestApiGateway, subnetId, instanceTyp
 		securityGroupsIdsStr = securityGroupsIdsStr + *securityGroupsId + " "
 	}
 
-	additionalNicsNum := common.GetBackendCoreCounts()[instanceType].Total
+	additionalNicsNum := common.GetIoNodesNumber(instanceType)
 
 	userDataTemplate := `
 	#!/usr/bin/env bash

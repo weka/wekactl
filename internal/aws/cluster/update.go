@@ -46,7 +46,7 @@ func generateVolumesInfo(clusterName cluster.ClusterName, asg *autoscaling.Group
 	asgInstance := asg.Instances[0]
 	instanceType := *asgInstance.InstanceType
 
-	wekaVolumeSize := defaultVolumeSize + common.GetBackendCoreCounts()[instanceType].Total*tracesPerIonode
+	wekaVolumeSize := defaultVolumeSize + common.GetIoNodesNumber(instanceType)*tracesPerIonode
 
 	rootDeviceDeviceName := *launchTemplateBlockDeviceMapping[0].DeviceName
 	rootDeviceSize := *launchTemplateBlockDeviceMapping[0].Ebs.VolumeSize - int64(wekaVolumeSize)

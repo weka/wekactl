@@ -393,21 +393,26 @@ func GetAccountId() (string, error) {
 
 func GetBackendCoreCounts() protocol.BackendCoreCounts {
 	backendCoreCounts := protocol.BackendCoreCounts{
-		"r3.2xlarge":    protocol.BackendCoreCount{Total: 3, Frontend: 1, Drive: 1, Memory: "30905689230B"},
-		"r3.4xlarge":    protocol.BackendCoreCount{Total: 7, Frontend: 1, Drive: 1, Memory: "71507949875B"},
-		"r3.8xlarge":    protocol.BackendCoreCount{Total: 7, Frontend: 1, Drive: 2, Memory: "183542333132B"},
-		"i3.2xlarge":    protocol.BackendCoreCount{Total: 3, Frontend: 1, Drive: 1, Memory: "29646994591B"},
-		"i3.4xlarge":    protocol.BackendCoreCount{Total: 7, Frontend: 1, Drive: 1, Memory: "67592831765B"},
-		"i3.8xlarge":    protocol.BackendCoreCount{Total: 7, Frontend: 1, Drive: 2, Memory: "182925137336B"},
-		"i3.16xlarge":   protocol.BackendCoreCount{Total: 14, Frontend: 1, Drive: 4, Memory: "351188766774B"},
-		"i3en.2xlarge":  protocol.BackendCoreCount{Total: 3, Frontend: 1, Drive: 1, Memory: "31796436575B"},
-		"i3en.3xlarge":  protocol.BackendCoreCount{Total: 3, Frontend: 1, Drive: 1, Memory: "55955545954B"},
-		"i3en.6xlarge":  protocol.BackendCoreCount{Total: 7, Frontend: 1, Drive: 2, Memory: "130433516148B"},
-		"i3en.12xlarge": protocol.BackendCoreCount{Total: 7, Frontend: 1, Drive: 2, Memory: "312901542392B"},
-		"i3en.24xlarge": protocol.BackendCoreCount{Total: 14, Frontend: 1, Drive: 4, Memory: "602459825769B"},
-		"z1d.12xlarge":  protocol.BackendCoreCount{Total: 4, Frontend: 1, Drive: 1, Converged: true, Memory: "318122146852B"},
+		"r3.2xlarge":    protocol.BackendCoreCount{Compute: 1, Frontend: 1, Drive: 1, ComputeMemory: "30905689230B"},
+		"r3.4xlarge":    protocol.BackendCoreCount{Compute: 5, Frontend: 1, Drive: 1, ComputeMemory: "71507949875B"},
+		"r3.8xlarge":    protocol.BackendCoreCount{Compute: 4, Frontend: 1, Drive: 2, ComputeMemory: "183542333132B"},
+		"i3.2xlarge":    protocol.BackendCoreCount{Compute: 1, Frontend: 1, Drive: 1, ComputeMemory: "29646994591B"},
+		"i3.4xlarge":    protocol.BackendCoreCount{Compute: 5, Frontend: 1, Drive: 1, ComputeMemory: "67592831765B"},
+		"i3.8xlarge":    protocol.BackendCoreCount{Compute: 4, Frontend: 1, Drive: 2, ComputeMemory: "182925137336B"},
+		"i3.16xlarge":   protocol.BackendCoreCount{Compute: 9, Frontend: 1, Drive: 4, ComputeMemory: "351188766774B"},
+		"i3en.2xlarge":  protocol.BackendCoreCount{Compute: 1, Frontend: 1, Drive: 1, ComputeMemory: "31796436575B"},
+		"i3en.3xlarge":  protocol.BackendCoreCount{Compute: 1, Frontend: 1, Drive: 1, ComputeMemory: "55955545954B"},
+		"i3en.6xlarge":  protocol.BackendCoreCount{Compute: 4, Frontend: 1, Drive: 2, ComputeMemory: "130433516148B"},
+		"i3en.12xlarge": protocol.BackendCoreCount{Compute: 4, Frontend: 1, Drive: 2, ComputeMemory: "312901542392B"},
+		"i3en.24xlarge": protocol.BackendCoreCount{Compute: 9, Frontend: 1, Drive: 4, ComputeMemory: "602459825769B"},
+		"z1d.12xlarge":  protocol.BackendCoreCount{Compute: 2, Frontend: 1, Drive: 1, Converged: true, ComputeMemory: "318122146852B"},
 	}
 	return backendCoreCounts
+}
+
+func GetIoNodesNumber(instanceType string) int {
+	backendCoreCount := GetBackendCoreCounts()[instanceType]
+	return backendCoreCount.Compute + backendCoreCount.Frontend + backendCoreCount.Drive
 }
 
 func GetVolumeType(region string) string {
