@@ -2,10 +2,6 @@ package lambdas
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/rs/zerolog/log"
 	"time"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
@@ -13,6 +9,11 @@ import (
 	"wekactl/internal/connectors"
 	"wekactl/internal/env"
 	"wekactl/internal/logging"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/rs/zerolog/log"
 )
 
 func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcConfig {
@@ -46,8 +47,9 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 	}
 
 	lambdaPackage := string(dist.WekaCtl)
-	lambdaHandler := "lambdas-bin"
-	runtime := "go1.x"
+	lambdaHandler := "bootstrap"
+	runtime := "provided.al2"
+	arch := "arm64"
 
 	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
 
@@ -69,14 +71,15 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 				"ROLE":         aws.String(string(hostGroupInfo.Role)),
 			},
 		},
-		Handler:      aws.String(lambdaHandler),
-		FunctionName: aws.String(lambdaName),
-		MemorySize:   aws.Int64(256),
-		Publish:      aws.Bool(true),
-		Role:         &roleArn,
-		Runtime:      aws.String(runtime),
-		Tags:         tags,
-		Timeout:      aws.Int64(15),
+		Handler:       aws.String(lambdaHandler),
+		FunctionName:  aws.String(lambdaName),
+		MemorySize:    aws.Int64(256),
+		Publish:       aws.Bool(true),
+		Role:          &roleArn,
+		Runtime:       aws.String(runtime),
+		Architectures: []*string{&arch},
+		Tags:          tags,
+		Timeout:       aws.Int64(15),
 		TracingConfig: &lambda.TracingConfig{
 			Mode: aws.String("Active"),
 		},
