@@ -1,8 +1,6 @@
 package cluster
 
 import (
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/rs/zerolog/log"
 	"strings"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
@@ -10,6 +8,9 @@ import (
 	"wekactl/internal/aws/lambdas"
 	"wekactl/internal/cluster"
 	strings2 "wekactl/internal/lib/strings"
+
+	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/rs/zerolog/log"
 )
 
 type Lambda struct {
@@ -96,6 +97,15 @@ func (l *Lambda) Create(tags cluster.Tags) (err error) {
 }
 
 func (l *Lambda) Update(tags cluster.Tags) error {
+	// check if runtime is different
+	runtime, err := lambdas.GetLambdaRuntime(l.ResourceName())
+	if err != nil {
+		return err
+	}
+	if runtime != string(lambdas.LambdaRuntimeDefault) {
+		return l.updateThroughDelete()
+	}
+
 	if strings.HasSuffix(l.DeployedVersion(), "#") {
 		err := lambdas.UpdateLambdaRole(l.ResourceName(), l.Profile.Arn)
 		if err != nil {
@@ -106,4 +116,12 @@ func (l *Lambda) Update(tags cluster.Tags) error {
 		return lambdas.UpdateLambdaHandler(l.ResourceName(), cluster.GetResourceVersionTag(l.TargetVersion()).AsStringRefs())
 	}
 	return nil
+}
+
+func (l *Lambda) updateThroughDelete() error {
+	err := lambdas.DeleteLambda(l.ResourceName())
+	if err != nil {
+		return err
+	}
+	return l.Create(l.Tags())
 }
