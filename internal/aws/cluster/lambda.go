@@ -98,12 +98,21 @@ func (l *Lambda) Create(tags cluster.Tags) (err error) {
 
 func (l *Lambda) Update(tags cluster.Tags) error {
 	// check if runtime is different
-	runtime, err := lambdas.GetLambdaRuntime(l.ResourceName())
+	info, err := lambdas.GetLambdaRuntime(l.ResourceName())
 	if err != nil {
 		return err
 	}
-	if runtime != string(lambdas.LambdaRuntimeDefault) {
-		return l.updateThroughDelete()
+	if info.Runtime != lambdas.LambdaRuntimeDefault || info.HandlerName != lambdas.LambdaHandlerName {
+		err := lambdas.UpdateLambdaRuntime(l.ResourceName(), lambdas.LambdaRuntimeDefault, lambdas.LambdaHandlerName)
+		if err != nil {
+			return err
+		}
+	}
+	if info.Arch != lambdas.LambdaArchDefault {
+		err := lambdas.UpdateLambdaArchitecture(l.ResourceName(), lambdas.LambdaArchDefault)
+		if err != nil {
+			return err
+		}
 	}
 
 	if strings.HasSuffix(l.DeployedVersion(), "#") {
@@ -116,12 +125,4 @@ func (l *Lambda) Update(tags cluster.Tags) error {
 		return lambdas.UpdateLambdaHandler(l.ResourceName(), cluster.GetResourceVersionTag(l.TargetVersion()).AsStringRefs())
 	}
 	return nil
-}
-
-func (l *Lambda) updateThroughDelete() error {
-	err := lambdas.DeleteLambda(l.ResourceName())
-	if err != nil {
-		return err
-	}
-	return l.Create(l.Tags())
 }

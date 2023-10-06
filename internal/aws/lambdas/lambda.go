@@ -16,6 +16,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type LambdaRuntimeInfo struct {
+	Runtime     LambdaRuntime
+	HandlerName string
+	Arch        LambdaArch
+}
+
 func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcConfig {
 	return lambda.VpcConfig{
 		SubnetIds:        []*string{&subnetId},
@@ -47,9 +53,9 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 	}
 
 	lambdaPackage := string(dist.WekaCtl)
-	lambdaHandler := "bootstrap"
+	lambdaHandler := LambdaHandlerName
 	runtime := LambdaRuntimeDefault
-	arch := "arm64"
+	arch := LambdaArchDefault
 
 	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
 
@@ -77,7 +83,7 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 		Publish:       aws.Bool(true),
 		Role:          &roleArn,
 		Runtime:       aws.String(string(runtime)),
-		Architectures: []*string{&arch},
+		Architectures: []*string{aws.String(string(arch))},
 		Tags:          tags,
 		Timeout:       aws.Int64(15),
 		TracingConfig: &lambda.TracingConfig{
@@ -276,7 +282,7 @@ func GetLambdaRoleArn(lambdaName string) (roleArn string, err error) {
 	return
 }
 
-func GetLambdaRuntime(lambdaName string) (runtime string, err error) {
+func GetLambdaRuntime(lambdaName string) (info LambdaRuntimeInfo, err error) {
 	svc := connectors.GetAWSSession().Lambda
 	lambdaOutput, err := svc.GetFunction(&lambda.GetFunctionInput{
 		FunctionName: &lambdaName,
@@ -285,8 +291,71 @@ func GetLambdaRuntime(lambdaName string) (runtime string, err error) {
 	if err != nil {
 		return
 	}
-	runtime = *lambdaOutput.Configuration.Runtime
+	info.Runtime = LambdaRuntime(*lambdaOutput.Configuration.Runtime)
+	info.HandlerName = *lambdaOutput.Configuration.Handler
+	info.Arch = LambdaArch(*lambdaOutput.Configuration.Architectures[0])
 	return
+}
+
+func waitForLambdaLastUpdateStatusSuccess(lambdaName string, sleepFor time.Duration, maxAttempts int) error {
+	svc := connectors.GetAWSSession().Lambda
+
+	for i := 0; i < maxAttempts; i++ {
+		lambdaOutput, err := svc.GetFunction(&lambda.GetFunctionInput{
+			FunctionName: &lambdaName,
+		})
+		if err != nil {
+			return err
+		}
+		if *lambdaOutput.Configuration.LastUpdateStatus == "Successful" {
+			return nil
+		}
+		time.Sleep(sleepFor)
+	}
+	return fmt.Errorf("lambda %s last update status is not successful after %d attempts", lambdaName, maxAttempts)
+}
+
+func UpdateLambdaRuntime(lambdaName string, runtime LambdaRuntime, handler string) (err error) {
+	svc := connectors.GetAWSSession().Lambda
+
+	retry := true
+	retries := 3
+	for i := 0; i < retries && retry; i++ {
+		logging.UserProgress("updating lambda %s runtime to %s ...", lambdaName, runtime)
+		_, err = svc.UpdateFunctionConfiguration(&lambda.UpdateFunctionConfigurationInput{
+			FunctionName: &lambdaName,
+			Runtime:      aws.String(string(runtime)),
+			Handler:      aws.String(handler),
+		})
+		retry = handleAwsInvalidParameterValueException(err, lambdaName, retries > i+1)
+	}
+	// wait for a minute for the lambda to be updated
+	return waitForLambdaLastUpdateStatusSuccess(lambdaName, 5*time.Second, 12)
+}
+
+func UpdateLambdaArchitecture(lambdaName string, arch LambdaArch) (err error) {
+	svc := connectors.GetAWSSession().Lambda
+	bucket, err := dist.GetLambdaBucket()
+	if err != nil {
+		return err
+	}
+
+	lambdaPackage := string(dist.WekaCtl)
+	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
+
+	logging.UserProgress("updating lambda %s architecture to %s ...", lambdaName, arch)
+
+	_, err = svc.UpdateFunctionCode(&lambda.UpdateFunctionCodeInput{
+		FunctionName:  &lambdaName,
+		Architectures: []*string{aws.String(string(arch))},
+		S3Bucket:      aws.String(bucket),
+		S3Key:         aws.String(s3Key),
+	})
+	if err != nil {
+		return err
+	}
+	// wait for a minute for the lambda to be updated
+	return waitForLambdaLastUpdateStatusSuccess(lambdaName, 5*time.Second, 12)
 }
 
 func UpdateLambdaRole(lambdaName, roleArn string) (err error) {
