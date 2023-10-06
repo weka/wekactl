@@ -48,7 +48,7 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 
 	lambdaPackage := string(dist.WekaCtl)
 	lambdaHandler := "bootstrap"
-	runtime := "provided.al2"
+	runtime := LambdaRuntimeDefault
 	arch := "arm64"
 
 	s3Key := fmt.Sprintf("%s/%s", dist.LambdasID, lambdaPackage)
@@ -76,7 +76,7 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 		MemorySize:    aws.Int64(256),
 		Publish:       aws.Bool(true),
 		Role:          &roleArn,
-		Runtime:       aws.String(runtime),
+		Runtime:       aws.String(string(runtime)),
 		Architectures: []*string{&arch},
 		Tags:          tags,
 		Timeout:       aws.Int64(15),
@@ -273,6 +273,19 @@ func GetLambdaRoleArn(lambdaName string) (roleArn string, err error) {
 		return
 	}
 	roleArn = *lambdaOutput.Configuration.Role
+	return
+}
+
+func GetLambdaRuntime(lambdaName string) (runtime string, err error) {
+	svc := connectors.GetAWSSession().Lambda
+	lambdaOutput, err := svc.GetFunction(&lambda.GetFunctionInput{
+		FunctionName: &lambdaName,
+	})
+
+	if err != nil {
+		return
+	}
+	runtime = *lambdaOutput.Configuration.Runtime
 	return
 }
 
