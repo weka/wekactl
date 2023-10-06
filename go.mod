@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/cobra v1.7.0
-	github.com/weka/go-cloud-lib v0.0.0-20230926161706-745b65ace8dd
+	github.com/weka/go-cloud-lib v0.0.0-20231006140855-8799bae6a0d1
 	golang.org/x/oauth2 v0.12.0
 	golang.org/x/sync v0.3.0
 	gopkg.in/errgo.v2 v2.1.0
