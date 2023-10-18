@@ -84,6 +84,7 @@ func getIamRole(clusterName cluster.ClusterName, roleBaseName string, marker *st
 }
 
 func removeRolePolicy(role *iam.Role) error {
+	log.Debug().Msgf("listing role %s policies", *role.RoleName)
 	svc := connectors.GetAWSSession().IAM
 	result, err := svc.ListRolePolicies(&iam.ListRolePoliciesInput{
 		RoleName: role.RoleName,
@@ -93,6 +94,7 @@ func removeRolePolicy(role *iam.Role) error {
 	}
 
 	for _, policyName := range result.PolicyNames {
+		log.Debug().Msgf("deleting role %s policy %s", *role.RoleName, *policyName)
 		_, err = svc.DeleteRolePolicy(&iam.DeleteRolePolicyInput{
 			RoleName:   role.RoleName,
 			PolicyName: policyName,
@@ -107,6 +109,7 @@ func removeRolePolicy(role *iam.Role) error {
 
 func DeleteIamRole(clusterName cluster.ClusterName, roleBaseName string) error {
 	svc := connectors.GetAWSSession().IAM
+	log.Debug().Msgf("fetching role %s ...", roleBaseName)
 	role, err := getIamRole(clusterName, roleBaseName, nil)
 	if err != nil {
 		return err
@@ -120,6 +123,7 @@ func DeleteIamRole(clusterName cluster.ClusterName, roleBaseName string) error {
 		return err
 	}
 
+	log.Debug().Msgf("deleting role %s", *role.RoleName)
 	_, err = svc.DeleteRole(&iam.DeleteRoleInput{RoleName: role.RoleName})
 	if err != nil {
 		return err
