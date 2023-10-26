@@ -11,6 +11,7 @@ import (
 	"sync"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
+	"wekactl/internal/logging"
 )
 
 func attachIamPolicy(roleName, policyName string, policy PolicyDocument) error {
@@ -83,8 +84,8 @@ func getIamRole(clusterName cluster.ClusterName, roleBaseName string, marker *st
 	return
 }
 
-func removeRolePolicy(role *iam.Role) error {
-	log.Debug().Msgf("listing role %s policies", *role.RoleName)
+func removeRoleInlinePolicy(role *iam.Role) error {
+	log.Debug().Msgf("listing role %s inline policies", *role.RoleName)
 	svc := connectors.GetAWSSession().IAM
 	result, err := svc.ListRolePolicies(&iam.ListRolePoliciesInput{
 		RoleName: role.RoleName,
@@ -94,7 +95,7 @@ func removeRolePolicy(role *iam.Role) error {
 	}
 
 	for _, policyName := range result.PolicyNames {
-		log.Debug().Msgf("deleting role %s policy %s", *role.RoleName, *policyName)
+		log.Debug().Msgf("deleting role %s inline policy %s", *role.RoleName, *policyName)
 		_, err = svc.DeleteRolePolicy(&iam.DeleteRolePolicyInput{
 			RoleName:   role.RoleName,
 			PolicyName: policyName,
@@ -102,7 +103,34 @@ func removeRolePolicy(role *iam.Role) error {
 		if err != nil {
 			return err
 		}
-		log.Debug().Msgf("policy %s was deleted successfully", *policyName)
+		log.Debug().Msgf("inline policy %s was deleted successfully", *policyName)
+	}
+	return nil
+}
+
+func removeRoleAttachedPolicy(role *iam.Role) error {
+	log.Debug().Msgf("checking for role %s attached policies", *role.RoleName)
+	svc := connectors.GetAWSSession().IAM
+	result, err := svc.ListAttachedRolePolicies(&iam.ListAttachedRolePoliciesInput{
+		RoleName: role.RoleName,
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(result.AttachedPolicies) != 0 {
+		logging.UserWarning("Role %s has unexpected attached policies, will detach them in order to delete the role", *role.RoleName)
+	}
+	for _, attachedPolicy := range result.AttachedPolicies {
+		log.Debug().Msgf("detaching role %s attached policy %s", *role.RoleName, *attachedPolicy.PolicyName)
+		_, err = svc.DetachRolePolicy(&iam.DetachRolePolicyInput{
+			RoleName:  role.RoleName,
+			PolicyArn: attachedPolicy.PolicyArn,
+		})
+		if err != nil {
+			return err
+		}
+		log.Debug().Msgf("attached policy %s was detached successfully", *attachedPolicy.PolicyName)
 	}
 	return nil
 }
@@ -118,7 +146,12 @@ func DeleteIamRole(clusterName cluster.ClusterName, roleBaseName string) error {
 		return nil
 	}
 
-	err = removeRolePolicy(role)
+	err = removeRoleInlinePolicy(role)
+	if err != nil {
+		return err
+	}
+
+	err = removeRoleAttachedPolicy(role)
 	if err != nil {
 		return err
 	}
@@ -171,7 +204,7 @@ func UpdateRolePolicy(clusterName cluster.ClusterName, roleBaseName, policyName 
 	if err != nil {
 		return err
 	}
-	err = removeRolePolicy(role)
+	err = removeRoleInlinePolicy(role)
 	if err != nil {
 		return err
 	}
