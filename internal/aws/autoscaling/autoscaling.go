@@ -218,11 +218,7 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 	}
 
 	if KeepInstances && len(instanceIds) > 0 {
-		_, err = svc.DetachInstances(&autoscaling.DetachInstancesInput{
-			AutoScalingGroupName:           &autoScalingGroupName,
-			ShouldDecrementDesiredCapacity: aws.Bool(true),
-			InstanceIds:                    instanceIds,
-		})
+		err = DetachInstancesFromASG(strings.RefListToList(instanceIds), autoScalingGroupName)
 		if err != nil {
 			return err
 		}
@@ -230,17 +226,18 @@ func DeleteAutoScalingGroup(autoScalingGroupName string) error {
 	}
 
 	retry := true
-	for i := 0; i < 6 && retry; i++ {
-		activitiesOutput, err := svc.DescribeScalingActivities(&autoscaling.DescribeScalingActivitiesInput{
+	interval := 30
+	for i := 0; i < 40 && retry; i++ {
+		activitiesOutput, err2 := svc.DescribeScalingActivities(&autoscaling.DescribeScalingActivitiesInput{
 			AutoScalingGroupName: &autoScalingGroupName})
-		if err != nil {
-			return err
+		if err2 != nil {
+			return err2
 		}
 		retry = false
 		for _, activity := range activitiesOutput.Activities {
 			if *activity.StatusCode == autoscaling.ScalingActivityStatusCodeInProgress {
-				logging.UserProgress("Waiting 10 sec for auto scaling group %s instances detaching to finish", autoScalingGroupName)
-				time.Sleep(10 * time.Second)
+				logging.UserProgress("Waiting %d sec for auto scaling group %s instances detaching to finish", interval, autoScalingGroupName)
+				time.Sleep(time.Duration(interval) * time.Second)
 				retry = true
 				break
 			}
