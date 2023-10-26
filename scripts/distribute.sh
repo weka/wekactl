@@ -25,18 +25,25 @@ distribute () {
   done
 }
 
+# use filenames created in build_wekactl.sh
+filenames_arr=("wekactl_linux_amd64" "wekactl_darwin_amd64" "wekactl_linux_arm64" "wekactl_darwin_arm64")
+
 if [[ -n $WEKACTL_AWS_LAMBDAS_BUCKETS ]]; then
   if [[ -z $WEKACTL_SKIP_GO_LAMBDA ]]; then
     region=$(echo "$WEKACTL_AWS_LAMBDAS_BUCKETS" | cut -d ',' -f 1 | cut -d '=' -f 1)
     bucket=$(echo "$WEKACTL_AWS_LAMBDAS_BUCKETS" | cut -d ',' -f 1 | cut -d '=' -f 2)
     if [[ "$DEPLOY" == "1" ]]; then
       distribute tmp/upload
-      wekactl_linux="https://$bucket.s3.$region.amazonaws.com/$LAMBDAS_ID/wekactl_linux_amd64"
-      wekactl_darwin="https://$bucket.s3.$region.amazonaws.com/$LAMBDAS_ID/wekactl_darwin_amd64"
-      echo "wekactl linux url: $wekactl_linux"
-      echo "wekactl darwin url: $wekactl_darwin"
+
+      distributions=()
+      for filename in "${filenames_arr[@]}"; do
+        distribution="https://$bucket.s3.$region.amazonaws.com/$LAMBDAS_ID/$filename"
+        distributions+=("$distribution")
+        echo "wekactl $filename url: $distribution"
+      done
+
       if [[ "$GA" == "1" ]]; then
-        ./scripts/create_release.sh "$wekactl_linux" "$wekactl_darwin" "$BUILD_VERSION"
+        ./scripts/create_release.sh "$BUILD_VERSION" "${distributions[@]}"
       fi
     else
       distribute tmp/upload/wekactl-aws-lambdas.zip

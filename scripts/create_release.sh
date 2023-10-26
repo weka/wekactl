@@ -2,16 +2,24 @@
 
 set -e
 
-WEKACTL_LINUX=$1
-WEKACTL_DARWIN=$2
-BUILD_VERSION=$3
+BUILD_VERSION="$1"
+DISTRIBUTIONS=("$@")
 
 git tag "$BUILD_VERSION"
 git push --set-upstream origin master
 git push --tags
 
 github_repo="weka/wekactl"
-filenames="tmp/upload/wekactl_linux_amd64 tmp/upload/wekactl_darwin_amd64"
+
+filenames_arr=()
+filepaths_arr=()
+for distribution in "${DISTRIBUTIONS[@]}"; do
+  filename=$(basename "$distribution")
+  filenames_arr+=("$filename")
+  filepaths_arr+=("tmp/upload/$filename")
+done
+
+filepaths=$(printf "%s " "${filepaths_arr[@]}")
 
 if [ -z "$DEPLOY_APP_ID" ]; then
   echo "You must supply DEPLOY_APP_ID environment variable !"
@@ -27,7 +35,8 @@ docker build -t github-token . -f scripts/python.Dockerfile
 eval "$(docker run -e "DEPLOY_APP_ID=$DEPLOY_APP_ID" -e "DEPLOY_APP_PRIVATE_KEY=$DEPLOY_APP_PRIVATE_KEY" github-token)"
 
 AUTH="Authorization: token $GITHUB_TOKEN"
-release_body="GA release\n$WEKACTL_LINUX\n$WEKACTL_DARWIN"
+dist_str=$(printf "%s\n" "${filenames_arr[@]}")
+release_body="GA release\n$dist_str"
 result=$(curl \
   -X POST \
   -H "$AUTH" \
@@ -36,10 +45,10 @@ result=$(curl \
 
 id=$(echo "$result" | jq -c ".id")
 
-for filename in $filenames; do
+for filepath in $filepaths; do
   curl \
     -H "$AUTH" \
-    -H "Content-Type: $(file -b --mime-type "$filename")" \
-    --data-binary @"$filename" \
-    "https://uploads.github.com/repos/$github_repo/releases/$id/assets?name=$(basename "$filename")"
+    -H "Content-Type: $(file -b --mime-type "$filepath")" \
+    --data-binary @"$filepath" \
+    "https://uploads.github.com/repos/$github_repo/releases/$id/assets?name=$(basename "$filepath")"
 done
