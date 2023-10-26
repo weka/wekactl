@@ -3,6 +3,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	errors2 "github.com/pkg/errors"
@@ -189,13 +190,53 @@ func instanceIdsToClusterInstances(instanceIds []string) (clusterInstances Clust
 	return
 }
 
+func getInstancesByClusterNameTag(clusterName string) (clusterInstances ClusterInstances, err error) {
+	log.Debug().Msgf("Retrieving instances by cluster name %s tag...", clusterName)
+	svc := connectors.GetAWSSession().EC2
+	result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String(fmt.Sprintf("tag:%s", cluster.ClusterNameTagKey)),
+				Values: []*string{
+					&clusterName,
+				},
+			},
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("running"),
+				},
+			},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	for _, reservation := range result.Reservations {
+		for _, instance := range reservation.Instances {
+			clusterInstances.Backends = append(clusterInstances.Backends, instance)
+		}
+	}
+	return
+}
+
 func ImportCluster(params cluster.ImportParams) (err error) {
 	var stackId string
 	var clusterSettings db.ClusterSettings
 	var clusterInstances ClusterInstances
 	stackImport := len(params.InstanceIds) == 0
 
-	if stackImport {
+	if params.ReImport {
+		clusterInstances, err = getInstancesByClusterNameTag(params.Name)
+		if err != nil {
+			return err
+		}
+		if len(clusterInstances.Backends) == 0 {
+			return errors.New(fmt.Sprintf("No instances found with cluster name tag %s", params.Name))
+		}
+		log.Debug().Msgf("Found %d running instances with cluster name tag %s", len(clusterInstances.Backends), params.Name)
+	} else if stackImport {
 		stackId, err = GetStackId(params.Name)
 		if err != nil {
 			return err

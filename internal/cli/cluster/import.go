@@ -47,6 +47,7 @@ func init() {
 	importCmd.Flags().StringVarP(&importParams.Password, "password", "p", "", "cluster admin password")
 	importCmd.Flags().StringArrayVarP(&importParams.TagsList, "tag", "t", []string{}, "cloud resources tags, each tag should be passed in this pattern: '-t key=value'")
 	importCmd.Flags().BoolVarP(&importParams.PrivateSubnet, "private-subnet", "s", false, "cluster runs in private subnet, requires execute-api VPC endpoint to present on VPC")
+	importCmd.Flags().BoolVar(&importParams.ReImport, "re-import", false, "import cluster that was destroyed by wekactl while keeping its instances")
 	importCmd.Flags().StringVarP(&importParams.AdditionalAlbSubnet, "additional-alb-subnet", "a", "", "Additional subnet to use for ALB")
 	importCmd.Flags().StringVarP(&importParams.DnsAlias, "dns-alias", "l", "", "ALB dns alias")
 	importCmd.Flags().StringVarP(&importParams.DnsZoneId, "dns-zone-id", "z", "", "ALB dns zone id")
