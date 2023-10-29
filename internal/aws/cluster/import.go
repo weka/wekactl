@@ -274,6 +274,7 @@ func ImportCluster(params cluster.ImportParams) (err error) {
 			}
 			return err
 		}
+		log.Info().Msgf("Found additional subnet %s", additionalSubnet)
 		clusterSettings.AdditionalSubnet = additionalSubnet
 	}
 
