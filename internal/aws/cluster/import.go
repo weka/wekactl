@@ -32,7 +32,7 @@ type Tag struct {
 	Value string
 }
 
-func GetStackId(stackName string) (string, error) {
+func GetStack(stackName string) (stack *cloudformation.Stack, err error) {
 	log.Debug().Msgf("Retrieving %s stack id ...", stackName)
 	svc := connectors.GetAWSSession().CF
 	result, err := svc.DescribeStacks(&cloudformation.DescribeStacksInput{
@@ -40,9 +40,10 @@ func GetStackId(stackName string) (string, error) {
 	})
 	if err != nil {
 		log.Error().Err(err)
-		return "", err
+		return
 	}
-	return *result.Stacks[0].StackId, nil
+	stack = result.Stacks[0]
+	return
 }
 
 func getStackInstances(stackName string) ([]*string, error) {
@@ -227,6 +228,26 @@ func ImportCluster(params cluster.ImportParams) (err error) {
 	var clusterInstances ClusterInstances
 	stackImport := len(params.InstanceIds) == 0
 
+	stack, err := GetStack(params.Name)
+	if err != nil {
+		if stackImport && !params.ReImport {
+			return err
+		}
+	} else {
+		stackId = *stack.StackId
+		for _, parameter := range stack.Parameters {
+			if *parameter.ParameterKey == "NetworkTopology" {
+				if *parameter.ParameterValue == "Private subnet using Weka VPC endpoint" || *parameter.ParameterValue == "Private subnet using custom proxy" {
+					params.PrivateSubnet = true
+				} else {
+					params.PrivateSubnet = false
+				}
+				log.Debug().Msgf("Found network topology '%s', setting PrivateSubnet=%t", *parameter.ParameterValue, params.PrivateSubnet)
+				break
+			}
+		}
+	}
+
 	if params.ReImport {
 		clusterInstances, err = getInstancesByClusterNameTag(params.Name)
 		if err != nil {
@@ -237,7 +258,6 @@ func ImportCluster(params cluster.ImportParams) (err error) {
 		}
 		log.Debug().Msgf("Found %d running instances with cluster name tag %s", len(clusterInstances.Backends), params.Name)
 	} else if stackImport {
-		stackId, err = GetStackId(params.Name)
 		if err != nil {
 			return err
 		}
