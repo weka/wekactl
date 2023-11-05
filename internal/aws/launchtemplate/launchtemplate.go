@@ -54,7 +54,8 @@ func getUserData(restApiGateway apigateway.RestApiGateway, subnetId, instanceTyp
 	join_url=%s
 	api_key=%s
 
-	instance_id=$(curl http://169.254.169.254/latest/meta-data/instance-id)
+	token=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+	instance_id=$(curl -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/instance-id)
 
 	for (( i=1; i<=$nics_num; i++ ))
 	do
@@ -117,6 +118,9 @@ func CreateLaunchTemplate(tags []*ec2.Tag, hostGroupName common.HostGroupName, h
 					SubnetId:                 &hostGroupParams.Subnet,
 					Groups:                   hostGroupParams.SecurityGroupsIds,
 				},
+			},
+			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
+				HttpTokens: &hostGroupParams.HttpTokens,
 			},
 		},
 		VersionDescription: aws.String(LaunchtemplateVersion),

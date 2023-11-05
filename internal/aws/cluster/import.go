@@ -343,5 +343,6 @@ func importRoleParams(hostGroupParams *common.HostGroupParams, instances []*ec2.
 	hostGroupParams.Subnet = *instance.SubnetId
 	hostGroupParams.VolumesInfo = volumeInfo
 	hostGroupParams.MaxSize = common.GetMaxSize(role, len(instances))
+	hostGroupParams.HttpTokens = *instance.MetadataOptions.HttpTokens
 	return nil
 }
