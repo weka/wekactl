@@ -26,6 +26,7 @@ type HostGroupParams struct {
 	Subnet            string
 	VolumesInfo       []VolumeInfo
 	MaxSize           int64
+	HttpTokens        string
 }
 
 type HostGroupInfo struct {

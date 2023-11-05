@@ -91,6 +91,7 @@ func fetchHostGroupParams(clusterName cluster.ClusterName, asg *autoscaling.Grou
 		Subnet:            *launchTemplateData.NetworkInterfaces[0].SubnetId,
 		VolumesInfo:       volumesInfo,
 		MaxSize:           *asg.MaxSize,
+		HttpTokens:        *launchTemplateData.MetadataOptions.HttpTokens,
 	}
 
 	if launchTemplateData.KeyName != nil {
