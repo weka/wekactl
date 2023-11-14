@@ -5,6 +5,8 @@ set -e
 BUILD_VERSION="$1"
 DISTRIBUTIONS=("$@")
 
+git checkout master
+git pull
 git tag "$BUILD_VERSION"
 git push --set-upstream origin master
 git push --tags
