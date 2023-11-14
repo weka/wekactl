@@ -14,11 +14,9 @@ git push --tags
 
 github_repo="weka/wekactl"
 
-filenames_arr=()
 filepaths_arr=()
 for distribution in "${DISTRIBUTIONS[@]}"; do
   filename=$(basename "$distribution")
-  filenames_arr+=("$filename")
   filepaths_arr+=("tmp/upload/$filename")
 done
 
@@ -38,7 +36,7 @@ docker build -t github-token . -f scripts/python.Dockerfile
 eval "$(docker run -e "DEPLOY_APP_ID=$DEPLOY_APP_ID" -e "DEPLOY_APP_PRIVATE_KEY=$DEPLOY_APP_PRIVATE_KEY" github-token)"
 echo "Fetched github token"
 AUTH="Authorization: token $GITHUB_TOKEN"
-dist_str=$(printf '\\n%s' "${filenames_arr[@]}")
+dist_str=$(printf '\\n%s' "${DISTRIBUTIONS[@]}")
 release_body="GA release$dist_str"
 echo "Creating draft release $BUILD_VERSION with body: $release_body"
 result=$(curl \
