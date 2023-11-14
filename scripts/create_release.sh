@@ -4,6 +4,7 @@ set -e
 
 BUILD_VERSION="$1"
 DISTRIBUTIONS=("$@")
+DISTRIBUTIONS=("${DISTRIBUTIONS[@]:1}") # removed the 1st element (BUILD_VERSION)
 
 git checkout master
 git pull
