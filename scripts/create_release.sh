@@ -36,10 +36,11 @@ fi
 
 docker build -t github-token . -f scripts/python.Dockerfile
 eval "$(docker run -e "DEPLOY_APP_ID=$DEPLOY_APP_ID" -e "DEPLOY_APP_PRIVATE_KEY=$DEPLOY_APP_PRIVATE_KEY" github-token)"
-
+echo "Fetched github token"
 AUTH="Authorization: token $GITHUB_TOKEN"
 dist_str=$(printf "%s\n" "${filenames_arr[@]}")
 release_body="GA release\n$dist_str"
+echo "Creating draft release $BUILD_VERSION with body: $release_body"
 result=$(curl \
   -X POST \
   -H "$AUTH" \
