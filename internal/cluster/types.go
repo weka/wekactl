@@ -22,6 +22,7 @@ type ImportParams struct {
 	AdditionalAlbSubnet string
 	DnsAlias            string
 	DnsZoneId           string
+	ReImport            bool
 }
 
 func (params ImportParams) TagsMap() Tags {

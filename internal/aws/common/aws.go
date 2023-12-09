@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"math"
 	"os"
+	"slices"
 	"sync"
 	"wekactl/internal/cluster"
 	"wekactl/internal/connectors"
@@ -265,10 +266,9 @@ func filterOutSameAvailabilityZoneAdditionalSubnets(subnetId string, subnets []*
 	return
 }
 
-func getSubnetsRouteMap(vpcId, subnetId string) (routeMap map[string]string, err error) {
+func getSubnetsRouteMap(vpcId, subnetId string, subnets []*ec2.Subnet) (routeMap map[string]string, err error) {
 	routeMap = map[string]string{}
 
-	subnets, err := GetVpcSubnets(vpcId)
 	if err != nil {
 		return
 	}
@@ -298,20 +298,39 @@ func getSubnetsRouteMap(vpcId, subnetId string) (routeMap map[string]string, err
 				}
 			}
 		}
-		routeMap[subnetId] = main
+		if _, ok := routeMap[subnetId]; !ok {
+			if main != "" {
+				routeMap[subnetId] = main
+			}
+		}
 	}
 	return
 }
 
 func GetAdditionalVpcSubnet(vpcId, subnetId string) (additionalVpcSubnet string, err error) {
-	routeMap, err := getSubnetsRouteMap(vpcId, subnetId)
+	subnets, err := GetVpcSubnets(vpcId)
 	if err != nil {
 		return
 	}
 
-	for subnet, route := range routeMap {
-		if route == routeMap[subnetId] && subnet != subnetId {
-			return subnet, nil
+	routeMap, err := getSubnetsRouteMap(vpcId, subnetId, subnets)
+	if err != nil {
+		return
+	}
+
+	var subnetIds []string
+	for _, s := range subnets {
+		subnetIds = append(subnetIds, *s.SubnetId)
+	}
+	slices.Sort(subnetIds)
+
+	for _, currentSubnetId := range subnetIds {
+		if _, ok := routeMap[currentSubnetId]; !ok {
+			log.Debug().Msgf("skipping subnet %s, no route table", currentSubnetId)
+			continue
+		}
+		if routeMap[currentSubnetId] == routeMap[subnetId] && currentSubnetId != subnetId {
+			return currentSubnetId, nil
 		}
 	}
 	return "", NoAdditionalSubnet

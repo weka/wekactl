@@ -3,6 +3,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudformation"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	errors2 "github.com/pkg/errors"
@@ -31,7 +32,7 @@ type Tag struct {
 	Value string
 }
 
-func GetStackId(stackName string) (string, error) {
+func GetStack(stackName string) (stack *cloudformation.Stack, err error) {
 	log.Debug().Msgf("Retrieving %s stack id ...", stackName)
 	svc := connectors.GetAWSSession().CF
 	result, err := svc.DescribeStacks(&cloudformation.DescribeStacksInput{
@@ -39,9 +40,10 @@ func GetStackId(stackName string) (string, error) {
 	})
 	if err != nil {
 		log.Error().Err(err)
-		return "", err
+		return
 	}
-	return *result.Stacks[0].StackId, nil
+	stack = result.Stacks[0]
+	return
 }
 
 func getStackInstances(stackName string) ([]*string, error) {
@@ -189,14 +191,73 @@ func instanceIdsToClusterInstances(instanceIds []string) (clusterInstances Clust
 	return
 }
 
+func getInstancesByClusterNameTag(clusterName string) (clusterInstances ClusterInstances, err error) {
+	log.Debug().Msgf("Retrieving instances by cluster name %s tag...", clusterName)
+	svc := connectors.GetAWSSession().EC2
+	result, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String(fmt.Sprintf("tag:%s", cluster.ClusterNameTagKey)),
+				Values: []*string{
+					&clusterName,
+				},
+			},
+			{
+				Name: aws.String("instance-state-name"),
+				Values: []*string{
+					aws.String("running"),
+				},
+			},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	for _, reservation := range result.Reservations {
+		for _, instance := range reservation.Instances {
+			clusterInstances.Backends = append(clusterInstances.Backends, instance)
+		}
+	}
+	return
+}
+
 func ImportCluster(params cluster.ImportParams) (err error) {
 	var stackId string
 	var clusterSettings db.ClusterSettings
 	var clusterInstances ClusterInstances
 	stackImport := len(params.InstanceIds) == 0
 
-	if stackImport {
-		stackId, err = GetStackId(params.Name)
+	stack, err := GetStack(params.Name)
+	if err != nil {
+		if stackImport && !params.ReImport {
+			return err
+		}
+	} else {
+		stackId = *stack.StackId
+		for _, parameter := range stack.Parameters {
+			if *parameter.ParameterKey == "NetworkTopology" {
+				if *parameter.ParameterValue == "Private subnet using Weka VPC endpoint" || *parameter.ParameterValue == "Private subnet using custom proxy" {
+					params.PrivateSubnet = true
+				} else {
+					params.PrivateSubnet = false
+				}
+				log.Debug().Msgf("Found network topology '%s', setting PrivateSubnet=%t", *parameter.ParameterValue, params.PrivateSubnet)
+				break
+			}
+		}
+	}
+
+	if params.ReImport {
+		clusterInstances, err = getInstancesByClusterNameTag(params.Name)
+		if err != nil {
+			return err
+		}
+		if len(clusterInstances.Backends) == 0 {
+			return errors.New(fmt.Sprintf("No instances found with cluster name tag %s", params.Name))
+		}
+		log.Debug().Msgf("Found %d running instances with cluster name tag %s", len(clusterInstances.Backends), params.Name)
+	} else if stackImport {
 		if err != nil {
 			return err
 		}
@@ -233,6 +294,7 @@ func ImportCluster(params cluster.ImportParams) (err error) {
 			}
 			return err
 		}
+		log.Info().Msgf("Found additional subnet %s", additionalSubnet)
 		clusterSettings.AdditionalSubnet = additionalSubnet
 	}
 
