@@ -245,6 +245,7 @@ func ImportCluster(params cluster.ImportParams) (err error) {
 	clusterSettings.BuildVersion = versionInfo.BuildVersion
 	clusterSettings.DnsAlias = params.DnsAlias
 	clusterSettings.DnsZoneId = params.DnsZoneId
+	clusterSettings.UseDynamoDBEndpoint = params.UseDynamoDBEndpoint
 
 	dynamoDb := DynamoDb{
 		ClusterName: cluster.ClusterName(params.Name),

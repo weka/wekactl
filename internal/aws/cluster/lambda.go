@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
+	"strconv"
 	"strings"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
@@ -14,15 +16,16 @@ import (
 )
 
 type Lambda struct {
-	Arn           string
-	TableName     string
-	Version       string
-	ASGName       string
-	Type          lambdas.LambdaType
-	Profile       IamProfile
-	VPCConfig     lambda.VpcConfig
-	HostGroupInfo common.HostGroupInfo
-	Permissions   iam.PolicyDocument
+	Arn                 string
+	TableName           string
+	Version             string
+	ASGName             string
+	Type                lambdas.LambdaType
+	Profile             IamProfile
+	VPCConfig           lambda.VpcConfig
+	HostGroupInfo       common.HostGroupInfo
+	Permissions         iam.PolicyDocument
+	UseDynamoDBEndpoint bool
 }
 
 func (l *Lambda) Tags() cluster.Tags {
@@ -87,7 +90,7 @@ func (l *Lambda) TargetVersion() string {
 
 func (l *Lambda) Create(tags cluster.Tags) (err error) {
 	functionConfiguration, err := lambdas.CreateLambda(
-		tags.AsStringRefs(), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo, l.VPCConfig)
+		tags.AsStringRefs(), l.Type, l.ResourceName(), l.Profile.Arn, l.ASGName, l.TableName, l.HostGroupInfo, l.VPCConfig, l.UseDynamoDBEndpoint)
 	if err != nil {
 		return
 	}
@@ -110,6 +113,17 @@ func (l *Lambda) Update(tags cluster.Tags) error {
 	}
 	if info.Arch != lambdas.LambdaArchDefault {
 		err := lambdas.UpdateLambdaArchitecture(l.ResourceName(), lambdas.LambdaArchDefault)
+		if err != nil {
+			return err
+		}
+	}
+	useDynamoDBEndpoint, err := strconv.ParseBool(*info.EnvironmentVariables["USE_DYNAMODB_ENDPOINT"])
+	if err != nil {
+		return err
+	}
+	if useDynamoDBEndpoint != l.UseDynamoDBEndpoint {
+		info.EnvironmentVariables["USE_DYNAMODB_ENDPOINT"] = aws.String(strconv.FormatBool(l.UseDynamoDBEndpoint))
+		err := lambdas.UpdateLambdaEnvironmentVariable(l.ResourceName(), info.EnvironmentVariables)
 		if err != nil {
 			return err
 		}

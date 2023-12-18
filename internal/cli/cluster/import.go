@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+	"syscall"
 	"wekactl/internal/aws/alb"
 	"wekactl/internal/aws/cluster"
 	cluster2 "wekactl/internal/cluster"
@@ -19,6 +21,13 @@ var importCmd = &cobra.Command{
 	Long:  "",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
+			if importParams.Password == "" {
+				fmt.Print("Please enter your weka cluster password: ")
+				bytePassword, _ := term.ReadPassword(syscall.Stdin)
+				importParams.Password = string(bytePassword)
+				fmt.Println()
+			}
+
 			err := cluster.ImportCluster(importParams)
 			if err != nil {
 				logging.UserFailure("Import failed!")
@@ -50,7 +59,7 @@ func init() {
 	importCmd.Flags().StringVarP(&importParams.AdditionalAlbSubnet, "additional-alb-subnet", "a", "", "Additional subnet to use for ALB")
 	importCmd.Flags().StringVarP(&importParams.DnsAlias, "dns-alias", "l", "", "ALB dns alias")
 	importCmd.Flags().StringVarP(&importParams.DnsZoneId, "dns-zone-id", "z", "", "ALB dns zone id")
+	importCmd.Flags().BoolVarP(&importParams.UseDynamoDBEndpoint, "use-dynamodb-endpoint", "d", false, "Use dynamoDB endpoint, this will allow avoiding the need to pass the weka cluster password from fetch lambda to scale down lambda and will not show it on the step function input/output")
 	_ = importCmd.MarkFlagRequired("name")
 	_ = importCmd.MarkFlagRequired("username")
-	_ = importCmd.MarkFlagRequired("password")
 }

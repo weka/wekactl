@@ -38,7 +38,7 @@ func createLambda(hostGroup common.HostGroupInfo, lambdaType lambdas.LambdaType,
 	tableName := common.GenerateResourceName(hostGroup.ClusterName, "")
 	lambdaTargetVersion := dist.LambdasID + iamTargetVersion
 	lambdaTags := cluster2.GetHostGroupResourceTags(hostGroup, lambdaTargetVersion).AsStringRefs()
-	functionConfiguration, err = lambdas.CreateLambda(lambdaTags, lambdaType, lambdaName, *roleArn, asgName, tableName, hostGroup, vpcConfig)
+	functionConfiguration, err = lambdas.CreateLambda(lambdaTags, lambdaType, lambdaName, *roleArn, asgName, tableName, hostGroup, vpcConfig, false)
 	if err != nil {
 		return
 	}

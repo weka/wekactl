@@ -14,18 +14,19 @@ import (
 const scaleMachineVersion = "v1"
 
 type ScaleMachine struct {
-	Arn             string
-	TableName       string
-	Version         string
-	ASGName         string
-	HostGroupInfo   common.HostGroupInfo
-	HostGroupParams common.HostGroupParams
-	fetch           Lambda
-	scale           Lambda
-	terminate       Lambda
-	transient       Lambda
-	StateMachine    scalemachine.StateMachine
-	Profile         IamProfile
+	Arn                 string
+	TableName           string
+	Version             string
+	ASGName             string
+	HostGroupInfo       common.HostGroupInfo
+	HostGroupParams     common.HostGroupParams
+	fetch               Lambda
+	scale               Lambda
+	terminate           Lambda
+	transient           Lambda
+	StateMachine        scalemachine.StateMachine
+	Profile             IamProfile
+	UseDynamoDBEndpoint bool
 }
 
 func (s *ScaleMachine) Tags() cluster.Tags {
@@ -152,6 +153,7 @@ func (s *ScaleMachine) Init() {
 	s.fetch.Type = lambdas.LambdaFetchInfo
 	s.fetch.VPCConfig = lambda.VpcConfig{}
 	s.fetch.Permissions = iam.GetJoinAndFetchLambdaPolicy()
+	s.fetch.UseDynamoDBEndpoint = s.UseDynamoDBEndpoint
 	s.fetch.Init()
 
 	s.scale.TableName = s.TableName
@@ -160,6 +162,7 @@ func (s *ScaleMachine) Init() {
 	s.scale.Type = lambdas.LambdaScale
 	s.scale.VPCConfig = vpcConfig
 	s.scale.Permissions = iam.GetScaleLambdaPolicy()
+	s.scale.UseDynamoDBEndpoint = s.UseDynamoDBEndpoint
 	s.scale.Init()
 
 	s.terminate.TableName = s.TableName

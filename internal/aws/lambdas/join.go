@@ -39,7 +39,7 @@ func GetJoinParams(ctx context.Context, clusterName, asgName, tableName, role st
 	}
 	instanceType := common.GetInstanceTypeFromAutoScalingGroupOutput(asgOutput)
 	common2.ShuffleSlice(ips)
-	creds, err := getUsernameAndPassword(tableName)
+	creds, err := GetUsernameAndPassword(tableName)
 	if err != nil {
 		return "", err
 	}

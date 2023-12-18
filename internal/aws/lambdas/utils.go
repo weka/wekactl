@@ -13,7 +13,7 @@ func getAutoScalingGroupDesiredCapacity(asgOutput *autoscaling.DescribeAutoScali
 	return int(*asgOutput.AutoScalingGroups[0].DesiredCapacity)
 }
 
-func getUsernameAndPassword(tableName string) (creds db.ClusterCreds, err error) {
+func GetUsernameAndPassword(tableName string) (creds db.ClusterCreds, err error) {
 	err = db.GetItem(tableName, db.ModelClusterCreds, &creds)
 	if err != nil {
 		return

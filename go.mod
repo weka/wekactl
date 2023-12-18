@@ -15,6 +15,7 @@ require (
 	github.com/weka/go-cloud-lib v0.0.0-20231006140855-8799bae6a0d1
 	golang.org/x/oauth2 v0.12.0
 	golang.org/x/sync v0.3.0
+	golang.org/x/term v0.13.0
 	gopkg.in/errgo.v2 v2.1.0
 )
 

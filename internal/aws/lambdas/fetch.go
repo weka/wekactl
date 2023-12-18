@@ -3,12 +3,13 @@ package lambdas
 import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/weka/go-cloud-lib/protocol"
 	"wekactl/internal/aws/common"
-	"wekactl/internal/aws/lambdas/protocol"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/connectors"
 )
 
-func GetFetchDataParams(clusterName, asgName, tableName, role string) (fd protocol.HostGroupInfoResponse, err error) {
+func GetFetchDataParams(clusterName, asgName, tableName, role string, useDynamoDBEndpoint bool) (fd protocol.HostGroupInfoResponse, err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
 	asgOutput, err := svc.DescribeAutoScalingGroups(input)
@@ -27,9 +28,12 @@ func GetFetchDataParams(clusterName, asgName, tableName, role string) (fd protoc
 		return
 	}
 
-	creds, err := getUsernameAndPassword(tableName)
-	if err != nil {
-		return
+	var creds db.ClusterCreds
+	if !useDynamoDBEndpoint {
+		creds, err = GetUsernameAndPassword(tableName)
+		if err != nil {
+			return
+		}
 	}
 
 	return protocol.HostGroupInfoResponse{
