@@ -3,8 +3,8 @@ package transient
 import (
 	"errors"
 	"fmt"
+	"github.com/weka/go-cloud-lib/protocol"
 	"strings"
-	"wekactl/internal/aws/lambdas/protocol"
 )
 
 func Handler(terminateResponse protocol.TerminatedInstancesResponse) error {

@@ -13,13 +13,14 @@ import (
 const cloudwatchVersion = "v1"
 
 type CloudWatch struct {
-	HostGroupInfo   common.HostGroupInfo
-	HostGroupParams common.HostGroupParams
-	ScaleMachine    ScaleMachine
-	Profile         IamProfile
-	TableName       string
-	Version         string
-	ASGName         string
+	HostGroupInfo        common.HostGroupInfo
+	HostGroupParams      common.HostGroupParams
+	ScaleMachine         ScaleMachine
+	Profile              IamProfile
+	TableName            string
+	Version              string
+	ASGName              string
+	UsedDynamoDBEndpoint bool
 }
 
 func (c *CloudWatch) Tags() cluster.Tags {
@@ -100,5 +101,6 @@ func (c *CloudWatch) Init() {
 	c.ScaleMachine.HostGroupInfo = c.HostGroupInfo
 	c.ScaleMachine.HostGroupParams = c.HostGroupParams
 	c.ScaleMachine.ASGName = c.ASGName
+	c.ScaleMachine.UseDynamoDBEndpoint = c.UsedDynamoDBEndpoint
 	c.ScaleMachine.Init()
 }

@@ -2,6 +2,7 @@ package lambdas
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/dist"
@@ -17,9 +18,10 @@ import (
 )
 
 type LambdaRuntimeInfo struct {
-	Runtime     LambdaRuntime
-	HandlerName string
-	Arch        LambdaArch
+	Runtime              LambdaRuntime
+	HandlerName          string
+	Arch                 LambdaArch
+	EnvironmentVariables map[string]*string
 }
 
 func GetLambdaVpcConfig(subnetId string, securityGroupIds []*string) lambda.VpcConfig {
@@ -44,7 +46,7 @@ func handleAwsInvalidParameterValueException(err error, lambdaName string, shoul
 	return false
 }
 
-func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, hostGroupInfo common.HostGroupInfo, vpcConfig lambda.VpcConfig) (*lambda.FunctionConfiguration, error) {
+func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceName, roleArn, asgName, tableName string, hostGroupInfo common.HostGroupInfo, vpcConfig lambda.VpcConfig, useDynamoDBEndpoint bool) (*lambda.FunctionConfiguration, error) {
 	svc := connectors.GetAWSSession().Lambda
 
 	bucket, err := dist.GetLambdaBucket()
@@ -69,12 +71,13 @@ func CreateLambda(tags cluster.TagsRefsValues, lambdaType LambdaType, resourceNa
 		Description: aws.String(fmt.Sprintf("Wekactl %s", string(lambdaType))),
 		Environment: &lambda.Environment{
 			Variables: map[string]*string{
-				"LAMBDA":       aws.String(string(lambdaType)),
-				"REGION":       aws.String(env.Config.Region),
-				"CLUSTER_NAME": aws.String(string(hostGroupInfo.ClusterName)),
-				"ASG_NAME":     aws.String(asgName),
-				"TABLE_NAME":   aws.String(tableName),
-				"ROLE":         aws.String(string(hostGroupInfo.Role)),
+				"LAMBDA":                aws.String(string(lambdaType)),
+				"REGION":                aws.String(env.Config.Region),
+				"CLUSTER_NAME":          aws.String(string(hostGroupInfo.ClusterName)),
+				"ASG_NAME":              aws.String(asgName),
+				"TABLE_NAME":            aws.String(tableName),
+				"ROLE":                  aws.String(string(hostGroupInfo.Role)),
+				"USE_DYNAMODB_ENDPOINT": aws.String(strconv.FormatBool(useDynamoDBEndpoint)),
 			},
 		},
 		Handler:       aws.String(lambdaHandler),
@@ -294,6 +297,7 @@ func GetLambdaRuntime(lambdaName string) (info LambdaRuntimeInfo, err error) {
 	info.Runtime = LambdaRuntime(*lambdaOutput.Configuration.Runtime)
 	info.HandlerName = *lambdaOutput.Configuration.Handler
 	info.Arch = LambdaArch(*lambdaOutput.Configuration.Architectures[0])
+	info.EnvironmentVariables = lambdaOutput.Configuration.Environment.Variables
 	return
 }
 
@@ -372,4 +376,15 @@ func UpdateLambdaRole(lambdaName, roleArn string) (err error) {
 		retry = handleAwsInvalidParameterValueException(err, lambdaName, retries > i+1)
 	}
 	return
+}
+
+func UpdateLambdaEnvironmentVariable(lambdaName string, environmentVariables map[string]*string) (err error) {
+	svc := connectors.GetAWSSession().Lambda
+	log.Info().Msgf("updating lambda %s environment variables ...", lambdaName)
+	_, err = svc.UpdateFunctionConfiguration(&lambda.UpdateFunctionConfigurationInput{
+		FunctionName: &lambdaName,
+		Environment: &lambda.Environment{
+			Variables: environmentVariables,
+		}})
+	return waitForLambdaLastUpdateStatusSuccess(lambdaName, 5*time.Second, 12)
 }

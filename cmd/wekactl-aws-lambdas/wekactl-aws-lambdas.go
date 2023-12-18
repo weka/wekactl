@@ -5,10 +5,11 @@ import (
 	"errors"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/weka/go-cloud-lib/scale_down"
+	"github.com/weka/go-cloud-lib/protocol"
 	"os"
+	"strconv"
 	"wekactl/internal/aws/lambdas"
-	"wekactl/internal/aws/lambdas/protocol"
+	"wekactl/internal/aws/lambdas/scale_down"
 	"wekactl/internal/aws/lambdas/terminate"
 	"wekactl/internal/aws/lambdas/transient"
 	"wekactl/internal/env"
@@ -29,11 +30,16 @@ func joinHandler(ctx context.Context) (events.APIGatewayProxyResponse, error) {
 }
 
 func fetchHandler() (protocol.HostGroupInfoResponse, error) {
+	useDynamoDBEndpoint, err := strconv.ParseBool(os.Getenv("USE_DYNAMODB_ENDPOINT"))
+	if err != nil {
+		return protocol.HostGroupInfoResponse{}, err
+	}
 	result, err := lambdas.GetFetchDataParams(
 		os.Getenv("CLUSTER_NAME"),
 		os.Getenv("ASG_NAME"),
 		os.Getenv("TABLE_NAME"),
 		os.Getenv("ROLE"),
+		useDynamoDBEndpoint,
 	)
 	if err != nil {
 		return protocol.HostGroupInfoResponse{}, err
@@ -49,7 +55,7 @@ func main() {
 	case "fetch":
 		lambda.Start(fetchHandler)
 	case "scale":
-		lambda.Start(scale_down.ScaleDown)
+		lambda.Start(scale_down.Handler)
 	case "terminate":
 		lambda.Start(terminate.Handler)
 	case "transient":

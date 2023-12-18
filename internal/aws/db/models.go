@@ -18,18 +18,19 @@ type ClusterCreds struct {
 }
 
 type ClusterSettings struct {
-	Key              string
-	Backends         common.HostGroupParams
-	Clients          common.HostGroupParams
-	Subnet           string
-	AdditionalSubnet string
-	VpcId            string
-	TagsMap          cluster.Tags
-	PrivateSubnet    bool
-	StackId          *string // != nil in case it is created from CF stack
-	BuildVersion     string
-	DnsAlias         string
-	DnsZoneId        string
+	Key                 string
+	Backends            common.HostGroupParams
+	Clients             common.HostGroupParams
+	Subnet              string
+	AdditionalSubnet    string
+	VpcId               string
+	TagsMap             cluster.Tags
+	PrivateSubnet       bool
+	StackId             *string // != nil in case it is created from CF stack
+	BuildVersion        string
+	DnsAlias            string
+	DnsZoneId           string
+	UseDynamoDBEndpoint bool
 }
 
 func (c ClusterSettings) Tags() cluster.Tags {

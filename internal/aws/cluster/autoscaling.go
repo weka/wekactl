@@ -73,5 +73,6 @@ func (a *AutoscalingGroup) Init() {
 	a.ScaleMachineCloudWatch.HostGroupParams = a.HostGroupParams
 	a.ScaleMachineCloudWatch.TableName = a.TableName
 	a.ScaleMachineCloudWatch.ASGName = a.ResourceName()
+	a.ScaleMachineCloudWatch.UsedDynamoDBEndpoint = a.ClusterSettings.UseDynamoDBEndpoint
 	a.ScaleMachineCloudWatch.Init()
 }

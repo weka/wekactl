@@ -21,7 +21,7 @@ type Principal struct {
 	Service string
 }
 
-//Resource is prohibited for assume role
+// Resource is prohibited for assume role
 type PolicyStatement struct {
 	Effect    string
 	Action    []string
@@ -171,6 +171,8 @@ func GetScaleLambdaPolicy() PolicyDocument {
 					"ec2:CreateNetworkInterface",
 					"ec2:DescribeNetworkInterfaces",
 					"ec2:DeleteNetworkInterface",
+					"dynamodb:GetItem",
+					"kms:Decrypt",
 				},
 				Resource: "*",
 			},
