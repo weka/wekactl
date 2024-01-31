@@ -9,14 +9,37 @@ import (
 	common2 "github.com/weka/go-cloud-lib/common"
 	"github.com/weka/go-cloud-lib/functions_def"
 	"github.com/weka/go-cloud-lib/join"
+	"os"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/connectors"
 )
 
-type AwsFuncDef struct {
+type AWSFuncDef struct {
+	region             string
+	lambdaNamesMapping map[functions_def.FunctionName]string
 }
 
-func (d *AwsFuncDef) GetFunctionCmdDefinition(name functions_def.FunctionName) string {
+func NewFuncDef() functions_def.FunctionDef {
+	region := os.Getenv("REGION")
+	mapping := map[functions_def.FunctionName]string{
+		functions_def.Fetch: os.Getenv("FETCH_LAMBDA_NAME"),
+	}
+	return &AWSFuncDef{lambdaNamesMapping: mapping, region: region}
+}
+
+func (d *AWSFuncDef) GetFunctionCmdDefinition(name functions_def.FunctionName) string {
+	if name == functions_def.Fetch {
+		// NOTE: here we have kind of a hack to clean the output from the lambda invoke command
+		funcDefTemplate := `
+		function %s {
+			local json_data=$1
+			res=$(aws lambda invoke --region %s --function-name %s --payload "$json_data" output)
+			printf "%%b" "$(cat output | sed 's/^"//' | sed 's/"$//' | sed 's/\\\"/"/g')"
+		}
+		`
+		return fmt.Sprintf(funcDefTemplate, name, d.region, name)
+	}
+
 	defTemplate := `
 	function %s {
 		echo "currently ${FUNCNAME[0]} is not supported, ignoring..."
@@ -118,7 +141,7 @@ func GetJoinParams(ctx context.Context, clusterName, asgName, tableName, role st
 		FindDrivesScript:   dedent.Dedent(findDrivesScript),
 		ScriptBase:         dedent.Dedent(scriptBase),
 		Params:             joinParams,
-		FuncDef:            &AwsFuncDef{},
+		FuncDef:            NewFuncDef(),
 	}
 	bashScript := joinScriptGenerator.GetJoinScript(ctx)
 

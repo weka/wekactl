@@ -9,7 +9,7 @@ import (
 	"wekactl/internal/connectors"
 )
 
-func GetFetchDataParams(clusterName, asgName, tableName, role string, useDynamoDBEndpoint bool) (fd protocol.HostGroupInfoResponse, err error) {
+func GetFetchDataParams(clusterName, asgName, tableName, role string, fetchWekaCredentials bool) (fd protocol.HostGroupInfoResponse, err error) {
 	svc := connectors.GetAWSSession().ASG
 	input := &autoscaling.DescribeAutoScalingGroupsInput{AutoScalingGroupNames: []*string{&asgName}}
 	asgOutput, err := svc.DescribeAutoScalingGroups(input)
@@ -29,7 +29,7 @@ func GetFetchDataParams(clusterName, asgName, tableName, role string, useDynamoD
 	}
 
 	var creds db.ClusterCreds
-	if !useDynamoDBEndpoint {
+	if fetchWekaCredentials {
 		creds, err = GetUsernameAndPassword(tableName)
 		if err != nil {
 			return
