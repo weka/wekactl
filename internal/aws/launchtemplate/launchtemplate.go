@@ -16,7 +16,7 @@ import (
 	"wekactl/internal/env"
 )
 
-const LaunchtemplateVersion = "v2"
+const LaunchtemplateVersion = "v3"
 
 func generateBlockDeviceMappingRequest(name common.HostGroupName, volumesInfo []common.VolumeInfo) (request []*ec2.LaunchTemplateBlockDeviceMappingRequest) {
 	log.Debug().Msgf("generating %s launch template block device mapping", string(name))
@@ -52,7 +52,6 @@ func getUserData(restApiGateway apigateway.RestApiGateway, subnetId, instanceTyp
 	groups=%s
 	nics_num=%d
 	join_url=%s
-	api_key=%s
 
 	token=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 	instance_id=$(curl -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/instance-id)
@@ -65,6 +64,8 @@ func getUserData(restApiGateway apigateway.RestApiGateway, subnetId, instanceTyp
 		aws ec2 attach-network-interface --region $region --device-index $i --instance-id $instance_id --network-interface-id $network_interface_id
 	done
 
+	set +x
+	api_key=$(echo "%s" | base64 --decode)
 	if ! curl --location --request GET "$join_url" --header "x-api-key: $api_key" | sudo sh; then
 		shutdown now
 	fi
