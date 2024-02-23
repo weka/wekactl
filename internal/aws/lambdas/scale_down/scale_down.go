@@ -6,7 +6,8 @@ import (
 	"github.com/weka/go-cloud-lib/scale_down"
 	"os"
 	"strconv"
-	"wekactl/internal/aws/lambdas"
+	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 )
 
 func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response protocol.ScaleResponse, err error) {
@@ -16,7 +17,7 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		return protocol.ScaleResponse{}, err
 	}
 	if useDynamoDBEndpoint {
-		creds, err2 := lambdas.GetUsernameAndPassword(tableName)
+		creds, err2 := db.GetUsernameAndPassword(tableName)
 		if err2 != nil {
 			err = err2
 			return
@@ -24,5 +25,16 @@ func Handler(ctx context.Context, info protocol.HostGroupInfoResponse) (response
 		info.Username = creds.Username
 		info.Password = creds.Password
 	}
+
+	info.Username, err = common.DecodeBase64(info.Username)
+	if err != nil {
+		return
+	}
+
+	info.Password, err = common.DecodeBase64(info.Password)
+	if err != nil {
+		return
+	}
+
 	return scale_down.ScaleDown(ctx, info)
 }

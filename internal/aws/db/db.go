@@ -100,8 +100,8 @@ func CreateDb(tableName, kmsKey string, tags cluster.Tags) error {
 func SaveCredentials(tableName string, username, password string) error {
 	err := PutItem(tableName, ClusterCreds{
 		Key:      ModelClusterCreds,
-		Username: username,
-		Password: password,
+		Username: common.EncodeBase64(username),
+		Password: common.EncodeBase64(password),
 	})
 	if err != nil {
 		log.Debug().Msgf("error saving credentials to DB %v", err)
@@ -129,10 +129,10 @@ func ChangeCredentials(tableName string, username, password string) error {
 	_, err := svc.UpdateItem(&dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":u": {
-				S: aws.String(username),
+				S: aws.String(common.EncodeBase64(username)),
 			},
 			":p": {
-				S: aws.String(password),
+				S: aws.String(common.EncodeBase64(password)),
 			},
 		},
 		TableName: aws.String(tableName),
@@ -149,18 +149,6 @@ func ChangeCredentials(tableName string, username, password string) error {
 		return err
 	}
 	log.Debug().Msgf("Username:%s and Password:%s were changed successfully!", username, strings.Repeat("*", len(password)))
-	return nil
-}
-
-func saveClusterParams(tableName string, params ClusterSettings) error {
-	if params.Key == "" {
-		params.Key = ModelClusterSettings
-	}
-	err := PutItem(tableName, params)
-	if err != nil {
-		log.Debug().Msgf("error saving cluster params to DB %v", err)
-		return err
-	}
 	return nil
 }
 
@@ -205,6 +193,22 @@ func GetDbVersion(tableName string) (version string, err error) {
 	}
 
 	return
+}
+
+func UpdateDbVersion(clusterName cluster.ClusterName, tags cluster.Tags) error {
+	table, err := GetClusterDb(clusterName)
+	if err != nil {
+		return err
+	}
+	svc := connectors.GetAWSSession().DynamoDB
+	_, err = svc.TagResource(&dynamodb.TagResourceInput{
+		ResourceArn: table.TableArn,
+		Tags:        tags.ToDynamoDb(),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func GetTableName(name cluster.ClusterName) string {
@@ -265,4 +269,12 @@ func DeleteTable(table *dynamodb.TableDescription, clusterName cluster.ClusterNa
 		}
 	}
 	return nil
+}
+
+func GetUsernameAndPassword(tableName string) (creds ClusterCreds, err error) {
+	err = GetItem(tableName, ModelClusterCreds, &creds)
+	if err != nil {
+		return
+	}
+	return
 }

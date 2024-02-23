@@ -30,7 +30,7 @@ func GetFetchDataParams(clusterName, asgName, tableName, role string, useDynamoD
 
 	var creds db.ClusterCreds
 	if !useDynamoDBEndpoint {
-		creds, err = GetUsernameAndPassword(tableName)
+		creds, err = db.GetUsernameAndPassword(tableName)
 		if err != nil {
 			return
 		}

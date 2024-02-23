@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
+	"syscall"
 	"wekactl/internal/aws/common"
 	"wekactl/internal/aws/db"
 	"wekactl/internal/cluster"
@@ -24,6 +26,12 @@ var changeCredentialsCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if env.Config.Provider == "aws" {
 			tableNAme := common.GenerateResourceName(cluster.ClusterName(changeCredsParams.Name), "")
+			if changeCredsParams.Password == "" {
+				fmt.Print("Please enter your weka cluster password: ")
+				bytePassword, _ := term.ReadPassword(syscall.Stdin)
+				changeCredsParams.Password = string(bytePassword)
+				fmt.Println()
+			}
 			err := db.ChangeCredentials(tableNAme, changeCredsParams.Username, changeCredsParams.Password)
 			if err != nil {
 				logging.UserFailure("Credentials change failed!")
@@ -45,5 +53,4 @@ func init() {
 	changeCredentialsCmd.Flags().StringVarP(&changeCredsParams.Password, "password", "p", "", "Cluster password")
 	_ = changeCredentialsCmd.MarkFlagRequired("name")
 	_ = changeCredentialsCmd.MarkFlagRequired("username")
-	_ = changeCredentialsCmd.MarkFlagRequired("password")
 }

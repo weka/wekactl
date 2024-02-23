@@ -174,5 +174,14 @@ func UpdateCluster(name cluster.ClusterName, dryRun bool) error {
 		return err
 	}
 
+	dynamoDb := DynamoDb{
+		ClusterName: name,
+	}
+	dynamoDb.Init()
+	err = cluster.EnsureResource(&dynamoDb, awsCluster.ClusterSettings, false)
+	if err != nil {
+		return err
+	}
+
 	return cluster.EnsureResource(&awsCluster, awsCluster.ClusterSettings, dryRun)
 }

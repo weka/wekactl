@@ -7,7 +7,7 @@ import (
 	"wekactl/internal/cluster"
 )
 
-const dbVersion = "v1"
+const dbVersion = "v2"
 
 type DynamoDb struct {
 	ClusterName cluster.ClusterName
@@ -65,5 +65,19 @@ func (d *DynamoDb) Create(tags cluster.Tags) error {
 }
 
 func (d *DynamoDb) Update(tags cluster.Tags) error {
-	panic("update not supported")
+	err := db.UpdateDbVersion(d.ClusterName, tags)
+	if err != nil {
+		return err
+	}
+
+	var creds db.ClusterCreds
+	if d.DeployedVersion() == "v1" {
+		creds, err = db.GetUsernameAndPassword(d.ResourceName())
+		if err != nil {
+			return err
+		}
+		err = db.ChangeCredentials(d.ResourceName(), creds.Username, creds.Password)
+	}
+
+	return err
 }

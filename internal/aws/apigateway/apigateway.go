@@ -162,7 +162,7 @@ func createRestApiGateway(tags cluster.TagsRefsValues, lambdaUri string, apiGate
 	restApiGateway = RestApiGateway{
 		Id:     *restApiId,
 		Name:   apiGatewayName,
-		ApiKey: *apiKeyOutput.Value,
+		ApiKey: common.EncodeBase64(*apiKeyOutput.Value),
 	}
 	return
 }
@@ -338,7 +338,7 @@ func GetRestApiGateway(resourceName string) (restApiGateway RestApiGateway, err 
 		if *apiKey.Name != resourceName {
 			continue
 		}
-		restApiGateway.ApiKey = *apiKey.Value
+		restApiGateway.ApiKey = common.EncodeBase64(*apiKey.Value)
 		break
 	}
 	if restApiGateway.ApiKey == "" {

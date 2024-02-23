@@ -10,6 +10,7 @@ import (
 	"github.com/weka/go-cloud-lib/functions_def"
 	"github.com/weka/go-cloud-lib/join"
 	"wekactl/internal/aws/common"
+	"wekactl/internal/aws/db"
 	"wekactl/internal/connectors"
 )
 
@@ -39,7 +40,7 @@ func GetJoinParams(ctx context.Context, clusterName, asgName, tableName, role st
 	}
 	instanceType := common.GetInstanceTypeFromAutoScalingGroupOutput(asgOutput)
 	common2.ShuffleSlice(ips)
-	creds, err := GetUsernameAndPassword(tableName)
+	creds, err := db.GetUsernameAndPassword(tableName)
 	if err != nil {
 		return "", err
 	}
@@ -105,7 +106,7 @@ func GetJoinParams(ctx context.Context, clusterName, asgName, tableName, role st
 	instanceParams := backendCoreCounts[instanceType]
 
 	joinParams := join.JoinParams{
-		WekaUsername:   "admin",
+		WekaUsername:   creds.Username,
 		WekaPassword:   creds.Password,
 		IPs:            ips,
 		InstallDpdk:    true,
