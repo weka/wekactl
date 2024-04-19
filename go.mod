@@ -15,7 +15,7 @@ require (
 	github.com/weka/go-cloud-lib v0.0.0-20231006140855-8799bae6a0d1
 	golang.org/x/oauth2 v0.12.0
 	golang.org/x/sync v0.3.0
-	golang.org/x/term v0.13.0
+	golang.org/x/term v0.18.0
 	gopkg.in/errgo.v2 v2.1.0
 )
 
@@ -29,8 +29,8 @@ require (
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
