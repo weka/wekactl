@@ -1,7 +1,7 @@
 # DEPRECATION NOTE
 
 This repository is deprecated, since the cloudformation deployment, which wekactl helped to convert to autoscaling-capable deployment, is deprecated
-Use cloud.weka.io instead for guidance on weka terraform packages
+Use https://cloud.weka.io instead for guidance on weka terraform packages
 
 # wekactl
 
